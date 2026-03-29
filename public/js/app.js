@@ -687,6 +687,19 @@ window.UI = {
         })
         .sort((a,b) => a.dist - b.dist).slice(0, 80);
 
+      // Merge in known courses missing from OSM (Heritage Harbor, TPC, Northdale)
+      const KNOWN_LUTZ = [
+        {name:"Heritage Harbor Golf & Country Club",lat:28.1372,lon:-82.5012,phone:"(813) 949-4886",website:"https://www.heritageharborgolf.com",addr:"Lutz, FL",type:"Golf Course",holes:"18",dist:0},
+        {name:"TPC Tampa Bay",lat:28.1612,lon:-82.5189,phone:"(813) 949-0090",website:"https://www.tpctampabay.com",addr:"Lutz, FL",type:"Golf Course",holes:"18",dist:0},
+        {name:"Northdale Golf & Tennis Club",lat:28.0823,lon:-82.5281,phone:"(813) 962-0428",website:null,addr:"Tampa, FL",type:"Golf Course",holes:"18",dist:0},
+      ];
+      KNOWN_LUTZ.forEach(k => {
+        k.dist = _haversine(lat,lon,k.lat,k.lon);
+        const key = k.name.toLowerCase().replace(/[^a-z0-9]/g,'');
+        if(!seen.has(key)){ seen.add(key); courses.push(k); }
+      });
+      courses.sort((a,b)=>a.dist-b.dist);
+      courses = courses.slice(0,80);
       window._nearbyCourses = courses;
       try { sessionStorage.setItem(ck, JSON.stringify({ts:Date.now(), data:courses})); } catch(_){}
       UI.filterCourses('');
