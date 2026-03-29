@@ -536,85 +536,53 @@ window.UI = {
   },
 
   async loadNearbyCourses() {
-    const container = document.getElementById('courses-list');
-    const label     = document.getElementById('courses-radius-label');
+    const container = document.getElementById("courses-list");
+    const label     = document.getElementById("courses-radius-label");
     if (!container) return;
-    // Check 30-minute cache first
-      const cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
+
+    // Step 1: Get lat/lon from cache, profile city, or GPS
+    let lat = window._wxLat, lon = window._wxLon;
+    const city = window._weatherCity || myProfile.city || "";
+
+    if (!lat && city) {
       try {
-        const cached = sessionStorage.getItem(cacheKey);
-        if (cached) {
-          const p = JSON.parse(cached);
-          if (p.ts && Date.now()-p.ts < 30*60*1000) {
-            window._nearbyCourses = p.data;
-            UI.filterCourses("");
-            if(label) label.textContent = p.data.length+" golf courses within 25 miles";
-            return;
-          }
-        }
+        const cityOnly = city.split(",")[0].trim();
+        const gd = await (await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(cityOnly)+"&count=1&language=en&format=json")).json();
+        if (gd.results?.length) { lat = gd.results[0].latitude; lon = gd.results[0].longitude; }
       } catch(_) {}
-      // Check 30-minute cache first
-      cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
+    }
+    if (!lat) {
       try {
-        const cached = sessionStorage.getItem(cacheKey);
-        if (cached) {
-          const p = JSON.parse(cached);
-          if (p.ts && Date.now()-p.ts < 30*60*1000) {
-            window._nearbyCourses = p.data;
-            UI.filterCourses("");
-            if(label) label.textContent = p.data.length+" golf courses within 25 miles";
-            return;
-          }
-        }
+        const pos = await new Promise((res,rej) => navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}));
+        lat = pos.coords.latitude; lon = pos.coords.longitude;
       } catch(_) {}
-      container.innerHTML = '<div class="empty-state">Finding courses near you…</div>';
+    }
+    if (!lat) {
+      container.innerHTML = '<div class="empty-state">Add your city in Edit Profile to find nearby courses ⛳</div>';
+      return;
+    }
+
+    // Step 2: Check 30-minute session cache
+    const cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const p = JSON.parse(cached);
+        if (p.ts && Date.now()-p.ts < 30*60*1000) {
+          window._nearbyCourses = p.data;
+          UI.filterCourses("");
+          if (label) label.textContent = p.data.length+" golf courses within 25 miles";
+          return;
+        }
+      }
+    } catch(_) {}
+
+    // Step 3: Fetch from Overpass
+    container.innerHTML = '<div class="empty-state">Finding courses near you…</div>';
+    const radius = 40234; // 25 miles in meters
+    if (label) label.textContent = "Golf courses within 25 miles";
 
     try {
-      // Get lat/lon — from GPS first, then from profile city
-      let lat = window._wxLat, lon = window._wxLon, cityName = window._weatherCity || myProfile.city || '';
-
-      if (!lat && cityName) {
-        const cityOnly = cityName.split(',')[0].trim();
-        const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityOnly)}&count=1&language=en&format=json`);
-        const gd  = await geo.json();
-        if (gd.results?.length) { lat = gd.results[0].latitude; lon = gd.results[0].longitude; }
-      }
-
-      if (!lat) {
-        // Try GPS as last resort
-        try {
-          const pos = await new Promise((res,rej) => navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}));
-          lat = pos.coords.latitude; lon = pos.coords.longitude;
-        } catch(_) {}
-      }
-
-      if (!lat) {
-        container.innerHTML = '<div class="empty-state">Add your city in Edit Profile to find nearby courses ⛳</div>';
-        return;
-      }
-
-      // 25 miles ≈ 40,234 meters — use Overpass API (free, no key)
-      const radius = 40234;
-
-      // Check 30-minute cache now that we have lat/lon
-      const cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
-      try {
-        const cached = sessionStorage.getItem(cacheKey);
-        if (cached) {
-          const p = JSON.parse(cached);
-          if (p.ts && Date.now()-p.ts < 30*60*1000) {
-            window._nearbyCourses = p.data;
-            UI.filterCourses("");
-            if(label) label.textContent = p.data.length+" golf courses within 25 miles";
-            return;
-          }
-        }
-      } catch(_) {}
-      if (label) label.textContent = 'Golf courses within 25 miles';
-
-      const overpassUrl = 'https://overpass-api.de/api/interpreter';
-      // Comprehensive query: catches golf_course, golf clubs, country clubs,
-      // sport=golf amenities, and named golf/country club facilities
       const query = `[out:json][timeout:25];
 (
   nwr["leisure"="golf_course"](around:${radius},${lat},${lon});
@@ -623,58 +591,57 @@ window.UI = {
 );
 out center tags 100;`;
 
-      const res = await fetch(overpassUrl, {
-        method:'POST',
-        headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:'data='+encodeURIComponent(query)
+      const res = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: "data="+encodeURIComponent(query)
       });
-      if(!res.ok) throw new Error('Overpass HTTP '+res.status);
-      const rawText = await res.text();
-      if(rawText.trim().startsWith('<')) throw new Error('Overpass rate limited — try again in 30s');
-      const data = JSON.parse(rawText);
+      if (!res.ok) throw new Error("Overpass HTTP "+res.status);
+      const raw = await res.text();
+      if (raw.trim().startsWith("<")) throw new Error("Overpass rate limited — try again in 60s");
+      const data = JSON.parse(raw);
       const elements = data.elements || [];
 
       if (!elements.length) {
-        container.innerHTML = '<div class="empty-state">No golf courses found within 25 miles. Try updating your city in Edit Profile.</div>';
+        container.innerHTML = '<div class="empty-state">No golf courses found within 25 miles.</div>';
         return;
       }
 
-      // Deduplicate by normalized name, compute distance, sort by distance
       const seen = new Set();
-      const normalize = n => n.toLowerCase().replace(/[^a-z0-9]/g,'');
+      const norm = n => n.toLowerCase().replace(/[^a-z0-9]/g,"");
       const courses = elements
         .filter(e => {
           const name = e.tags?.name;
           if (!name) return false;
-          const key = normalize(name);
+          const key = norm(name);
           if (seen.has(key)) return false;
           seen.add(key); return true;
         })
         .map(e => {
           const cLat = e.lat || e.center?.lat || lat;
           const cLon = e.lon || e.center?.lon || lon;
-          const dMiles = _haversine(lat, lon, cLat, cLon);
+          const dist = _haversine(lat, lon, cLat, cLon);
           return {
-            name:    e.tags?.name || e.tags?.['name:en'] || e.tags?.operator || 'Golf Course',
-            holes:   e.tags?.['golf:holes'] || e.tags?.holes || null,
-            type:    e.tags?.club === 'golf' ? 'Country Club' : e.tags?.amenity === 'driving_range' ? 'Driving Range' : e.tags?.leisure === 'miniature_golf' ? 'Mini Golf' : 'Golf Course',
-            phone:   e.tags?.phone || e.tags?.['contact:phone'] || null,
-            website: e.tags?.website || e.tags?.['contact:website'] || null,
-            addr:    [e.tags?.['addr:city'], e.tags?.['addr:state']].filter(Boolean).join(', '),
-            dist:    dMiles,
-            lat: cLat, lon: cLon,
+            name:    e.tags?.name || "Golf Course",
+            holes:   e.tags?.["golf:holes"] || e.tags?.holes || null,
+            phone:   e.tags?.phone || e.tags?.["contact:phone"] || null,
+            website: e.tags?.website || e.tags?.["contact:website"] || null,
+            addr:    [e.tags?.["addr:city"], e.tags?.["addr:state"]].filter(Boolean).join(", "),
+            type:    e.tags?.club === "golf" ? "Country Club" : "Golf Course",
+            dist, lat: cLat, lon: cLon,
           };
         })
         .sort((a,b) => a.dist - b.dist)
-        .slice(0, 80);
+        .slice(0, 60);
 
       window._nearbyCourses = courses;
-      UI.filterCourses('');
-      if (label) label.textContent = `${courses.length} golf courses within 25 miles`;
+      try { sessionStorage.setItem(cacheKey, JSON.stringify({ts:Date.now(), data:courses})); } catch(_){}
+      UI.filterCourses("");
+      if (label) label.textContent = courses.length+" golf courses within 25 miles";
 
     } catch(e) {
-      console.error('loadNearbyCourses error:', e);
-      container.innerHTML = '<div class="empty-state">Could not load courses. Check your connection and try again.</div>';
+      console.error("loadNearbyCourses error:", e);
+      container.innerHTML = `<div class="empty-state">${e.message.includes("rate")||e.message.includes("429")||e.message.includes("504") ? "Overpass is busy — wait 30s and tap Refresh ↻" : "Could not load courses. Check connection and try again."}</div>`;
     }
   },
 
