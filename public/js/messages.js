@@ -2,13 +2,13 @@
 //  FAIRWAY FRIEND — Messaging
 // ============================================================
 
-import { db } from "./firebase-config.js?v=7";
+import { db } from "./firebase-config.js?v=8";
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc,
   query, where, orderBy, limit, onSnapshot,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=7";
+import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=8";
 
 let _unsubMessages = null;
 let _unsubConvList = null;

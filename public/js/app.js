@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=7";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=7";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=7";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=7";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=7";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=7";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=8";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=8";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=8";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=8";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=8";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=8";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=7";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=7";
+         teardownMessaging } from "./messages.js?v=8";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=8";
 
 
 // ── Haversine distance in miles ──
@@ -51,8 +51,9 @@ window.UI = {
       UI.loadScorecardWeather();
     }
     if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
-    if (name === "feed")         { UI.refreshWeather(); startLocationWatch(); }
+    if (name === "feed")         { updateProfileUI(); UI.refreshWeather(); startLocationWatch(); }
     if (name === "search") {
+      updateProfileUI();
       // If city changed since last load, clear cache and reload
       const currentCity = window._weatherCity || '';
       if (window._lastCourseCity && window._lastCourseCity !== currentCity) {
@@ -64,7 +65,7 @@ window.UI = {
       UI.loadNearbyCourses();
     }
     if (name === "edit-profile") UI.goToEditProfile();
-    if (name === "messages")     UI.loadConversations();
+    if (name === "messages")     { updateProfileUI(); UI.loadConversations(); }
     if (name === "my-activity")  UI.loadFullActivity();
     if (name === "conversation") {} // handled by openConversation
     // Show/hide bottom nav based on screen type
@@ -284,7 +285,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=7");
+      const { initials, avatarColor } = await import("./ui.js?v=8");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
