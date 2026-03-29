@@ -29,6 +29,10 @@ window.UI = {
 
   // ── Navigation ──
   goScreen(name) {
+    // Sanitize — only allow known screen names
+    const VALID_SCREENS = ["feed","players","search","scorecard","profile","edit-profile",
+      "vibes","messages","conversation","my-activity","auth","onboard"];
+    if(name && !VALID_SCREENS.includes(name)) { console.warn("Invalid screen:", name); return; }
     goScreen(name);
     if (name === "scorecard") {
       buildScoreTable();
@@ -63,9 +67,20 @@ window.UI = {
 
   // ── Weather ──
   refreshWeather() {
-    // Use city from profile — geocodes to lat/lon automatically
     const city = window._weatherCity || myProfile.city || "";
     loadWeather(city);
+  },
+
+  loadScorecardWeather() {
+    const de=document.getElementById("sc-round-date"),te=document.getElementById("sc-round-time"),ce=document.getElementById("sc-weather");
+    if(!ce)return;
+    const dv=de?.value||"",tv=te?.value||"08:00";
+    if(!dv){ce.innerHTML="";return;}
+    const d=new Date(dv+"T12:00:00"),ds=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+    const [hh,mm]=(tv).split(":").map(Number),ap=hh>=12?"PM":"AM",h=hh%12||12;
+    const ts=h+":"+String(mm||0).padStart(2,"0")+" "+ap;
+    ce.id="sheet-weather";
+    loadRoundDayForecast(ds,ts,window._weatherCity||"").finally(()=>{const e=document.getElementById("sheet-weather");if(e)e.id="sc-weather";});
   },
 
   // ── Edit profile screen — pre-fill fields ──
@@ -126,11 +141,12 @@ window.UI = {
   },
 
   async saveProfileEdits() {
-    const bio       = (document.getElementById("edit-bio")?.value         || "").trim().slice(0,160);
+    const bio       = (document.getElementById("edit-bio")?.value         || "").trim();
     const cityRaw   = (document.getElementById("edit-city")?.value        || "").trim();
     const stateRaw  = (document.getElementById("edit-state")?.value       || "").trim().toUpperCase();
     const homeCourse= (document.getElementById("edit-home-course")?.value || "").trim();
-    const handicap  = parseInt(document.getElementById("edit-hdcp")?.value) || 18;
+    const handicapRaw = parseInt(document.getElementById("edit-hdcp")?.value);
+    const handicap = isNaN(handicapRaw) ? 18 : Math.max(0, Math.min(54, handicapRaw));
     const errEl     = document.getElementById("edit-profile-error");
 
     // City is required; state is strongly recommended but not blocked
@@ -554,16 +570,37 @@ window.UI = {
       if (label) label.textContent = 'Golf courses within 25 miles';
 
       const overpassUrl = 'https://overpass-api.de/api/interpreter';
-      const query = `[out:json][timeout:20];
+      // Comprehensive query: catches golf_course, golf clubs, country clubs,
+      // sport=golf amenities, and named golf/country club facilities
+      const query = `[out:json][timeout:30];
 (
   node["leisure"="golf_course"](around:${radius},${lat},${lon});
   way["leisure"="golf_course"](around:${radius},${lat},${lon});
   relation["leisure"="golf_course"](around:${radius},${lat},${lon});
+  node["sport"="golf"](around:${radius},${lat},${lon});
+  way["sport"="golf"](around:${radius},${lat},${lon});
+  relation["sport"="golf"](around:${radius},${lat},${lon});
+  node["golf"="yes"](around:${radius},${lat},${lon});
+  way["golf"="yes"](around:${radius},${lat},${lon});
+  node["amenity"="golf_course"](around:${radius},${lat},${lon});
+  way["amenity"="golf_course"](around:${radius},${lat},${lon});
+  way["leisure"="golf_course"]["name"](around:${radius},${lat},${lon});
+  relation["leisure"="golf_course"]["name"](around:${radius},${lat},${lon});
+  node["club"="golf"](around:${radius},${lat},${lon});
+  way["club"="golf"](around:${radius},${lat},${lon});
+  relation["club"="golf"](around:${radius},${lat},${lon});
 );
-out center tags 50;`;
+out center tags 200;`;
 
-      const res  = await fetch(overpassUrl, { method:'POST', body:query });
-      const data = await res.json();
+      const res = await fetch(overpassUrl, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'data='+encodeURIComponent(query)
+      });
+      if(!res.ok) throw new Error('Overpass HTTP '+res.status);
+      const rawText = await res.text();
+      if(rawText.trim().startsWith('<')) throw new Error('Overpass rate limited — try again in 30s');
+      const data = JSON.parse(rawText);
       const elements = data.elements || [];
 
       if (!elements.length) {
@@ -571,21 +608,25 @@ out center tags 50;`;
         return;
       }
 
-      // Deduplicate by name, compute distance, sort by distance
+      // Deduplicate by normalized name, compute distance, sort by distance
       const seen = new Set();
+      const normalize = n => n.toLowerCase().replace(/[^a-z0-9]/g,'');
       const courses = elements
         .filter(e => {
           const name = e.tags?.name;
-          if (!name || seen.has(name)) return false;
-          seen.add(name); return true;
+          if (!name) return false;
+          const key = normalize(name);
+          if (seen.has(key)) return false;
+          seen.add(key); return true;
         })
         .map(e => {
           const cLat = e.lat || e.center?.lat || lat;
           const cLon = e.lon || e.center?.lon || lon;
           const dMiles = _haversine(lat, lon, cLat, cLon);
           return {
-            name:    e.tags?.name || 'Golf Course',
+            name:    e.tags?.name || e.tags?.['name:en'] || e.tags?.operator || 'Golf Course',
             holes:   e.tags?.['golf:holes'] || e.tags?.holes || null,
+            type:    e.tags?.club === 'golf' ? 'Country Club' : e.tags?.amenity === 'driving_range' ? 'Driving Range' : e.tags?.leisure === 'miniature_golf' ? 'Mini Golf' : 'Golf Course',
             phone:   e.tags?.phone || e.tags?.['contact:phone'] || null,
             website: e.tags?.website || e.tags?.['contact:website'] || null,
             addr:    [e.tags?.['addr:city'], e.tags?.['addr:state']].filter(Boolean).join(', '),
@@ -594,7 +635,7 @@ out center tags 50;`;
           };
         })
         .sort((a,b) => a.dist - b.dist)
-        .slice(0, 40);
+        .slice(0, 80);
 
       window._nearbyCourses = courses;
       UI.filterCourses('');
@@ -620,18 +661,19 @@ out center tags 50;`;
       const distStr = c.dist < 1 ? 'Less than 1 mi' : `${c.dist.toFixed(1)} mi away`;
       const holesStr = c.holes ? `· ${c.holes} holes` : '';
       const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(c.name)}&ll=${c.lat},${c.lon}`;
+      const icon = (c.type||'').includes('Country') ? '🏌️' : '⛳';
+      const typeBadge = c.type && c.type !== 'Golf Course'
+        ? `<span style="font-size:10px;font-weight:600;color:var(--green);background:var(--green-light);padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap">${c.type}</span>` : '';
       return `<div class="course-card">
         <div class="course-card-top">
           <div style="flex:1;min-width:0">
-            <div class="course-name">${c.name}</div>
+            <div class="course-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">${c.name}${typeBadge}</div>
             <div class="course-meta">${distStr} ${holesStr}${c.addr ? ' · ' + c.addr : ''}</div>
           </div>
-          <div style="font-size:22px;margin-left:8px">⛳</div>
+          <div style="font-size:22px;margin-left:8px">${icon}</div>
         </div>
         <div class="course-actions">
-          <a href="${mapsUrl}" target="_blank" class="course-btn course-btn-map">
-            📍 Directions
-          </a>
+          <a href="${mapsUrl}" target="_blank" class="course-btn course-btn-map">📍 Directions</a>
           ${c.website ? `<a href="${c.website}" target="_blank" class="course-btn">🌐 Website</a>` : ''}
           ${c.phone ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>` : ''}
           <button class="course-btn course-btn-tee" onclick="safeUI('postTeeTimeAtCourse','${c.name.replace(/'/g,'').replace(/"/g,'')}')">
