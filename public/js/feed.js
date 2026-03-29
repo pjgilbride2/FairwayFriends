@@ -236,17 +236,22 @@ export function renderFeed(posts) {
           style="width:100%;border-radius:var(--radius-md);margin:8px 0;object-fit:cover;max-height:360px;display:block">` : ""}
         ${vibeHtml ? `<div class="player-vibes" style="margin-bottom:10px">${vibeHtml}</div>` : ""}
         <div class="post-footer">
-          <div class="post-action">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-            </svg>Reply
+          <div class="post-action" onclick="safeUI('toggleReply','${p.id}')" id="reply-btn-${p.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            Reply <span class="post-action-count" id="reply-count-${p.id}">${(p.replyCount||0)>0?p.replyCount:""}</span>
           </div>
-          <div class="post-action">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
-            </svg>Helpful
+          <div class="post-action ${(p.helpfuls||[]).includes(me?.uid)?"post-action-active":""}" onclick="safeUI('toggleHelpful','${p.id}')" id="helpful-btn-${p.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/></svg>
+            Helpful <span class="post-action-count" id="helpful-count-${p.id}">${(p.helpfuls||[]).length>0?(p.helpfuls||[]).length:""}</span>
           </div>
         </div>
+        <div id="reply-box-${p.id}" style="display:none;padding:8px 12px 12px">
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <textarea id="reply-input-${p.id}" rows="1" placeholder="Write a reply..." style="flex:1;border:0.5px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;resize:none"></textarea>
+            <button onclick="safeUI('submitReply','${p.id}')" style="background:var(--green);color:white;border:none;border-radius:var(--radius-md);padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">Send</button>
+          </div>
+        </div>
+        <div id="replies-list-${p.id}" style="padding:0 12px"></div>
       </div>`;
     })
     .join("");
@@ -283,6 +288,46 @@ export async function submitPost(text, imageFile) {
   showToast("Posted! ✅");
 }
 
+
+export async function toggleHelpful(postId) {
+  const me = window._currentUser;
+  if (!me) return;
+  const r = doc(db,"posts",postId);
+  const snap = await getDoc(r);
+  if (!snap.exists()) return;
+  const h = snap.data().helpfuls||[];
+  const has = h.includes(me.uid);
+  await updateDoc(r,{helpfuls: has?arrayRemove(me.uid):arrayUnion(me.uid)});
+  const btn=document.getElementById("helpful-btn-"+postId);
+  const cnt=document.getElementById("helpful-count-"+postId);
+  if(btn) btn.classList.toggle("post-action-active",!has);
+  if(cnt) cnt.textContent=String(has?Math.max(0,h.length-1):h.length+1)||"";
+}
+export async function submitReply(postId,text) {
+  const me=window._currentUser;
+  if(!me||!text.trim()) return;
+  await addDoc(collection(db,"posts",postId,"replies"),{
+    text:text.trim(),authorId:me.uid,authorName:myProfile.displayName||"Golfer",
+    photoURL:myProfile.photoURL||null,createdAt:serverTimestamp()
+  });
+  const r=doc(db,"posts",postId);
+  const cur=(await getDoc(r)).data()?.replyCount||0;
+  await updateDoc(r,{replyCount:cur+1});
+  const el=document.getElementById("reply-count-"+postId);
+  if(el) el.textContent=String(cur+1);
+}
+export async function loadReplies(postId) {
+  const c=document.getElementById("replies-list-"+postId);
+  if(!c) return;
+  const q=query(collection(db,"posts",postId,"replies"),orderBy("createdAt","asc"),limit(20));
+  const snap=await getDocs(q);
+  if(!snap.docs.length){c.innerHTML="";return;}
+  c.innerHTML=snap.docs.map(d=>{
+    const r=d.data(),ini=initials(r.authorName||"Golfer"),col=avatarColor(r.authorId||"");
+    const t=r.createdAt?.toDate?relativeTime(r.createdAt.toDate()):"";
+    return `<div style="display:flex;gap:8px;padding:8px 0;border-top:0.5px solid var(--border)"><div class="avatar-sm ${col}" style="width:28px;height:28px;font-size:10px;flex-shrink:0">${ini}</div><div style="flex:1"><div style="font-size:12px;font-weight:500;color:var(--text)">${esc(r.authorName||"Golfer")} <span style="color:var(--muted);font-weight:400">${t}</span></div><div style="font-size:13px;color:var(--text);margin-top:2px">${esc(r.text)}</div></div></div>`;
+  }).join("");
+}
 // ── Resize image via canvas before upload ──
 async function _resizeImage(file, maxPx) {
   return new Promise((resolve) => {

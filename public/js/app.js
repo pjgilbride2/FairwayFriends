@@ -488,6 +488,25 @@ window.UI = {
     } catch(e) { showToast("Could not post reply"); }
   },
 
+  // ── Post reactions ──
+  async toggleHelpful(postId) {
+    try { await toggleHelpful(postId); } catch(e) { showToast("Could not update"); }
+  },
+  toggleReply(postId) {
+    const box = document.getElementById("reply-box-"+postId);
+    if(!box) return;
+    const open = box.style.display!=="none";
+    box.style.display = open?"none":"block";
+    if(!open){ loadReplies(postId); setTimeout(()=>document.getElementById("reply-input-"+postId)?.focus(),100); }
+  },
+  async submitReply(postId) {
+    const inp = document.getElementById("reply-input-"+postId);
+    const text = inp?.value?.trim();
+    if(!text) return;
+    inp.value="";
+    try { await submitReply(postId,text); loadReplies(postId); showToast("Reply posted ✅"); }
+    catch(e){ showToast("Could not post reply"); }
+  },
   // ── Players ──
   filterPlayers(q) {
     filterPlayers(q);
