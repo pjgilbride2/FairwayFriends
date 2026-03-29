@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=13";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=13";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=13";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=13";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=13";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=13";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=14";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=14";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=14";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=14";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=14";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=14";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=13";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=13";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=13";
+         teardownMessaging } from "./messages.js?v=14";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=14";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=14";
 
 
 // ── Haversine distance in miles ──
@@ -297,7 +297,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=13");
+      const { initials, avatarColor } = await import("./ui.js?v=14");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }

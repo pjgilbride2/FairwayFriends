@@ -1,7 +1,7 @@
 // FAIRWAY FRIEND — Notifications
-import { db } from "./firebase-config.js?v=13";
+import { db } from "./firebase-config.js?v=14";
 import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, writeBatch, serverTimestamp, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { esc, initials, avatarColor } from "./ui.js?v=13";
+import { esc, initials, avatarColor } from "./ui.js?v=14";
 
 let _unsubMessages = null, _unsubNotifs = null;
 
