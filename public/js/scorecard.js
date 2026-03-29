@@ -3,13 +3,13 @@
 //  Modes: Stroke | Match | Stableford | Scramble | Skins | Best Ball
 // ============================================================
 
-import { db } from "./firebase-config.js?v=17";
+import { db } from "./firebase-config.js?v=19";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=17";
-import { showToast } from "./ui.js?v=17";
+import { myProfile, myVibes } from "./profile.js?v=19";
+import { showToast } from "./ui.js?v=19";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores  = new Array(18).fill("");
@@ -44,7 +44,8 @@ export const MODES = {
 
 // ── Set mode ─────────────────────────────────────────────────
 export function setGameMode(mode) {
-  currentMode = mode || "stroke";
+  const _valid=['stroke','match','stableford','scramble','skins','bestball'];
+  currentMode = _valid.includes(mode) ? mode : 'stroke';
   document.querySelectorAll(".game-mode-btn").forEach(b => {
     const active = b.dataset.mode === currentMode;
     b.classList.toggle("game-mode-active", active);
