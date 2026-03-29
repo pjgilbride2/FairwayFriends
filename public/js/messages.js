@@ -2,13 +2,13 @@
 //  FAIRWAY FRIEND — Messaging (DM + Group Chats)
 // ============================================================
 
-import { db } from "./firebase-config.js?v=26";
+import { db } from "./firebase-config.js?v=27";
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc,
   query, where, orderBy, limit, onSnapshot,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=26";
+import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=27";
 
 let _unsubMessages = null;
 let _unsubConvList = null;
