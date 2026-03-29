@@ -2,13 +2,13 @@
 //  FAIRWAY FRIEND — Scorecard & Round History
 // ============================================================
 
-import { db } from "./firebase-config.js?v=5";
+import { db } from "./firebase-config.js?v=6";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=5";
-import { showToast } from "./ui.js?v=5";
+import { myProfile, myVibes } from "./profile.js?v=6";
+import { showToast } from "./ui.js?v=6";
 
 // FIX: exported so app.js can reset scores between rounds
 export let myScores = new Array(18).fill("");
