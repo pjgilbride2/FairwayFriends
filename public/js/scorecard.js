@@ -3,13 +3,13 @@
 //  Modes: Stroke | Match | Stableford | Scramble | Skins | Best Ball
 // ============================================================
 
-import { db } from "./firebase-config.js?v=20";
+import { db } from "./firebase-config.js?v=21";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=20";
-import { showToast } from "./ui.js?v=20";
+import { myProfile, myVibes } from "./profile.js?v=21";
+import { showToast } from "./ui.js?v=21";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores  = new Array(18).fill("");

@@ -2,13 +2,13 @@
 //  FAIRWAY FRIEND — Messaging
 // ============================================================
 
-import { db } from "./firebase-config.js?v=20";
+import { db } from "./firebase-config.js?v=21";
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc,
   query, where, orderBy, limit, onSnapshot,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=20";
+import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=21";
 
 let _unsubMessages = null;
 let _unsubConvList = null;
@@ -48,10 +48,22 @@ export async function sendMessage(cid, text) {
     createdAt:  serverTimestamp(),
   });
   // Use setDoc merge to update metadata (safer than updateDoc)
+  // Update conversation metadata — set lastSenderId and reset readBy for recipient
+  // This triggers the blue dot for the recipient and powers message notifications
+  const convData = (await getDoc(doc(db, "conversations", cid))).data() || {};
+  const participants = convData.participants || [];
+  const otherUid = participants.find(p => p !== me.uid);
+  const newReadBy = { [me.uid]: true };
+  if (otherUid) newReadBy[otherUid] = false; // recipient has NOT read it
+
   await setDoc(doc(db, "conversations", cid), {
     lastMessage:   text.trim().slice(0, 80),
+    lastSenderId:  me.uid,
     lastMessageAt: serverTimestamp(),
+    readBy:        newReadBy,
   }, { merge: true });
+
+  return otherUid; // return so caller can create notification
 }
 
 // ── Listen to messages in a conversation ──

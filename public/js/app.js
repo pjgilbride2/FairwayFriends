@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=20";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=20";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=20";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=20";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=20";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=20";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=21";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=21";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=21";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=21";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=21";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=21";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=20";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=20";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=20";
+         teardownMessaging } from "./messages.js?v=21";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=21";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=21";
 
 
 // ── Haversine distance in miles ──
@@ -86,7 +86,7 @@ window.UI = {
     openNotif(id, type, refId);
   },
 
-  setGameMode(mode) { const valid=['stroke','match','stableford','scramble','skins','bestball']; if(valid.includes(mode)) setGameMode(mode); },
+  setGameMode(mode) { const _validModes=['stroke','match','stableford','scramble','skins','bestball']; if(_validModes.includes(mode)) setGameMode(mode); },
   buildGamePanel() { buildGamePanel(); },
 
   loadScorecardWeather() {
@@ -292,7 +292,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=20");
+      const { initials, avatarColor } = await import("./ui.js?v=21");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -326,7 +326,8 @@ window.UI = {
     listenToMessages(convId, (msgs) => {
       renderMessages(msgs, "messages-thread");
     });
-    window._activeConvId = convId;
+    window._activeConvId  = convId;
+    window._activeConvMeta = { otherUid, otherName }; // needed by sendMsg for notifications
     // Mark as read so blue dot clears
     markConversationRead(convId, window._currentUser?.uid);
   },
@@ -345,7 +346,21 @@ window.UI = {
     input.value = "";
     input.style.height = "auto";
     try {
-      await sendMessage(cid, text);
+      const otherUid = await sendMessage(cid, text);
+      // Fire notification to the recipient
+      const meta = window._activeConvMeta || {};
+      const recipient = otherUid || meta.otherUid;
+      if (recipient && recipient !== window._currentUser?.uid) {
+        createNotification({
+          toUid:     recipient,
+          fromUid:   window._currentUser.uid,
+          fromName:  myProfile?.displayName || "Someone",
+          fromPhoto: myProfile?.photoURL    || null,
+          type:      "message",
+          refId:     cid,
+          preview:   text.slice(0, 80),
+        });
+      }
     } catch (e) {
       showToast("Could not send message");
     }
@@ -704,10 +719,10 @@ window.UI = {
           courses.push({ ...k, dist: _haversine(lat, lon, k.lat, k.lon) });
         }
       });
-      // ── Remove courses known to be permanently closed ─────────────
+      // ── Remove permanently closed courses ──────────────────────────
       const CLOSED = ['lutz executive golf center','proputt miniature golf'];
       courses = courses.filter(c => !CLOSED.includes(norm(c.name)));
-      // Filter out street/road names OSM tags inside golf course polygons
+      // ── Filter out street/road names OSM tags inside golf polygons ──
       const STREET_RE = /(\s(way|circle|blvd|boulevard|lane|drive|parkway|court|road|avenue|ave|street|st|place|pl|trail|terrace|loop|run|path|cir|dr|ln|ct|rd))$/i;
       courses = courses.filter(c => {
         const n = c.name.trim();
@@ -719,8 +734,7 @@ window.UI = {
       courses.sort((a, b) => a.dist - b.dist);
       courses = courses.slice(0, 80);
 
-      // Known courses missing from OSM — injected directly
-            window._nearbyCourses = courses;
+      window._nearbyCourses = courses;
       try { sessionStorage.setItem(ck, JSON.stringify({ts:Date.now(), data:courses})); } catch(_){}
       UI.filterCourses('');
       if (label) label.textContent = courses.length + ' golf courses within 25 miles';
