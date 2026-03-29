@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=14";
+import { db, storage } from "./firebase-config.js?v=15";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=14";
-import { createNotification } from "./notifications.js?v=14";
-import { loadRoundDayForecast } from "./weather.js?v=14";
+import { myProfile, myVibes } from "./profile.js?v=15";
+import { createNotification } from "./notifications.js?v=15";
+import { loadRoundDayForecast } from "./weather.js?v=15";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=14";
+} from "./ui.js?v=15";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -26,7 +26,14 @@ let _unsubPlayers  = null;
 
 // ── Start all real-time listeners ──
 export function initFeed() {
-  try { const c=sessionStorage.getItem("feed_posts"); if(c){ const posts=JSON.parse(c); if(posts?.length) renderFeed(posts); } } catch(_){}
+  // Show cached posts immediately for instant feed
+  try {
+    const cached = sessionStorage.getItem("feed_posts");
+    if (cached) {
+      const posts = JSON.parse(cached);
+      if (posts?.length) renderFeed(posts);
+    }
+  } catch(_) {}
   _startTeeTimesListener();
   _startFeedListener();
 }
@@ -202,7 +209,11 @@ function _startFeedListener() {
   );
   _unsubFeed = onSnapshot(q, (snap) => {
     const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    try{const s=posts.map(p=>({...p,createdAt:p.createdAt?.toDate?.()?.toISOString()||p.createdAt}));sessionStorage.setItem("feed_posts",JSON.stringify(s));}catch(_){}
+    // Cache serialisable version for instant next load
+    try {
+      const cacheable = posts.map(p => ({...p, createdAt: p.createdAt?.toDate?.()?.toISOString()||p.createdAt}));
+      sessionStorage.setItem("feed_posts", JSON.stringify(cacheable));
+    } catch(_) {}
     renderFeed(posts);
   });
 }
@@ -240,18 +251,26 @@ export function renderFeed(posts) {
         ${vibeHtml ? `<div class="player-vibes" style="margin-bottom:10px">${vibeHtml}</div>` : ""}
         <div class="post-footer">
           <div class="post-action" onclick="safeUI('toggleReply','${p.id}')" id="reply-btn-${p.id}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-            Reply <span class="post-action-count" id="reply-count-${p.id}">${(p.replyCount||0)>0?p.replyCount:""}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>Reply <span class="post-action-count" id="reply-count-${p.id}">${(p.replyCount||0)>0?p.replyCount:""}</span>
           </div>
-          <div class="post-action ${(p.helpfuls||[]).includes(window._currentUser?.uid)?"post-action-active":""}" onclick="safeUI('toggleLike','${p.id}')" id="helpful-btn-${p.id}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/></svg>
-            Like <span class="post-action-count" id="helpful-count-${p.id}">${(p.helpfuls||[]).length>0?(p.helpfuls||[]).length:""}</span>
+          <div class="post-action ${(p.helpfuls||[]).includes(me?.uid) ? "post-action-active" : ""}" 
+               onclick="safeUI('toggleLike','${p.id}')" id="helpful-btn-${p.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
+            </svg>❤️ Like <span class="post-action-count" id="helpful-count-${p.id}">${(p.helpfuls||[]).length>0?(p.helpfuls||[]).length:""}</span>
           </div>
         </div>
         <div id="reply-box-${p.id}" style="display:none;padding:8px 12px 12px">
           <div style="display:flex;gap:8px;align-items:flex-end">
-            <textarea id="reply-input-${p.id}" rows="1" placeholder="Write a reply..." style="flex:1;border:0.5px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;resize:none"></textarea>
-            <button onclick="safeUI('submitReply','${p.id}')" style="background:var(--green);color:white;border:none;border-radius:var(--radius-md);padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">Send</button>
+            <textarea id="reply-input-${p.id}" rows="1" placeholder="Write a reply…"
+              style="flex:1;border:0.5px solid var(--border);border-radius:var(--radius-md);
+                     padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;
+                     color:var(--text);background:var(--surface);outline:none;resize:none"></textarea>
+            <button onclick="safeUI('submitReply','${p.id}')"
+              style="background:var(--green);color:white;border:none;border-radius:var(--radius-md);
+                     padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;flex-shrink:0">Send</button>
           </div>
         </div>
         <div id="replies-list-${p.id}" style="padding:0 12px"></div>
@@ -292,45 +311,104 @@ export async function submitPost(text, imageFile) {
 }
 
 
+// ── Toggle Helpful on a post ──
 export async function toggleLike(postId) {
   const me = window._currentUser;
   if (!me) return;
-  const r = doc(db,"posts",postId);
-  const snap = await getDoc(r);
+  const ref = doc(db, "posts", postId);
+  const snap = await getDoc(ref);
   if (!snap.exists()) return;
-  const h = snap.data().helpfuls||[];
-  const has = h.includes(me.uid);
-  await updateDoc(r,{helpfuls: has?arrayRemove(me.uid):arrayUnion(me.uid)});
-  const btn=document.getElementById("helpful-btn-"+postId);
-  const cnt=document.getElementById("helpful-count-"+postId);
-  if(btn) btn.classList.toggle("post-action-active",!has);
-  if(cnt) cnt.textContent=String(has?Math.max(0,h.length-1):h.length+1)||"";
-}
-export async function submitReply(postId,text) {
-  const me=window._currentUser;
-  if(!me||!text.trim()) return;
-  await addDoc(collection(db,"posts",postId,"replies"),{
-    text:text.trim(),authorId:me.uid,authorName:myProfile.displayName||"Golfer",
-    photoURL:myProfile.photoURL||null,createdAt:serverTimestamp()
+  const helpfuls = snap.data().helpfuls || [];
+  const hasHelped = helpfuls.includes(me.uid);
+  await updateDoc(ref, {
+    helpfuls: hasHelped ? arrayRemove(me.uid) : arrayUnion(me.uid)
   });
-  const r=doc(db,"posts",postId);
-  const cur=(await getDoc(r)).data()?.replyCount||0;
-  await updateDoc(r,{replyCount:cur+1});
-  const el=document.getElementById("reply-count-"+postId);
-  if(el) el.textContent=String(cur+1);
+  // Update UI immediately
+  const btn = document.getElementById("helpful-btn-" + postId);
+  const count = document.getElementById("helpful-count-" + postId);
+  if (btn) btn.classList.toggle("post-action-active", !hasHelped);
+  if (count) {
+    const newCount = hasHelped ? helpfuls.length - 1 : helpfuls.length + 1;
+    count.textContent = newCount > 0 ? newCount : "";
+  }
+  // Send notification to post author (only when liking, not unliking)
+  if (!hasHelped) {
+    const authorId = snap.data().authorId;
+    if (authorId && authorId !== me.uid) {
+      createNotification({
+        toUid:     authorId,
+        fromUid:   me.uid,
+        fromName:  myProfile.displayName || "Someone",
+        fromPhoto: myProfile.photoURL || null,
+        type:      "like",
+        refId:     postId,
+      });
+    }
+  }
 }
+
+// ── Submit a reply to a post ──
+export async function submitReply(postId, text) {
+  const me = window._currentUser;
+  if (!me || !text.trim()) return;
+  const postRef = doc(db, "posts", postId);
+  const postSnap = await getDoc(postRef);
+  await addDoc(collection(db, "posts", postId, "replies"), {
+    text:       text.trim(),
+    authorId:   me.uid,
+    authorName: myProfile.displayName || "Golfer",
+    photoURL:   myProfile.photoURL || null,
+    createdAt:  serverTimestamp(),
+  });
+  // Increment reply count
+  await updateDoc(postRef, { replyCount: (postSnap.data()?.replyCount || 0) + 1 });
+  // Notify post author
+  const authorId = postSnap.data()?.authorId;
+  if (authorId && authorId !== me.uid) {
+    createNotification({
+      toUid:     authorId,
+      fromUid:   me.uid,
+      fromName:  myProfile.displayName || "Someone",
+      fromPhoto: myProfile.photoURL || null,
+      type:      "reply",
+      refId:     postId,
+      preview:   text.trim().slice(0, 80),
+    });
+  }
+  // Update count in UI
+  const countEl = document.getElementById("reply-count-" + postId);
+  if (countEl) {
+    const cur = parseInt(countEl.textContent) || 0;
+    countEl.textContent = cur + 1;
+  }
+}
+
+// ── Load and render replies for a post ──
 export async function loadReplies(postId) {
-  const c=document.getElementById("replies-list-"+postId);
-  if(!c) return;
-  const q=query(collection(db,"posts",postId,"replies"),orderBy("createdAt","asc"),limit(20));
-  const snap=await getDocs(q);
-  if(!snap.docs.length){c.innerHTML="";return;}
-  c.innerHTML=snap.docs.map(d=>{
-    const r=d.data(),ini=initials(r.authorName||"Golfer"),col=avatarColor(r.authorId||"");
-    const t=r.createdAt?.toDate?relativeTime(r.createdAt.toDate()):"";
-    return `<div style="display:flex;gap:8px;padding:8px 0;border-top:0.5px solid var(--border)"><div class="avatar-sm ${col}" style="width:28px;height:28px;font-size:10px;flex-shrink:0">${ini}</div><div style="flex:1"><div style="font-size:12px;font-weight:500;color:var(--text)">${esc(r.authorName||"Golfer")} <span style="color:var(--muted);font-weight:400">${t}</span></div><div style="font-size:13px;color:var(--text);margin-top:2px">${esc(r.text)}</div></div></div>`;
+  const container = document.getElementById("replies-list-" + postId);
+  if (!container) return;
+  const q = query(
+    collection(db, "posts", postId, "replies"),
+    orderBy("createdAt", "asc"),
+    limit(20)
+  );
+  const snap = await getDocs(q);
+  if (!snap.docs.length) { container.innerHTML = ""; return; }
+  container.innerHTML = snap.docs.map(d => {
+    const r = d.data();
+    const ini = initials(r.authorName || "Golfer");
+    const col = avatarColor(r.authorId || "");
+    const time = r.createdAt?.toDate ? relativeTime(r.createdAt.toDate()) : "";
+    return `<div style="display:flex;gap:8px;padding:8px 0;border-top:0.5px solid var(--border)">
+      <div class="avatar-sm ${col}" style="width:28px;height:28px;font-size:10px;flex-shrink:0">${ini}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;color:var(--text)">${esc(r.authorName||"Golfer")} <span style="color:var(--muted);font-weight:400">${time}</span></div>
+        <div style="font-size:13px;color:var(--text);margin-top:2px">${esc(r.text)}</div>
+      </div>
+    </div>`;
   }).join("");
 }
+
 // ── Resize image via canvas before upload ──
 async function _resizeImage(file, maxPx) {
   return new Promise((resolve) => {
@@ -445,7 +523,15 @@ export async function toggleFollow(btn, targetUid) {
     btn.classList.add("connected");
     btn.textContent = "Following";
     showToast("Connected! 🤝");
-    createNotification({toUid:targetUid,fromUid:user.uid,fromName:myProfile.displayName||"Someone",fromPhoto:myProfile.photoURL||null,type:"follow",refId:user.uid});
+    // Notify the person being followed
+    createNotification({
+      toUid:     targetUid,
+      fromUid:   user.uid,
+      fromName:  myProfile.displayName || "Someone",
+      fromPhoto: myProfile.photoURL || null,
+      type:      "follow",
+      refId:     user.uid,
+    });
   }
   const elFriends = document.getElementById("profile-friends");
   if (elFriends) elFriends.textContent = (myProfile.friends || []).length;

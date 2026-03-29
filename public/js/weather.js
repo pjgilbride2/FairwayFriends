@@ -107,13 +107,18 @@ async function doRender(lat, lon, display) {
   const fk = "wx_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
   try {
     const cached = sessionStorage.getItem(fk);
-    if (cached) { const p=JSON.parse(cached); if(p.ts&&Date.now()-p.ts<10*60*1000){ el.innerHTML=buildWeatherCard(p.data,display); return; } }
+    if (cached) {
+      const p = JSON.parse(cached);
+      if (p.ts && Date.now()-p.ts < 10*60*1000) { el.innerHTML = buildWeatherCard(p.data, display); return; }
+    }
   } catch(_) {}
   try {
     const data = await fetchForecast(lat, lon);
     try { sessionStorage.setItem(fk, JSON.stringify({ts:Date.now(),data})); } catch(_){}
     el.innerHTML = buildWeatherCard(data, display);
-  } catch(e) { console.error("Weather render:", e); }
+  } catch(e) {
+    console.error("Weather render:", e);
+  }
 }
 
 // ── Main export — called by app.js whenever feed loads or user refreshes ──
@@ -121,14 +126,23 @@ export async function loadWeather(cityString) {
   const el = document.getElementById("wx-container");
   if (!el) return;
 
+  // Instant render from cache if we have coords
   if (window._wxLat && window._wxLon) {
     const fk = "wx_"+Math.round(window._wxLat*10)/10+"_"+Math.round(window._wxLon*10)/10;
     try {
       const cached = sessionStorage.getItem(fk);
-      if (cached) { const p=JSON.parse(cached); if(p.ts&&Date.now()-p.ts<10*60*1000){ el.innerHTML=buildWeatherCard(p.data,cityString||""); doRender(window._wxLat,window._wxLon,cityString||""); return; } }
+      if (cached) {
+        const p = JSON.parse(cached);
+        if (p.ts && Date.now()-p.ts < 10*60*1000) {
+          el.innerHTML = buildWeatherCard(p.data, cityString||"");
+          doRender(window._wxLat, window._wxLon, cityString||"");
+          return;
+        }
+      }
     } catch(_) {}
   }
   el.innerHTML = `<div class="wx-loading"><div class="wx-loading-dot"></div><div class="wx-loading-dot"></div><div class="wx-loading-dot"></div></div>`;
+
   let lat=null, lon=null, display=cityString||"";
 
   // Step 1: geocode city from profile (this always works, no permission needed)
