@@ -536,112 +536,51 @@ window.UI = {
   },
 
   async loadNearbyCourses() {
-    const container = document.getElementById("courses-list");
-    const label     = document.getElementById("courses-radius-label");
+    const container = document.getElementById('courses-list');
+    const label     = document.getElementById('courses-radius-label');
     if (!container) return;
-
-    // Step 1: Get lat/lon from cache, profile city, or GPS
-    let lat = window._wxLat, lon = window._wxLon;
-    const city = window._weatherCity || myProfile.city || "";
-
-    if (!lat && city) {
-      try {
-        const cityOnly = city.split(",")[0].trim();
-        const gd = await (await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(cityOnly)+"&count=1&language=en&format=json")).json();
-        if (gd.results?.length) { lat = gd.results[0].latitude; lon = gd.results[0].longitude; }
-      } catch(_) {}
-    }
-    if (!lat) {
-      try {
-        const pos = await new Promise((res,rej) => navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}));
-        lat = pos.coords.latitude; lon = pos.coords.longitude;
-      } catch(_) {}
-    }
-    if (!lat) {
-      container.innerHTML = '<div class="empty-state">Add your city in Edit Profile to find nearby courses ⛳</div>';
-      return;
-    }
-
-    // Step 2: Check 30-minute session cache
-    const cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
-    try {
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        const p = JSON.parse(cached);
-        if (p.ts && Date.now()-p.ts < 30*60*1000) {
-          window._nearbyCourses = p.data;
-          UI.filterCourses("");
-          if (label) label.textContent = p.data.length+" golf courses within 25 miles";
-          return;
-        }
-      }
-    } catch(_) {}
-
-    // Step 3: Fetch from Overpass
     container.innerHTML = '<div class="empty-state">Finding courses near you…</div>';
-    const radius = 40234; // 25 miles in meters
-    if (label) label.textContent = "Golf courses within 25 miles";
-
     try {
-      const query = `[out:json][timeout:25];
-(
-  nwr["leisure"="golf_course"](around:${radius},${lat},${lon});
-  nwr["sport"="golf"]["name"](around:${radius},${lat},${lon});
-  nwr["club"="golf"]["name"](around:${radius},${lat},${lon});
-);
-out center tags 100;`;
-
-      const res = await fetch("https://overpass-api.de/api/interpreter", {
-        method: "POST",
-        headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        body: "data="+encodeURIComponent(query)
-      });
-      if (!res.ok) throw new Error("Overpass HTTP "+res.status);
-      const raw = await res.text();
-      if (raw.trim().startsWith("<")) throw new Error("Overpass rate limited — try again in 60s");
-      const data = JSON.parse(raw);
-      const elements = data.elements || [];
-
-      if (!elements.length) {
-        container.innerHTML = '<div class="empty-state">No golf courses found within 25 miles.</div>';
-        return;
+      let lat = window._wxLat, lon = window._wxLon;
+      const cityName = window._weatherCity || myProfile.city || '';
+      if (!lat && cityName) {
+        const co = cityName.split(',')[0].trim();
+        const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(co)+'&count=1&language=en&format=json')).json();
+        if (gd.results?.length) { lat=gd.results[0].latitude; lon=gd.results[0].longitude; }
       }
-
-      const seen = new Set();
-      const norm = n => n.toLowerCase().replace(/[^a-z0-9]/g,"");
-      const courses = elements
-        .filter(e => {
-          const name = e.tags?.name;
-          if (!name) return false;
-          const key = norm(name);
-          if (seen.has(key)) return false;
-          seen.add(key); return true;
-        })
-        .map(e => {
-          const cLat = e.lat || e.center?.lat || lat;
-          const cLon = e.lon || e.center?.lon || lon;
-          const dist = _haversine(lat, lon, cLat, cLon);
-          return {
-            name:    e.tags?.name || "Golf Course",
-            holes:   e.tags?.["golf:holes"] || e.tags?.holes || null,
-            phone:   e.tags?.phone || e.tags?.["contact:phone"] || null,
-            website: e.tags?.website || e.tags?.["contact:website"] || null,
-            addr:    [e.tags?.["addr:city"], e.tags?.["addr:state"]].filter(Boolean).join(", "),
-            type:    e.tags?.club === "golf" ? "Country Club" : "Golf Course",
-            dist, lat: cLat, lon: cLon,
-          };
-        })
-        .sort((a,b) => a.dist - b.dist)
-        .slice(0, 60);
-
-      window._nearbyCourses = courses;
-      try { sessionStorage.setItem(cacheKey, JSON.stringify({ts:Date.now(), data:courses})); } catch(_){}
-      UI.filterCourses("");
-      if (label) label.textContent = courses.length+" golf courses within 25 miles";
-
+      if (!lat) {
+        try {
+          const pos = await new Promise((r,j)=>navigator.geolocation.getCurrentPosition(r,j,{timeout:5000}));
+          lat=pos.coords.latitude; lon=pos.coords.longitude;
+        } catch(_) {}
+      }
+      if (!lat) { container.innerHTML='<div class="empty-state">Add your city in Edit Profile to find nearby courses ⛳</div>'; return; }
+      const cacheKey='gc_'+Math.round(lat*10)/10+'_'+Math.round(lon*10)/10;
+      try {
+        const cached=sessionStorage.getItem(cacheKey);
+        if(cached){ const p=JSON.parse(cached); if(p.ts&&Date.now()-p.ts<30*60*1000){ window._nearbyCourses=p.data; UI.filterCourses(''); if(label)label.textContent=p.data.length+' golf courses within 25 miles'; return; } }
+      } catch(_) {}
+      if(label) label.textContent='Searching for courses…';
+      const radius=40234;
+      const q='[out:json][timeout:25];(nwr["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');nwr["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');nwr["club"="golf"]["name"](around:'+radius+','+lat+','+lon+'););out center tags 100;';
+      const res=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
+      if(!res.ok) throw new Error('Overpass HTTP '+res.status);
+      const raw=await res.text();
+      if(raw.trim().startsWith('<')) throw new Error('Rate limited — tap Refresh in 30 seconds');
+      const data=JSON.parse(raw), elements=data.elements||[];
+      if(!elements.length){ container.innerHTML='<div class="empty-state">No golf courses found within 25 miles.</div>'; return; }
+      const seen=new Set(), norm=n=>n.toLowerCase().replace(/[^a-z0-9]/g,'');
+      const courses=elements.filter(e=>{const n=e.tags?.name; if(!n)return false; const k=norm(n); if(seen.has(k))return false; seen.add(k);return true;})
+        .map(e=>{const cLat=e.lat||e.center?.lat||lat,cLon=e.lon||e.center?.lon||lon,t=e.tags||{};
+          return{name:t.name||t.operator||'Golf Course',holes:t['golf:holes']||t.holes||null,phone:t.phone||null,website:t.website||null,addr:[t['addr:city'],t['addr:state']].filter(Boolean).join(', '),type:t.club==='golf'?'Country Club':'Golf Course',dist:_haversine(lat,lon,cLat,cLon),lat:cLat,lon:cLon};})
+        .sort((a,b)=>a.dist-b.dist).slice(0,80);
+      window._nearbyCourses=courses;
+      try{sessionStorage.setItem(cacheKey,JSON.stringify({ts:Date.now(),data:courses}));}catch(_){}
+      UI.filterCourses('');
+      if(label)label.textContent=courses.length+' golf courses within 25 miles';
     } catch(e) {
-      console.error("loadNearbyCourses error:", e);
-      container.innerHTML = `<div class="empty-state">${e.message.includes("rate")||e.message.includes("429")||e.message.includes("504") ? "Overpass is busy — wait 30s and tap Refresh ↻" : "Could not load courses. Check connection and try again."}</div>`;
+      console.error('loadNearbyCourses error:',e);
+      container.innerHTML='<div class="empty-state">'+(e.message||'Could not load courses — tap Refresh to try again.')+'</div>';
     }
   },
 
@@ -657,29 +596,60 @@ out center tags 100;`;
     }
     container.innerHTML = filtered.map(c => {
       const distStr = c.dist < 1 ? 'Less than 1 mi' : `${c.dist.toFixed(1)} mi away`;
-      const holesStr = c.holes ? `· ${c.holes} holes` : '';
-      const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(c.name)}&ll=${c.lat},${c.lon}`;
-      const golfnowUrl = 'https://www.golfnow.com/search?searchTerm=' + encodeURIComponent(c.name);
-      const icon = (c.type||'').includes('Country') ? '🏌️' : '⛳';
+      const holesStr = c.holes ? ` · ${c.holes} holes` : '';
+      const mapsUrl  = `https://maps.google.com/?q=${encodeURIComponent(c.name + ' golf ' + (c.addr||''))}&ll=${c.lat},${c.lon}`;
+      const slug     = c.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+$/,'');
+
+      // Smart booking URL priority:
+      // 1. Course's own website  2. GolfNow direct page  3. TeeOff search  4. GolfNow city search
+      const golfnowSearch = 'https://www.golfnow.com/search?searchTerm=' + encodeURIComponent(c.name);
+      const teeoffSearch  = 'https://www.teeoff.com/courses?keyword=' + encodeURIComponent(c.name);
+
+      // Detect if website is already a booking page
+      const isBookingSite = c.website && (
+        c.website.includes('golfnow') || c.website.includes('teeoff') ||
+        c.website.includes('chronogolf') || c.website.includes('foreup') ||
+        c.website.includes('ezlinks') || c.website.includes('teesnap') ||
+        c.website.includes('book') || c.website.includes('reserve') ||
+        c.website.includes('teetimes')
+      );
+
+      // Primary booking action
+      let bookUrl, bookLabel;
+      if (c.website) {
+        bookUrl   = c.website;
+        bookLabel = '📅 Book tee time';
+      } else {
+        bookUrl   = golfnowSearch;
+        bookLabel = '📅 Find tee times';
+      }
+
+      // Private/country clubs don't have public tee times
+      const isPrivate = (c.type||'').includes('Country') || (c.name||'').toLowerCase().includes('country club');
+      if (isPrivate && !c.website) {
+        bookUrl   = mapsUrl;
+        bookLabel = '📍 Get directions';
+      }
+
+      const icon = isPrivate ? '🏌️' : '⛳';
       const typeBadge = c.type && c.type !== 'Golf Course'
         ? `<span style="font-size:10px;font-weight:600;color:var(--green);background:var(--green-light);padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap">${c.type}</span>` : '';
-      // Booking: use course website if available, otherwise GolfNow
-      const bookUrl = c.website ? c.website : golfnowUrl;
-      const bookLabel = c.website ? '📅 Book tee time' : '📅 Book on GolfNow';
-      const safeName = c.name.replace(/['"]/g,'');
+
       return `<div class="course-card">
         <div class="course-card-top">
           <div style="flex:1;min-width:0">
             <div class="course-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">${c.name}${typeBadge}</div>
-            <div class="course-meta">${distStr}${holesStr ? ' ' + holesStr : ''}${c.addr ? ' · ' + c.addr : ''}</div>
+            <div class="course-meta">${distStr}${holesStr}${c.addr ? ' · ' + c.addr : ''}</div>
           </div>
           <div style="font-size:22px;margin-left:8px">${icon}</div>
         </div>
         <div class="course-actions">
-          <a href="${mapsUrl}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
           <a href="${bookUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bookLabel}</a>
-          ${c.website ? `<a href="${c.website}" target="_blank" rel="noopener" class="course-btn">🌐 Website</a>` : `<a href="${golfnowUrl}" target="_blank" rel="noopener" class="course-btn">🔍 GolfNow</a>`}
+          <a href="${mapsUrl}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
+          ${!c.website && !isPrivate ? `<a href="${teeoffSearch}" target="_blank" rel="noopener" class="course-btn">🔍 TeeOff</a>` : ''}
+          ${c.website && !isBookingSite && !isPrivate ? `<a href="${golfnowSearch}" target="_blank" rel="noopener" class="course-btn">📅 GolfNow</a>` : ''}
           ${c.phone ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>` : ''}
+          ${c.website ? `<a href="${c.website}" target="_blank" rel="noopener" class="course-btn">🌐 Website</a>` : ''}
         </div>
       </div>`;
     }).join('');
