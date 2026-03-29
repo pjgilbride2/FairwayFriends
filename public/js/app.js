@@ -553,6 +553,20 @@ window.UI = {
           }
         }
       } catch(_) {}
+      // Check 30-minute cache first
+      const cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const p = JSON.parse(cached);
+          if (p.ts && Date.now()-p.ts < 30*60*1000) {
+            window._nearbyCourses = p.data;
+            UI.filterCourses("");
+            if(label) label.textContent = p.data.length+" golf courses within 25 miles";
+            return;
+          }
+        }
+      } catch(_) {}
       container.innerHTML = '<div class="empty-state">Finding courses near you…</div>';
 
     try {
