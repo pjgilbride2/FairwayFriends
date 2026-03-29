@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=25";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=25";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=25";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=25";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=25";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=25";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=25";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=25";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=25";
-import { buildOnboardScreen } from "./onboard.js?v=25";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=26";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=26";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=26";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=26";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=26";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=26";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=26";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=26";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=26";
+import { buildOnboardScreen } from "./onboard.js?v=26";
 
 
 // ── Haversine distance in miles ──
@@ -292,11 +292,11 @@ window.UI = {
       if (convList) {
         const btnWrap = document.createElement("div");
         btnWrap.style.cssText = "padding:0 0 10px;display:flex;justify-content:flex-end";
-        btnWrap.innerHTML =
-          '<button id="new-group-btn" onclick="safeUI(\"showNewGroupPanel\")" ' +
-          'style="display:flex;align-items:center;gap:5px;background:var(--green-light);' +
-          'color:var(--green-dark);border:none;border-radius:16px;padding:6px 14px;' +
-          'font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">👥 New Group</button>';
+        const _btn = document.createElement("button");
+        _btn.id = "new-group-btn";
+        _btn.textContent = "👥 New Group";
+        _btn.onclick = function(){ safeUI("showNewGroupPanel"); };
+        Object.assign(_btn.style, {display:"flex",alignItems:"center",gap:"5px",background:"var(--green-light)",color:"var(--green-dark)",border:"none",borderRadius:"16px",padding:"6px 14px",fontSize:"13px",fontWeight:"600",cursor:"pointer",fontFamily:"inherit"});
         convList.parentNode.insertBefore(btnWrap, convList);
       }
     }
@@ -327,7 +327,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=25");
+      const { initials, avatarColor } = await import("./ui.js?v=26");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }

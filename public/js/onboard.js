@@ -3,12 +3,12 @@
 // ============================================================
 // Handles the multi-step registration UI injected into screen-onboard
 
-import { db, storage } from "./firebase-config.js?v=25";
+import { db, storage } from "./firebase-config.js?v=26";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast, esc } from "./ui.js?v=25";
+import { showToast, esc } from "./ui.js?v=26";
 
 // ── State ────────────────────────────────────────────────────
 let _step = 0;
