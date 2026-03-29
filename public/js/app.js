@@ -1,4 +1,4 @@
-// ============================================================
+// 
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
@@ -11,6 +11,7 @@ import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWat
 import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=25";
 import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=25";
 import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=25";
+import { buildOnboardScreen } from "./onboard.js?v=25";
 
 
 // ── Haversine distance in miles ──
@@ -45,6 +46,7 @@ window.UI = {
     }
     if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
     if (name === "notifications") { updateProfileUI(); loadNotificationsScreen(); }
+    if (name === "onboard")       { buildOnboardScreen(); }
     if (name === "feed")         { updateProfileUI(); UI.refreshWeather(); startLocationWatch(); }
     if (name === "search") {
       updateProfileUI();
@@ -291,7 +293,7 @@ window.UI = {
         const btnWrap = document.createElement("div");
         btnWrap.style.cssText = "padding:0 0 10px;display:flex;justify-content:flex-end";
         btnWrap.innerHTML =
-          '<button id="new-group-btn" onclick="safeUI('showNewGroupPanel')" ' +
+          '<button id="new-group-btn" onclick="safeUI(\"showNewGroupPanel\")" ' +
           'style="display:flex;align-items:center;gap:5px;background:var(--green-light);' +
           'color:var(--green-dark);border:none;border-radius:16px;padding:6px 14px;' +
           'font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">👥 New Group</button>';
@@ -313,7 +315,7 @@ window.UI = {
           '<div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Add Members</div>' +
           '<div id="group-member-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:10px;margin-bottom:8px"></div>' +
           '<div id="group-member-search-results" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>' +
-          '<button id="create-group-btn" disabled onclick="safeUI('createGroup')" ' +
+          '<button id="create-group-btn" disabled onclick="safeUI(\"createGroup\")" ' +
           'style="width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:20px;' +
           'font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Create Group</button>';
         convList.parentNode.insertBefore(panel, convList);
@@ -1009,3 +1011,6 @@ function showFormError(form, msg) {
 
 // ── Boot ──
 initAuth();
+
+window.goScreen = goScreen;
+window._initFeed = () => { initFeed(); initNearbyPlayers(); };
