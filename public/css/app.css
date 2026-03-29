@@ -484,3 +484,8 @@
 .course-btn-tee {
   background: var(--green); color: white; border-color: var(--green);
 }
+
+/* NOTIFICATIONS */
+.notif-item{cursor:pointer;transition:background .15s;}
+.notif-item:active{background:var(--border);}
+.notif-unread{background:color-mix(in srgb,var(--green) 6%,var(--bg));}

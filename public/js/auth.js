@@ -14,6 +14,7 @@ import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { loadUserProfile } from "./profile.js?v=10";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=10";
 import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=10";
 import { goScreen, hideSplash } from "./ui.js?v=10";
 
@@ -52,6 +53,7 @@ export function initAuth() {
             _listenersActive = true;
             initFeed();
             initNearbyPlayers();
+            initNotifications(user.uid);
           }
           // Load weather for returning users
           if (window.UI && window.UI.refreshWeather) window.UI.refreshWeather();
@@ -72,6 +74,7 @@ export function initAuth() {
       hideSplash();
       document.getElementById("bottom-nav").style.display = "none";
       teardownListeners();
+      teardownNotifications();
       _listenersActive = false;
       goScreen("auth");
     }

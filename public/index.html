@@ -654,6 +654,29 @@
 
 
   <!-- ═══════════ MESSAGES SCREEN ═══════════ -->
+
+  <!-- NOTIFICATIONS SCREEN -->
+  <div class="screen hidden" id="screen-notifications">
+    <div class="screen-header">
+      <div>
+        <div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div>
+        <div class="header-sub">Notifications</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button id="notif-mark-all" onclick="safeUI('markAllNotifsRead')"
+          style="background:none;border:none;font-size:12px;color:var(--green);font-weight:600;cursor:pointer;padding:4px 8px">Mark all read</button>
+        <div class="avatar-sm" id="notif-avatar" onclick="safeUI('goScreen','profile')">?</div>
+      </div>
+    </div>
+    <div id="notif-list" style="padding:0 0 100px">
+      <div class="empty-state" style="margin-top:60px">
+        <div style="font-size:36px;margin-bottom:12px">🔔</div>
+        <div>No notifications yet</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">Likes, replies, and new followers appear here</div>
+      </div>
+    </div>
+  </div>
+
   <div class="screen" id="screen-messages">
     <div class="header">
       <div><div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div>
@@ -736,11 +759,17 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
       <span class="nav-label">Players</span>
     </div>
-    <div class="nav-item" id="nav-messages"  onclick="safeUI('goScreen', 'messages')">
+    <div class="nav-item" id="nav-messages" onclick="safeUI('goScreen', 'messages')" style="position:relative">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span id="msg-unread-dot" style="display:none;position:absolute;top:6px;right:calc(50% - 14px);width:9px;height:9px;background:#2563eb;border-radius:50%;border:2px solid var(--bg)"></span>
       <span class="nav-label">Messages</span>
     </div>
-    <div class="nav-item" id="nav-profile"   onclick="safeUI('goScreen', 'profile')">
+    <div class="nav-item" id="nav-notifications" onclick="safeUI('goScreen','notifications')" style="position:relative">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      <span id="notif-badge" style="display:none;position:absolute;top:6px;right:calc(50% - 14px);width:9px;height:9px;background:#e53e3e;border-radius:50%;border:2px solid var(--bg)"></span>
+      <span class="nav-label">Alerts</span>
+    </div>
+    <div class="nav-item" id="nav-profile" onclick="safeUI('goScreen', 'profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span class="nav-label">Profile</span>
     </div>

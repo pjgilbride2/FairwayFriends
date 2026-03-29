@@ -12,6 +12,7 @@ import { listenToConversations, renderConversationsList, getOrCreateConversation
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
          teardownMessaging } from "./messages.js?v=10";
 import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=10";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=10";
 
 
 // ── Haversine distance in miles ──
@@ -31,7 +32,7 @@ window.UI = {
   goScreen(name) {
     // Sanitize — only allow known screen names
     const VALID_SCREENS = ["feed","players","search","scorecard","profile","edit-profile",
-      "vibes","messages","conversation","my-activity","auth","onboard"];
+      "vibes","messages","conversation","my-activity","auth","onboard","notifications"];
     if(name && !VALID_SCREENS.includes(name)) { console.warn("Invalid screen:", name); return; }
     goScreen(name);
     if (name === "scorecard") {
@@ -51,6 +52,7 @@ window.UI = {
       UI.loadScorecardWeather();
     }
     if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
+    if (name === "notifications") { updateProfileUI(); loadNotificationsScreen(); }
     if (name === "feed")         { updateProfileUI(); UI.refreshWeather(); startLocationWatch(); }
     if (name === "search") {
       updateProfileUI();
@@ -321,6 +323,7 @@ window.UI = {
     });
     // store current conv id for send
     window._activeConvId = convId;
+    markConversationRead(convId, window._currentUser?.uid);
   },
 
   async startConversation(otherUid, otherName) {

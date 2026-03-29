@@ -13,6 +13,7 @@ import {
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { myProfile, myVibes } from "./profile.js?v=10";
+import { createNotification } from "./notifications.js?v=10";
 import { loadRoundDayForecast } from "./weather.js?v=10";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
@@ -444,6 +445,7 @@ export async function toggleFollow(btn, targetUid) {
     btn.classList.add("connected");
     btn.textContent = "Following";
     showToast("Connected! 🤝");
+    createNotification({toUid:targetUid,fromUid:user.uid,fromName:myProfile.displayName||"Someone",fromPhoto:myProfile.photoURL||null,type:"follow",refId:user.uid});
   }
   const elFriends = document.getElementById("profile-friends");
   if (elFriends) elFriends.textContent = (myProfile.friends || []).length;
