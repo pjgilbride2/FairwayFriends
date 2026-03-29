@@ -5,13 +5,13 @@
 //    conversations/{convId}/messages/{msgId}  — individual messages
 // ============================================================
 
-import { db } from "./firebase-config.js";
+import { db } from "./firebase-config.js?v=2";
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc,
   query, where, orderBy, limit, onSnapshot,
   serverTimestamp, updateDoc, arrayUnion,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js";
+import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=2";
 
 // Active conversation listener unsubscribe fn
 let _unsubMessages = null;
