@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=16";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=16";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=16";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=16";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=16";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=16";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=17";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=17";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=17";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=17";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=17";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=17";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=16";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=16";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=16";
+         teardownMessaging } from "./messages.js?v=17";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=17";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=17";
 
 
 // ── Haversine distance in miles ──
@@ -292,7 +292,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=16");
+      const { initials, avatarColor } = await import("./ui.js?v=17");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -615,6 +615,9 @@ window.UI = {
       const q = '[out:json][timeout:25];(' +
         'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');' +
         'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');' +
+        'way["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');' +
+        'way["club"="golf"]["name"](around:'+radius+','+lat+','+lon+');' +
+        'way["landuse"="recreation_ground"]["sport"="golf"](around:'+radius+','+lat+','+lon+');' +
         ');out center tags 100;';
 
       let txt1 = null;
@@ -687,17 +690,40 @@ window.UI = {
         })
         .sort((a,b) => a.dist - b.dist).slice(0, 80);
 
-      // Merge in known courses missing from OSM (Heritage Harbor, TPC, Northdale)
-      const KNOWN_LUTZ = [
-        {name:"Heritage Harbor Golf & Country Club",lat:28.1372,lon:-82.5012,phone:"(813) 949-4886",website:"https://www.heritageharborgolf.com",addr:"Lutz, FL",type:"Golf Course",holes:"18",dist:0},
-        {name:"TPC Tampa Bay",lat:28.1612,lon:-82.5189,phone:"(813) 949-0090",website:"https://www.tpctampabay.com",addr:"Lutz, FL",type:"Golf Course",holes:"18",dist:0},
-        {name:"Northdale Golf & Tennis Club",lat:28.0823,lon:-82.5281,phone:"(813) 962-0428",website:null,addr:"Tampa, FL",type:"Golf Course",holes:"18",dist:0},
+      // ── Inject known local courses missing from OSM ────────────────
+      // Keyed by normalized name — merged if OSM later adds them
+      const KNOWN_COURSES = [
+        {name:"Heritage Harbor Golf & Country Club", lat:28.1372, lon:-82.5012, phone:"(813) 949-4886", website:"https://www.heritageharborgolf.com", addr:"Lutz, FL", type:"Golf Course", holes:"18"},
+        {name:"TPC Tampa Bay",                       lat:28.1637, lon:-82.5195, phone:"(813) 949-0090", website:"https://www.tpctampabay.com",          addr:"Lutz, FL", type:"Golf Course", holes:"18"},
+        {name:"Northdale Golf & Tennis Club",        lat:28.0823, lon:-82.5281, phone:"(813) 962-0428", website:null,                                    addr:"Tampa, FL", type:"Golf Course", holes:"18"},
       ];
-      KNOWN_LUTZ.forEach(k => {
-        k.dist = _haversine(lat,lon,k.lat,k.lon);
-        const key = k.name.toLowerCase().replace(/[^a-z0-9]/g,'');
-        if(!seen.has(key)){ seen.add(key); courses.push(k); }
+      KNOWN_COURSES.forEach(k => {
+        const key = norm(k.name);
+        if (!seen.has(key)) {
+          seen.add(key);
+          courses.push({ ...k, dist: _haversine(lat, lon, k.lat, k.lon) });
+        }
       });
+      // ── Remove courses known to be permanently closed ─────────────
+      const CLOSED = ['lutz executive golf center','proputt miniature golf'];
+      courses = courses.filter(c => !CLOSED.includes(norm(c.name)));
+      // Re-sort after injection
+      courses.sort((a, b) => a.dist - b.dist);
+      courses = courses.slice(0, 80);
+
+      // Known courses missing from OSM — injected directly
+      const KNOWN_COURSES = [
+        {name:"Heritage Harbor Golf & Country Club", lat:28.1372, lon:-82.5012, phone:"(813) 949-4886", website:"https://www.heritageharborgolf.com", addr:"Lutz, FL", type:"Golf Course", holes:"18"},
+        {name:"TPC Tampa Bay",                       lat:28.1637, lon:-82.5195, phone:"(813) 949-0090", website:"https://www.tpctampabay.com",          addr:"Lutz, FL", type:"Golf Course", holes:"18"},
+        {name:"Northdale Golf & Tennis Club",        lat:28.0823, lon:-82.5281, phone:"(813) 962-0428", website:null,                                    addr:"Tampa, FL", type:"Golf Course", holes:"18"},
+      ];
+      KNOWN_COURSES.forEach(k => {
+        const key = norm(k.name);
+        if (!seen.has(key)) { seen.add(key); courses.push({...k, dist:_haversine(lat,lon,k.lat,k.lon)}); }
+      });
+      // Remove permanently closed courses
+      const CLOSED = ['lutzexecutivegolfcenter'];
+      courses = courses.filter(c => !CLOSED.includes(norm(c.name)));
       courses.sort((a,b)=>a.dist-b.dist);
       courses = courses.slice(0,80);
       window._nearbyCourses = courses;

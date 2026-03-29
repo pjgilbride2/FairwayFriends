@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=16";
+import { db, storage } from "./firebase-config.js?v=17";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=16";
-import { createNotification } from "./notifications.js?v=16";
-import { loadRoundDayForecast } from "./weather.js?v=16";
+import { myProfile, myVibes } from "./profile.js?v=17";
+import { createNotification } from "./notifications.js?v=17";
+import { loadRoundDayForecast } from "./weather.js?v=17";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=16";
+} from "./ui.js?v=17";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
