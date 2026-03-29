@@ -167,67 +167,88 @@ function buildWeatherCard(data, location) {
   const wind  = Math.round(c.wind_speed_10m);
   const wdir  = windDir(c.wind_direction_10m);
   const hum   = c.relative_humidity_2m;
-  const rain  = c.precipitation_probability||0;
-  const sc    = playScore(temp,wind,rain,c.weather_code);
+  const rain  = c.precipitation_probability || 0;
+  const sc    = playScore(temp, wind, rain, c.weather_code);
   const pl    = playLabel(sc);
-  const ts    = new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+  const ts    = new Date().toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit"});
   const DAYS  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
+  // ── 5-day strip ──
   const daily = data.daily.time.slice(1,5).map((dt,i) => {
     const dw = wmo(data.daily.weather_code[i+1]);
-    const d  = new Date(dt+"T12:00:00");
+    const d  = new Date(dt + "T12:00:00");
+    const hi = Math.round(data.daily.temperature_2m_max[i+1]);
+    const lo = Math.round(data.daily.temperature_2m_min[i+1]);
+    const r  = data.daily.precipitation_probability_max[i+1] || 0;
     return `<div class="wx-day">
       <div class="wx-day-name">${DAYS[d.getDay()]}</div>
       <div class="wx-day-icon">${dw.icon}</div>
-      <div class="wx-day-temp">${Math.round(data.daily.temperature_2m_max[i+1])}°</div>
-      <div class="wx-day-lo">${Math.round(data.daily.temperature_2m_min[i+1])}°</div>
-      <div class="wx-day-rain">${(data.daily.precipitation_probability_max[i+1]||0)>30?(data.daily.precipitation_probability_max[i+1])+"%":""}</div>
+      <div class="wx-day-temp">${hi}°</div>
+      <div class="wx-day-lo">${lo}°</div>
+      <div class="wx-day-rain">${r > 30 ? r + "%" : ""}</div>
     </div>`;
   }).join("");
 
+  // ── Next 5 hours ──
   const nowH = new Date().getHours();
-  const si   = data.hourly.time.findIndex(t=>new Date(t).getHours()>=nowH);
-  const hours = data.hourly.time.slice(si,si+6).map((t,i)=>{
-    const idx=si+i, h=new Date(t).getHours();
-    const lbl=h===0?"12am":h<12?`${h}am`:h===12?"12pm":`${h-12}pm`;
-    const hw=wmo(data.hourly.weather_code[idx]);
-    const hrain=data.hourly.precipitation_probability[idx]||0;
+  const si   = Math.max(0, data.hourly.time.findIndex(t => new Date(t).getHours() >= nowH));
+  const hours = data.hourly.time.slice(si, si+5).map((t,i) => {
+    const idx = si + i;
+    const h   = new Date(t).getHours();
+    const lbl = h === 0 ? "12a" : h < 12 ? h+"a" : h === 12 ? "12p" : (h-12)+"p";
+    const hw  = wmo(data.hourly.weather_code[idx]);
+    const hr  = data.hourly.precipitation_probability[idx] || 0;
     return `<div class="wx-hour">
       <div class="wx-hour-time">${lbl}</div>
       <div class="wx-hour-icon">${hw.icon}</div>
       <div class="wx-hour-temp">${Math.round(data.hourly.temperature_2m[idx])}°</div>
       <div class="wx-hour-wind">${Math.round(data.hourly.wind_speed_10m[idx])}mph</div>
-      <div class="wx-hour-rain">${hrain>20?hrain+"%":""}</div>
+      <div class="wx-hour-rain">${hr > 20 ? hr+"%" : ""}</div>
     </div>`;
   }).join("");
 
   return `<div class="wx-card">
-    <div class="wx-card-top">
-      <div class="wx-left">
-        <div class="wx-icon-main">${cond.icon}</div>
+
+    <!-- Hero row -->
+    <div class="wx-hero">
+      <div class="wx-hero-left">
+        <div class="wx-big-icon">${cond.icon}</div>
         <div>
-          <div class="wx-temp">${temp}°<span class="wx-unit">F</span></div>
-          <div class="wx-desc">${cond.label}</div>
-          <div class="wx-loc">📍 ${location} · ${ts}</div>
+          <div class="wx-temp-big">${temp}°<span class="wx-unit">F</span></div>
+          <div class="wx-condition">${cond.label}</div>
         </div>
       </div>
-      <div class="wx-right">
-        <div class="wx-stat"><span class="wx-stat-label">Feels</span><span class="wx-stat-val">${feels}°</span></div>
-        <div class="wx-stat"><span class="wx-stat-label">Wind</span><span class="wx-stat-val">${wind} ${wdir}</span></div>
-        <div class="wx-stat"><span class="wx-stat-label">Humidity</span><span class="wx-stat-val">${hum}%</span></div>
-        <div class="wx-stat"><span class="wx-stat-label">Rain</span><span class="wx-stat-val">${rain}%</span></div>
+      <div class="wx-hero-right">
+        <div class="wx-meta-row">📍 ${location}</div>
+        <div class="wx-meta-row">🌡️ Feels ${feels}°</div>
+        <div class="wx-meta-row">💨 ${wind}mph ${wdir}</div>
+        <div class="wx-meta-row">💧 ${hum}% · 🌧️ ${rain}%</div>
       </div>
     </div>
-    <div class="wx-playability" style="background:${pl.bg};color:${pl.c}">
-      <div class="wx-play-score" style="background:${pl.c};color:white">${sc}</div>
-      <div class="wx-play-text">${pl.text}</div>
-      <div class="wx-play-sub">${cond.golf}</div>
+
+    <!-- Playability badge -->
+    <div class="wx-play-bar" style="background:${pl.bg};color:${pl.c}">
+      <div class="wx-play-num" style="background:${pl.c};color:white">${sc}</div>
+      <div>
+        <div class="wx-play-label">${pl.text}</div>
+        <div class="wx-play-sub">${cond.golf}</div>
+      </div>
+      <div class="wx-updated">${ts}</div>
     </div>
-    <div class="wx-section-label">Next 6 hours</div>
-    <div class="wx-hours">${hours}</div>
-    <div class="wx-section-label" style="margin-top:10px">5-day forecast</div>
-    <div class="wx-days">${daily}</div>
-    <div class="wx-credit">Weather by <a href="https://open-meteo.com" target="_blank" style="color:var(--green)">Open-Meteo</a> · Refreshes every 10 min</div>
+
+    <!-- Hourly -->
+    <div class="wx-hours-wrap">
+      <div class="wx-section-title">Next 5 hours</div>
+      <div class="wx-hours">${hours}</div>
+    </div>
+
+    <!-- 4-day -->
+    <div class="wx-daily-wrap">
+      <div class="wx-section-title">4-day forecast</div>
+      <div class="wx-days">${daily}</div>
+    </div>
+
+    <div class="wx-credit">Open-Meteo · auto-refreshes every 10 min</div>
   </div>`;
 }
 

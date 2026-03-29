@@ -320,67 +320,62 @@
 .vibes-saved-msg{text-align:center;font-size:13px;color:var(--green-dark);padding:8px;display:none}
 
 /* ══════════════════════════════════════
-   WEATHER WIDGET
+   WEATHER WIDGET — clean redesign
    ══════════════════════════════════════ */
-
 .wx-container{padding:0 20px 4px}
 
-/* Loading state */
+/* Loading */
 .wx-loading{display:flex;gap:6px;align-items:center;justify-content:center;padding:28px}
 .wx-loading-dot{width:7px;height:7px;border-radius:50%;background:var(--green);opacity:.3;animation:wxpulse 1.2s ease-in-out infinite}
 .wx-loading-dot:nth-child(2){animation-delay:.2s}
 .wx-loading-dot:nth-child(3){animation-delay:.4s}
 @keyframes wxpulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+.wx-empty{font-size:13px;color:var(--muted);text-align:center;padding:18px;background:var(--surface);border-radius:var(--radius);border:0.5px solid var(--border)}
 
-/* Empty state */
-.wx-empty{font-size:13px;color:var(--muted);text-align:center;padding:20px;background:var(--surface);border-radius:var(--radius);border:0.5px solid var(--border)}
-
-/* Main card */
+/* Card */
 .wx-card{background:var(--card-bg);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden}
 
-/* Top row: icon + temp + stats */
-.wx-card-top{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 16px 12px}
-.wx-left{display:flex;align-items:center;gap:12px}
-.wx-icon-main{font-size:44px;line-height:1}
-.wx-temp{font-family:'Playfair Display',serif;font-size:36px;font-weight:500;color:var(--text);line-height:1}
+/* Hero */
+.wx-hero{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 12px;gap:12px}
+.wx-hero-left{display:flex;align-items:center;gap:10px}
+.wx-big-icon{font-size:48px;line-height:1;flex-shrink:0}
+.wx-temp-big{font-family:'Playfair Display',serif;font-size:40px;font-weight:500;color:var(--text);line-height:1}
 .wx-unit{font-size:18px;color:var(--muted)}
-.wx-desc{font-size:13px;color:var(--text);font-weight:500;margin-top:2px}
-.wx-loc{font-size:11px;color:var(--muted);margin-top:2px}
-.wx-right{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
-.wx-stat{display:flex;gap:6px;align-items:center}
-.wx-stat-label{font-size:11px;color:var(--muted)}
-.wx-stat-val{font-size:12px;font-weight:500;color:var(--text)}
+.wx-condition{font-size:13px;font-weight:500;color:var(--text);margin-top:3px}
+.wx-hero-right{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.wx-meta-row{font-size:12px;color:var(--muted);white-space:nowrap}
 
 /* Playability bar */
-.wx-playability{display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:0.5px solid var(--border)}
-.wx-play-score{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0}
-.wx-play-text{font-size:13px;font-weight:500;flex:1}
-.wx-play-sub{font-size:11px;opacity:.8}
+.wx-play-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:0.5px solid rgba(0,0,0,.06)}
+.wx-play-num{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.wx-play-label{font-size:13px;font-weight:500;line-height:1.2}
+.wx-play-sub{font-size:11px;opacity:.75;margin-top:1px}
+.wx-updated{margin-left:auto;font-size:10px;opacity:.6;flex-shrink:0}
 
-/* Section labels */
-.wx-section-label{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:10px 16px 6px}
-
-/* Hourly strip */
-.wx-hours{display:flex;gap:2px;padding:0 12px 12px;overflow-x:auto;scrollbar-width:none}
+/* Hours */
+.wx-hours-wrap{padding:0 14px 10px}
+.wx-daily-wrap{padding:0 14px 10px}
+.wx-section-title{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:10px 0 6px}
+.wx-hours{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .wx-hours::-webkit-scrollbar{display:none}
-.wx-hour{min-width:52px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:var(--radius-md);background:var(--surface)}
-.wx-hour-time{font-size:10px;color:var(--muted)}
+.wx-hour{min-width:48px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:var(--radius-md);background:var(--surface);flex-shrink:0}
+.wx-hour-time{font-size:10px;color:var(--muted);font-weight:500}
 .wx-hour-icon{font-size:18px}
-.wx-hour-temp{font-size:13px;font-weight:500;color:var(--text)}
+.wx-hour-temp{font-size:13px;font-weight:600;color:var(--text)}
 .wx-hour-wind{font-size:10px;color:var(--muted)}
-.wx-hour-rain{font-size:10px;color:#0C447C;font-weight:500;min-height:14px}
+.wx-hour-rain{font-size:10px;color:#0C447C;font-weight:500;min-height:13px}
 
-/* 5-day forecast */
-.wx-days{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px 12px}
+/* 4-day */
+.wx-days{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .wx-day{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:var(--radius-md);background:var(--surface)}
 .wx-day-name{font-size:11px;font-weight:500;color:var(--muted)}
 .wx-day-icon{font-size:20px}
-.wx-day-temp{font-size:13px;font-weight:500;color:var(--text)}
+.wx-day-temp{font-size:13px;font-weight:600;color:var(--text)}
 .wx-day-lo{font-size:11px;color:var(--muted)}
-.wx-day-rain{font-size:10px;color:#0C447C;font-weight:500;min-height:14px}
+.wx-day-rain{font-size:10px;color:#0C447C;font-weight:500;min-height:13px}
 
 /* Credit */
-.wx-credit{font-size:10px;color:var(--muted);text-align:right;padding:6px 14px 10px;border-top:0.5px solid var(--border)}
+.wx-credit{font-size:10px;color:var(--muted);text-align:center;padding:6px 14px 10px;border-top:0.5px solid var(--border)}
 
 /* ── ROUND DAY FORECAST CARD (tee time sheet + scorecard) ── */
 .wx-round-card{background:var(--card-bg);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:4px}
