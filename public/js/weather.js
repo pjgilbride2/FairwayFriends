@@ -55,7 +55,9 @@ function playLabel(n) {
 // Geocode city string to lat/lon via Open-Meteo geocoding API
 async function geocodeCity(city) {
   if (!city || !city.trim()) throw new Error("No city provided");
-  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city.trim())}&count=1&language=en&format=json`);
+  // Strip state abbreviation — Open-Meteo only accepts city names, not "City, ST" format
+  const cityOnly = city.split(",")[0].trim();
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityOnly)}&count=1&language=en&format=json`);
   const d = await r.json();
   if (!d.results?.length) throw new Error("City not found: "+city);
   const g = d.results[0];
