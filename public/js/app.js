@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=10";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=10";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=10";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=10";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=10";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=10";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=11";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=11";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=11";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=11";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=11";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=11";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=10";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=10";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=10";
+         teardownMessaging } from "./messages.js?v=11";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=11";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=11";
 
 
 // ── Haversine distance in miles ──
@@ -82,6 +82,14 @@ window.UI = {
   refreshWeather() {
     const city = window._weatherCity || myProfile.city || "";
     loadWeather(city);
+  },
+
+  markAllNotifsRead() {
+    markAllNotifsRead(window._currentUser?.uid);
+  },
+
+  openNotif(id, type, refId) {
+    openNotif(id, type, refId);
   },
 
   loadScorecardWeather() {
@@ -287,7 +295,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=10");
+      const { initials, avatarColor } = await import("./ui.js?v=11");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -321,8 +329,8 @@ window.UI = {
     listenToMessages(convId, (msgs) => {
       renderMessages(msgs, "messages-thread");
     });
-    // store current conv id for send
     window._activeConvId = convId;
+    // Mark as read so blue dot clears
     markConversationRead(convId, window._currentUser?.uid);
   },
 
@@ -560,107 +568,64 @@ window.UI = {
     const container = document.getElementById('courses-list');
     const label = document.getElementById('courses-radius-label');
     if (!container) { window._coursesLoading=false; return; }
-
     try {
-      // Resolve lat/lon from city or GPS
       let lat = window._wxLat, lon = window._wxLon;
       const city = window._weatherCity || myProfile.city || '';
       if (!lat && city) {
         const cn = city.split(',')[0].trim();
-        const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(cn)+'&count=1&language=en&format=json')).json();
-        if (gd.results?.length) { lat=gd.results[0].latitude; lon=gd.results[0].longitude; window._wxLat=lat; window._wxLon=lon; }
+        const gck = 'geo_'+cn.toLowerCase().replace(/ /g,'_');
+        let geo = null;
+        try { const c=sessionStorage.getItem(gck); if(c){const p=JSON.parse(c); if(p.ts&&Date.now()-p.ts<86400000) geo=p;} } catch(_){}
+        if (!geo) {
+          const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(cn)+'&count=1&language=en&format=json')).json();
+          if (gd.results?.length) { geo={lat:gd.results[0].latitude,lon:gd.results[0].longitude,ts:Date.now()}; try{sessionStorage.setItem(gck,JSON.stringify(geo));}catch(_){} }
+        }
+        if (geo) { lat=geo.lat; lon=geo.lon; window._wxLat=lat; window._wxLon=lon; }
       }
-      if (!lat) {
-        try {
-          const p = await new Promise((r,j)=>navigator.geolocation.getCurrentPosition(r,j,{timeout:5000}));
-          lat=p.coords.latitude; lon=p.coords.longitude; window._wxLat=lat; window._wxLon=lon;
-        } catch(_) {}
-      }
-      if (!lat) {
-        container.innerHTML='<div class="empty-state">Add your city in Edit Profile to find nearby courses ⛳</div>';
-        window._coursesLoading=false; return;
-      }
-
-      // Check 2-hour session cache
+      if (!lat) { try { const p=await new Promise((r,j)=>navigator.geolocation.getCurrentPosition(r,j,{timeout:5000})); lat=p.coords.latitude; lon=p.coords.longitude; window._wxLat=lat; window._wxLon=lon; } catch(_){} }
+      if (!lat) { container.innerHTML='<div class="empty-state">Add your city in Edit Profile to find nearby courses \u26f3</div>'; window._coursesLoading=false; return; }
       const ck='gc_'+Math.round(lat*10)/10+'_'+Math.round(lon*10)/10;
-      try {
-        const cd=sessionStorage.getItem(ck);
-        if (cd) {
-          const p=JSON.parse(cd);
-          if (p.ts && Date.now()-p.ts < 120*60*1000) {
-            window._nearbyCourses=p.data; UI.filterCourses('');
-            if (label) label.textContent=p.data.length+' golf courses within 25 miles';
-            window._coursesLoading=false; return;
-          }
-        }
-      } catch(_) {}
-
-      // Show skeleton cards immediately while API loads
-      if (label) label.textContent='Finding courses near you…';
-      container.innerHTML = Array(5).fill(0).map(()=>`
-        <div class="course-card" style="opacity:.35">
-          <div class="course-card-top">
-            <div style="flex:1">
-              <div style="height:16px;background:var(--border);border-radius:4px;width:65%;margin-bottom:8px"></div>
-              <div style="height:11px;background:var(--border);border-radius:4px;width:40%"></div>
-            </div>
-            <div style="font-size:20px">⛳</div>
-          </div>
-        </div>`).join('');
-
-      const radius = 40234;
-      const q = '[out:json][timeout:25];('
-        +'node["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'
-        +'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'
-        +'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'
-        +'way["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'
-        +'way["club"="golf"]["name"](around:'+radius+','+lat+','+lon+');'
-        +');out center tags 100;';
-
-      // Fetch with automatic retry on 429 rate limit
-      let resp;
-      for (let attempt=0; attempt<3; attempt++) {
-        resp = await fetch('https://overpass-api.de/api/interpreter', {
-          method:'POST',
-          headers:{'Content-Type':'application/x-www-form-urlencoded'},
-          body:'data='+encodeURIComponent(q)
-        });
-        if (resp.status === 429) {
-          if (attempt < 2) { await new Promise(r=>setTimeout(r,(attempt+1)*10000)); continue; }
-        }
+      try { const cd=sessionStorage.getItem(ck); if(cd){const p=JSON.parse(cd); if(p.ts&&Date.now()-p.ts<7200000){ window._nearbyCourses=p.data; UI.filterCourses(''); if(label)label.textContent=p.data.length+' golf courses within 25 miles'; window._coursesLoading=false; return; }} } catch(_){}
+      if(label) label.textContent='Finding courses near you\u2026';
+      container.innerHTML = Array(6).fill(0).map(()=>'<div class="course-card" style="opacity:.35"><div class="course-card-top"><div style="flex:1"><div style="height:16px;background:var(--border);border-radius:4px;width:65%;margin-bottom:8px"></div><div style="height:11px;background:var(--border);border-radius:4px;width:40%"></div></div><div style="font-size:20px">\u26f3</div></div></div>').join('');
+      const r=40234, OV='https://overpass-api.de/api/interpreter';
+      // Stage 1: fast — ways+relations only (no nodes, much faster)
+      const q1='[out:json][timeout:20];(way["leisure"="golf_course"](around:'+r+','+lat+','+lon+');relation["leisure"="golf_course"](around:'+r+','+lat+','+lon+'););out center tags 80;';
+      let resp1;
+      for(let i=0;i<3;i++){
+        resp1=await fetch(OV,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q1)});
+        if((resp1.status===429||resp1.status===504)&&i<2){await new Promise(r=>setTimeout(r,(i+1)*8000));continue;}
         break;
       }
-
-      if (!resp.ok) throw new Error('Overpass unavailable ('+resp.status+'). Tap Refresh to try again.');
-      const txt = await resp.text();
-      if (txt.trim().startsWith('<')) throw new Error('Overpass busy — tap Refresh in 30 seconds');
-
-      const els = (JSON.parse(txt).elements || []);
-      const seen = new Set(), norm = n=>n.toLowerCase().replace(/[^a-z0-9]/g,'');
-      const courses = els
-        .filter(e=>{ const n=e.tags?.name; if(!n)return false; const k=norm(n); if(seen.has(k))return false; seen.add(k); return true; })
-        .map(e=>{
-          const cLat=e.lat||e.center?.lat||lat, cLon=e.lon||e.center?.lon||lon, t=e.tags||{};
-          return { name:t.name||t.operator||'Golf Course', holes:t['golf:holes']||t.holes||null,
-            phone:t.phone||null, website:t.website||null,
-            addr:[t['addr:city'],t['addr:state']].filter(Boolean).join(', '),
-            type:t.club==='golf'?'Country Club':'Golf Course',
-            dist:_haversine(lat,lon,cLat,cLon), lat:cLat, lon:cLon };
-        })
-        .sort((a,b)=>a.dist-b.dist).slice(0,80);
-
-      window._nearbyCourses = courses;
-      try { sessionStorage.setItem(ck, JSON.stringify({ts:Date.now(),data:courses})); } catch(_){}
-      UI.filterCourses('');
-      if (label) label.textContent = courses.length+' golf courses within 25 miles';
-
+      if(!resp1.ok) throw new Error('Overpass unavailable ('+resp1.status+'). Please try again.');
+      const txt1=await resp1.text();
+      if(txt1.trim().startsWith('<')) throw new Error('Overpass busy \u2014 please try again in 30 seconds.');
+      const seen=new Set(), norm=n=>n.toLowerCase().replace(/[^a-z0-9]/g,'');
+      const parse=(txt)=>(JSON.parse(txt).elements||[]).filter(e=>{const n=e.tags?.name;if(!n)return false;const k=norm(n);if(seen.has(k))return false;seen.add(k);return true;}).map(e=>{const cLat=e.lat||e.center?.lat||lat,cLon=e.lon||e.center?.lon||lon,t=e.tags||{};return{name:t.name||t.operator||'Golf Course',holes:t['golf:holes']||t.holes||null,phone:t.phone||null,website:t.website||null,addr:[t['addr:city'],t['addr:state']].filter(Boolean).join(', '),type:t.club==='golf'?'Country Club':'Golf Course',dist:_haversine(lat,lon,cLat,cLon),lat:cLat,lon:cLon};});
+      let courses=parse(txt1).sort((a,b)=>a.dist-b.dist).slice(0,80);
+      window._nearbyCourses=courses; UI.filterCourses('');
+      if(label) label.textContent=courses.length+' golf courses within 25 miles';
+      try{sessionStorage.setItem(ck,JSON.stringify({ts:Date.now(),data:courses}));}catch(_){}
+      // Stage 2: background — sport=golf + club=golf (non-blocking, enhances results)
+      (async()=>{
+        try {
+          const q2='[out:json][timeout:20];(way["sport"="golf"]["name"](around:'+r+','+lat+','+lon+');way["club"="golf"]["name"](around:'+r+','+lat+','+lon+'););out center tags 40;';
+          const r2=await fetch(OV,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q2)});
+          if(!r2.ok||r2.status===429||r2.status===504) return;
+          const t2=await r2.text(); if(t2.trim().startsWith('<')) return;
+          const extra=parse(t2); if(!extra.length) return;
+          const merged=[...courses,...extra].sort((a,b)=>a.dist-b.dist).slice(0,80);
+          window._nearbyCourses=merged; UI.filterCourses('');
+          if(label) label.textContent=merged.length+' golf courses within 25 miles';
+          try{sessionStorage.setItem(ck,JSON.stringify({ts:Date.now(),data:merged}));}catch(_){}
+        } catch(_){}
+      })();
     } catch(e) {
-      console.error('courses error:', e.message);
-      container.innerHTML = '<div class="empty-state">'+(e.message||'Could not load — tap Refresh')+'</div>';
-    } finally {
-      window._coursesLoading = false;
-    }
+      console.error('courses error:',e.message);
+      container.innerHTML='<div class="empty-state" style="padding:24px 20px"><div style="font-size:32px;margin-bottom:12px">\u26f3</div><div style="font-weight:600;margin-bottom:8px">Couldn\'t load courses</div><div style="font-size:14px;color:var(--muted);margin-bottom:16px">'+(e.message||'Connection error')+'</div><button onclick="window._coursesLoading=false;safeUI(\'loadNearbyCourses\')" style="background:var(--green);color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer">Try Again</button></div>';
+    } finally { window._coursesLoading=false; }
   },
+
 
   filterCourses(query) {
     const courses = window._nearbyCourses || [];
