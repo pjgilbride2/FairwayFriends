@@ -3,14 +3,14 @@
 //  Handles: loading, saving, photo upload, UI rendering
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=9";
+import { db, storage } from "./firebase-config.js?v=10";
 import {
   doc, getDoc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { VIBE_META, initials, avatarColor } from "./ui.js?v=9";
+import { VIBE_META, initials, avatarColor } from "./ui.js?v=10";
 
 export let myProfile = {};
 export let myVibes   = [];
@@ -18,6 +18,8 @@ export let myVibes   = [];
 // ── Load profile from Firestore ──
 export async function loadUserProfile(uid) {
   try {
+    const pk = "profile_"+uid;
+    try { const c=sessionStorage.getItem(pk); if(c){ const d=JSON.parse(c); Object.assign(myProfile,d); updateProfileUI(); } } catch(_){}
     const snap = await getDoc(doc(db, "users", uid));
     if (snap.exists()) {
       myProfile = snap.data();

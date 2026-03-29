@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=9";
+import { db, storage } from "./firebase-config.js?v=10";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,11 +12,11 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=9";
-import { loadRoundDayForecast } from "./weather.js?v=9";
+import { myProfile, myVibes } from "./profile.js?v=10";
+import { loadRoundDayForecast } from "./weather.js?v=10";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=9";
+} from "./ui.js?v=10";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -25,6 +25,7 @@ let _unsubPlayers  = null;
 
 // ── Start all real-time listeners ──
 export function initFeed() {
+  try { const c=sessionStorage.getItem("feed_posts"); if(c){ const posts=JSON.parse(c); if(posts?.length) renderFeed(posts); } } catch(_){}
   _startTeeTimesListener();
   _startFeedListener();
 }
@@ -200,6 +201,7 @@ function _startFeedListener() {
   );
   _unsubFeed = onSnapshot(q, (snap) => {
     const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    try{const s=posts.map(p=>({...p,createdAt:p.createdAt?.toDate?.()?.toISOString()||p.createdAt}));sessionStorage.setItem("feed_posts",JSON.stringify(s));}catch(_){}
     renderFeed(posts);
   });
 }

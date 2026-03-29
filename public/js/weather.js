@@ -55,26 +55,25 @@ function playLabel(n) {
 // Geocode city string to lat/lon via Open-Meteo geocoding API
 async function geocodeCity(city) {
   if (!city || !city.trim()) throw new Error("No city provided");
-  // For "City, ST" format — try full string first, then city-only
   const cityOnly = city.split(",")[0].trim();
   const stateRegion = city.includes(",") ? city.split(",")[1]?.trim() : "";
-  // Try with country bias for US cities to get most accurate result
-  const searchStr = encodeURIComponent(cityOnly);
-  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${searchStr}&count=5&language=en&format=json`);
+  const cacheKey = "geo_" + cityOnly.toLowerCase().replace(/ /g,"_");
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) { const p=JSON.parse(cached); if(p.ts&&Date.now()-p.ts<24*60*60*1000) return p; }
+  } catch(_) {}
+  const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(cityOnly)+"&count=5&language=en&format=json");
   const d = await r.json();
   if (!d.results?.length) throw new Error("City not found: "+city);
-  // If state/region provided, pick the result that best matches it
   let g = d.results[0];
   if (stateRegion && d.results.length > 1) {
     const sr = stateRegion.toUpperCase();
-    const match = d.results.find(r =>
-      (r.admin1_code||"").toUpperCase() === sr ||
-      (r.admin1||"").toUpperCase().startsWith(sr) ||
-      (r.country_code||"").toUpperCase() === sr
-    );
+    const match = d.results.find(r=>(r.admin1_code||"").toUpperCase()===sr||(r.admin1||"").toUpperCase().startsWith(sr));
     if (match) g = match;
   }
-  return { lat:g.latitude, lon:g.longitude, display: g.admin1 ? g.name+", "+g.admin1 : g.name };
+  const result = { lat:g.latitude, lon:g.longitude, display:g.admin1?g.name+", "+g.admin1:g.name, ts:Date.now() };
+  try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch(_) {}
+  return result;
 }
 
 // Fetch full 5-day forecast from Open-Meteo
@@ -105,12 +104,16 @@ function scheduleRefresh(lat, lon, display) {
 async function doRender(lat, lon, display) {
   const el = document.getElementById("wx-container");
   if (!el) return;
+  const fk = "wx_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
+  try {
+    const cached = sessionStorage.getItem(fk);
+    if (cached) { const p=JSON.parse(cached); if(p.ts&&Date.now()-p.ts<10*60*1000){ el.innerHTML=buildWeatherCard(p.data,display); return; } }
+  } catch(_) {}
   try {
     const data = await fetchForecast(lat, lon);
+    try { sessionStorage.setItem(fk, JSON.stringify({ts:Date.now(),data})); } catch(_){}
     el.innerHTML = buildWeatherCard(data, display);
-  } catch(e) {
-    console.error("Weather render:", e);
-  }
+  } catch(e) { console.error("Weather render:", e); }
 }
 
 // ── Main export — called by app.js whenever feed loads or user refreshes ──
@@ -118,8 +121,14 @@ export async function loadWeather(cityString) {
   const el = document.getElementById("wx-container");
   if (!el) return;
 
+  if (window._wxLat && window._wxLon) {
+    const fk = "wx_"+Math.round(window._wxLat*10)/10+"_"+Math.round(window._wxLon*10)/10;
+    try {
+      const cached = sessionStorage.getItem(fk);
+      if (cached) { const p=JSON.parse(cached); if(p.ts&&Date.now()-p.ts<10*60*1000){ el.innerHTML=buildWeatherCard(p.data,cityString||""); doRender(window._wxLat,window._wxLon,cityString||""); return; } }
+    } catch(_) {}
+  }
   el.innerHTML = `<div class="wx-loading"><div class="wx-loading-dot"></div><div class="wx-loading-dot"></div><div class="wx-loading-dot"></div></div>`;
-
   let lat=null, lon=null, display=cityString||"";
 
   // Step 1: geocode city from profile (this always works, no permission needed)
