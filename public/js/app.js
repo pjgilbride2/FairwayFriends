@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=23";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=23";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=23";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=23";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=23";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=23";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=25";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=25";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=25";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=25";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=25";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=25";
 import { listenToConversations, renderConversationsList, getOrCreateConversation, createGroupConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=23";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=23";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=23";
+         teardownMessaging } from "./messages.js?v=25";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=25";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=25";
 
 
 // ── Haversine distance in miles ──
@@ -286,13 +286,28 @@ window.UI = {
 
   // ── Messaging ──
   async loadConversations() {
+    // Inject New Group button + panel (no extra HTML needed)
+    if (!document.getElementById('new-group-btn')) {
+      const cl = document.getElementById('conversations-list');
+      if (cl) {
+        const b = document.createElement('div');
+        b.style.cssText = 'padding:0 0 10px;display:flex;justify-content:flex-end';
+        b.innerHTML = '<button id="new-group-btn" onclick="safeUI('showNewGroupPanel')" style="display:flex;align-items:center;gap:5px;background:var(--green-light);color:var(--green-dark);border:none;border-radius:16px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">\u{1F465} New Group</button>';
+        cl.parentNode.insertBefore(b, cl);
+        const p = document.createElement('div');
+        p.id = 'new-group-panel';
+        p.style.cssText = 'display:none;background:var(--surface);border-radius:14px;padding:16px;margin:0 0 12px;border:1px solid var(--border)';
+        p.innerHTML = '<div style="font-size:14px;font-weight:600;margin-bottom:10px">New Group Chat</div><input id="group-name-input" maxlength="40" placeholder="Group name" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;margin-bottom:10px"><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Add Members</div><div id="group-member-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:10px;margin-bottom:8px"></div><div id="group-member-search-results" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div><button id="create-group-btn" disabled onclick="safeUI('createGroup')" style="width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;opacity:.45">Create Group</button>';
+        cl.parentNode.insertBefore(p, cl);
+      }
+    }
     listenToConversations((convs) => {
       renderConversationsList(convs, "conversations-list");
     });
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=23");
+      const { initials, avatarColor } = await import("./ui.js?v=25");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
