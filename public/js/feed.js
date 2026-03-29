@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=3";
+import { db, storage } from "./firebase-config.js?v=4";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,11 +12,11 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=3";
-import { loadRoundDayForecast } from "./weather.js?v=3";
+import { myProfile, myVibes } from "./profile.js?v=4";
+import { loadRoundDayForecast } from "./weather.js?v=4";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=3";
+} from "./ui.js?v=4";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -240,9 +240,9 @@ export function renderFeed(posts) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
             Reply <span class="post-action-count" id="reply-count-${p.id}">${(p.replyCount||0)>0?p.replyCount:""}</span>
           </div>
-          <div class="post-action ${(p.helpfuls||[]).includes(me?.uid)?"post-action-active":""}" onclick="safeUI('toggleHelpful','${p.id}')" id="helpful-btn-${p.id}">
+          <div class="post-action ${(p.helpfuls||[]).includes(me?.uid)?"post-action-active":""}" onclick="safeUI('toggleLike','${p.id}')" id="helpful-btn-${p.id}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/></svg>
-            Helpful <span class="post-action-count" id="helpful-count-${p.id}">${(p.helpfuls||[]).length>0?(p.helpfuls||[]).length:""}</span>
+            Like <span class="post-action-count" id="helpful-count-${p.id}">${(p.helpfuls||[]).length>0?(p.helpfuls||[]).length:""}</span>
           </div>
         </div>
         <div id="reply-box-${p.id}" style="display:none;padding:8px 12px 12px">
@@ -289,7 +289,7 @@ export async function submitPost(text, imageFile) {
 }
 
 
-export async function toggleHelpful(postId) {
+export async function toggleLike(postId) {
   const me = window._currentUser;
   if (!me) return;
   const r = doc(db,"posts",postId);

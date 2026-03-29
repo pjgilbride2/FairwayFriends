@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=3";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleHelpful, submitReply, loadReplies } from "./feed.js?v=3";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js";
-import { goScreen, showToast, toggleChip } from "./ui.js";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=4";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=4";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=4";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=4";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=4";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=4";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js";
+         teardownMessaging } from "./messages.js?v=4";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=4";
 
 // ── Expose all UI actions to inline HTML onclick handlers ──
 window.UI = {
@@ -460,8 +460,8 @@ window.UI = {
   },
 
   // ── Post reactions ──
-  async toggleHelpful(postId) {
-    try { await toggleHelpful(postId); }
+  async toggleLike(postId) {
+    try { await toggleLike(postId); }
     catch(e) { showToast("Could not update"); }
   },
 
@@ -488,25 +488,6 @@ window.UI = {
     } catch(e) { showToast("Could not post reply"); }
   },
 
-  // ── Post reactions ──
-  async toggleHelpful(postId) {
-    try { await toggleHelpful(postId); } catch(e) { showToast("Could not update"); }
-  },
-  toggleReply(postId) {
-    const box = document.getElementById("reply-box-"+postId);
-    if(!box) return;
-    const open = box.style.display!=="none";
-    box.style.display = open?"none":"block";
-    if(!open){ loadReplies(postId); setTimeout(()=>document.getElementById("reply-input-"+postId)?.focus(),100); }
-  },
-  async submitReply(postId) {
-    const inp = document.getElementById("reply-input-"+postId);
-    const text = inp?.value?.trim();
-    if(!text) return;
-    inp.value="";
-    try { await submitReply(postId,text); loadReplies(postId); showToast("Reply posted ✅"); }
-    catch(e){ showToast("Could not post reply"); }
-  },
   // ── Players ──
   filterPlayers(q) {
     filterPlayers(q);
