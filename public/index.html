@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-512.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/app.css?v=6">
+<link rel="stylesheet" href="/css/app.css?v=4">
 </head>
 <body>
 
@@ -135,22 +135,22 @@
       </div>
       <div class="onboard-header">
         <div class="onboard-title">Where do you play?</div>
-        <div class="onboard-sub">Your city and state help us show nearby golfers, courses, and accurate weather.</div>
+        <div class="onboard-sub">Your city (and optional state) helps us show nearby golfers, courses, and accurate weather anywhere in the US.</div>
       </div>
       <div class="input-row" style="margin-bottom:0">
         <div>
           <div class="field-label">City <span style="color:#A32D2D">*</span></div>
-          <input class="auth-input" id="onboard-city" type="text" placeholder="Land O' Lakes"
+          <input class="auth-input" id="onboard-city" type="text" placeholder="City or Town"
             style="margin-top:6px" oninput="validateLocationFields()">
         </div>
         <div>
-          <div class="field-label">State <span style="color:#A32D2D">*</span></div>
-          <input class="auth-input" id="onboard-state" type="text" placeholder="FL" maxlength="2"
+          <div class="field-label">State / Region</div>
+          <input class="auth-input" id="onboard-state" type="text" placeholder="FL, ON, NSW…" maxlength="30"
             style="margin-top:6px;text-transform:uppercase" oninput="validateLocationFields()">
         </div>
       </div>
       <div id="onboard-location-error" style="font-size:12px;color:#A32D2D;margin-top:8px;display:none">
-        Please enter both your city and state.
+        Please enter your city or area.
       </div>
       <div style="margin-top:16px">
         <div class="field-label">Primary home course <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
@@ -556,19 +556,19 @@
 
       <!-- City + State -->
       <div style="margin-bottom:20px">
-        <div class="field-label">Location</div>
+        <div class="field-label">Location <span style="color:var(--muted);font-weight:400;text-transform:none">(anywhere in the US)</span></div>
         <div class="input-row" style="margin-top:6px">
           <div>
-            <input class="auth-input" id="edit-city" type="text" maxlength="60" placeholder="Land O' Lakes"
+            <input class="auth-input" id="edit-city" type="text" maxlength="60" placeholder="City or Town"
               style="font-size:14px">
           </div>
           <div>
-            <input class="auth-input" id="edit-state" type="text" maxlength="3" placeholder="FL" maxlength="2"
+            <input class="auth-input" id="edit-state" type="text" maxlength="30" placeholder="FL / ON / NSW"
               style="font-size:14px;text-transform:uppercase">
           </div>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px">
-          Used to find nearby golfers and for your weather forecast
+          Your city + state/region — used for weather and nearby courses
         </div>
         <button onclick="safeUI('useMyLocation')"
           style="margin-top:8px;background:var(--green-light);color:var(--green-dark);border:0.5px solid #9FE1CB;
@@ -782,7 +782,7 @@ function safeUI(method) {
 function validateLocationFields() {
   var city  = (document.getElementById("onboard-city")  || {}).value || "";
   var state = (document.getElementById("onboard-state") || {}).value || "";
-  var valid = city.trim().length > 0 && state.trim().length > 0;
+  var valid = city.trim().length > 0; // state/region is optional
   var btn   = document.getElementById("onboard-location-btn");
   var err   = document.getElementById("onboard-location-error");
   if (btn) {
@@ -795,6 +795,6 @@ function validateLocationFields() {
 </script>
 
 <!-- ═══ MAIN APP MODULE ═══ -->
-<script type="module" src="/js/app.js?v=6"></script>
+<script type="module" src="/js/app.js?v=4"></script>
 </body>
 </html>

@@ -55,12 +55,25 @@ function playLabel(n) {
 // Geocode city string to lat/lon via Open-Meteo geocoding API
 async function geocodeCity(city) {
   if (!city || !city.trim()) throw new Error("No city provided");
-  // Strip state abbreviation — Open-Meteo only accepts city names, not "City, ST" format
+  // For "City, ST" format — try full string first, then city-only
   const cityOnly = city.split(",")[0].trim();
-  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityOnly)}&count=1&language=en&format=json`);
+  const stateRegion = city.includes(",") ? city.split(",")[1]?.trim() : "";
+  // Try with country bias for US cities to get most accurate result
+  const searchStr = encodeURIComponent(cityOnly);
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${searchStr}&count=5&language=en&format=json`);
   const d = await r.json();
   if (!d.results?.length) throw new Error("City not found: "+city);
-  const g = d.results[0];
+  // If state/region provided, pick the result that best matches it
+  let g = d.results[0];
+  if (stateRegion && d.results.length > 1) {
+    const sr = stateRegion.toUpperCase();
+    const match = d.results.find(r =>
+      (r.admin1_code||"").toUpperCase() === sr ||
+      (r.admin1||"").toUpperCase().startsWith(sr) ||
+      (r.country_code||"").toUpperCase() === sr
+    );
+    if (match) g = match;
+  }
   return { lat:g.latitude, lon:g.longitude, display: g.admin1 ? g.name+", "+g.admin1 : g.name };
 }
 
