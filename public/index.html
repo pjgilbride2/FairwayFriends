@@ -137,10 +137,17 @@
         <div class="onboard-title">Where do you play?</div>
         <div class="onboard-sub">Your city (and optional state) helps us show nearby golfers, courses, and accurate weather anywhere in the US.</div>
       </div>
+      <div style="margin-bottom:12px">
+        <div class="field-label">ZIP Code <span style="color:var(--muted);font-weight:400;font-size:11px;text-transform:none">(auto-fills city &amp; state)</span></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <input class="auth-input" id="onboard-zip" type="text" inputmode="numeric" maxlength="5" placeholder="e.g. 33558" style="width:120px;flex-shrink:0;letter-spacing:2px;font-size:16px" oninput="handleZipInput('onboard')">
+          <span id="onboard-zip-status" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
       <div class="input-row" style="margin-bottom:0">
         <div>
-          <div class="field-label">City <span style="color:#A32D2D">*</span></div>
-          <input class="auth-input" id="onboard-city" type="text" placeholder="City or Town"
+          <div class="field-label">City / Town <span style="color:#A32D2D">*</span></div>
+          <input class="auth-input" id="onboard-city" type="text" placeholder="Auto-filled or type"
             style="margin-top:6px" oninput="validateLocationFields()">
         </div>
         <div>
@@ -557,19 +564,22 @@
       <!-- City + State -->
       <div style="margin-bottom:20px">
         <div class="field-label">Location <span style="color:var(--muted);font-weight:400;text-transform:none">(anywhere in the US)</span></div>
-        <div class="input-row" style="margin-top:6px">
-          <div>
-            <input class="auth-input" id="edit-city" type="text" maxlength="60" placeholder="City or Town"
-              style="font-size:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;margin-bottom:10px">
+          <div style="flex-shrink:0">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500">ZIP</div>
+            <input class="auth-input" id="edit-zip" type="text" inputmode="numeric" maxlength="5" placeholder="33558" style="width:90px;letter-spacing:2px;font-size:14px" oninput="handleZipInput('edit')">
           </div>
-          <div>
-            <input class="auth-input" id="edit-state" type="text" maxlength="30" placeholder="FL / ON / NSW"
-              style="font-size:14px;text-transform:uppercase">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500">CITY / TOWN</div>
+            <input class="auth-input" id="edit-city" type="text" maxlength="60" placeholder="Auto-filled or type" style="font-size:14px;width:100%">
+          </div>
+          <div style="width:60px;flex-shrink:0">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500">STATE</div>
+            <input class="auth-input" id="edit-state" type="text" maxlength="30" placeholder="FL" style="font-size:14px;text-transform:uppercase">
           </div>
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">
-          Your city + state/region — used for weather and nearby courses
-        </div>
+        <div id="edit-zip-status" style="font-size:12px;color:var(--green-dark);margin-bottom:6px;display:none"></div>
+        <div style="font-size:11px;color:var(--muted)">Enter ZIP to auto-fill — used for weather and nearby courses</div>
         <button onclick="safeUI('useMyLocation')"
           style="margin-top:8px;background:var(--green-light);color:var(--green-dark);border:0.5px solid #9FE1CB;
                  border-radius:20px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;
@@ -809,17 +819,62 @@ function safeUI(method) {
 }
 
 function validateLocationFields() {
-  var city  = (document.getElementById("onboard-city")  || {}).value || "";
-  var state = (document.getElementById("onboard-state") || {}).value || "";
-  var valid = city.trim().length > 0; // state/region is optional
-  var btn   = document.getElementById("onboard-location-btn");
-  var err   = document.getElementById("onboard-location-error");
-  if (btn) {
-    btn.disabled      = !valid;
-    btn.style.opacity = valid ? "1"       : "0.45";
-    btn.style.cursor  = valid ? "pointer" : "not-allowed";
-  }
+  var city = (document.getElementById("onboard-city") || {}).value || "";
+  var zip  = (document.getElementById("onboard-zip")  || {}).value || "";
+  var valid = city.trim().length > 0 || zip.trim().length === 5;
+  var btn  = document.getElementById("onboard-location-btn");
+  var err  = document.getElementById("onboard-location-error");
+  if (btn) { btn.disabled = !valid; btn.style.opacity = valid ? "1" : "0.45"; btn.style.cursor = valid ? "pointer" : "not-allowed"; }
   if (err && valid) err.style.display = "none";
+}
+
+async function handleZipInput(context) {
+  var zip = (document.getElementById(context+"-zip") || {}).value || "";
+  var statusEl = document.getElementById(context+"-zip-status");
+  var cityEl   = document.getElementById(context+"-city");
+  var stateEl  = document.getElementById(context+"-state");
+  if (zip.length !== 5 || !/^\d{5}$/.test(zip)) {
+    if (statusEl) { statusEl.style.display="none"; statusEl.textContent=""; }
+    return;
+  }
+  if (statusEl) { statusEl.style.display="block"; statusEl.textContent="Looking up..."; statusEl.style.color="var(--muted)"; }
+  var cacheKey = "zip_"+zip;
+  try {
+    var cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      var p = JSON.parse(cached);
+      if (cityEl)  { cityEl.value = p.city;  cityEl.dispatchEvent(new Event("input")); }
+      if (stateEl) { stateEl.value = p.state; stateEl.dispatchEvent(new Event("input")); }
+      if (statusEl){ statusEl.textContent = "📍 "+p.city+", "+p.state; statusEl.style.color = "var(--green-dark)"; }
+      validateLocationFields(); return;
+    }
+  } catch(e) {}
+  try {
+    var resp = await fetch("https://api.zippopotam.us/us/"+zip);
+    if (!resp.ok) throw new Error("ZIP not found");
+    var data = await resp.json();
+    var place = data.places && data.places[0];
+    if (!place) throw new Error("ZIP not found");
+    var city  = place["place name"] || "";
+    var state = place["state abbreviation"] || "";
+    if (cityEl)  { cityEl.value = city;  cityEl.dispatchEvent(new Event("input")); }
+    if (stateEl) { stateEl.value = state; stateEl.dispatchEvent(new Event("input")); }
+    if (statusEl){ statusEl.style.display="block"; statusEl.textContent="📍 "+city+", "+state; statusEl.style.color="var(--green-dark)"; }
+    try { sessionStorage.setItem(cacheKey, JSON.stringify({city:city,state:state,zip:zip})); } catch(e){}
+    validateLocationFields();
+    try {
+      var geo = await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(city)+"&count=5&language=en&format=json");
+      var gd  = await geo.json();
+      if (gd.results && gd.results.length) {
+        var sr = state.toUpperCase();
+        var best = gd.results.find(function(r){return (r.admin1_code||"").toUpperCase()===sr;}) || gd.results[0];
+        window._wxLat = best.latitude; window._wxLon = best.longitude;
+        try { sessionStorage.setItem("geo_"+city.toLowerCase().replace(/ /g,"_"), JSON.stringify({lat:best.latitude,lon:best.longitude,ts:Date.now()})); } catch(e){}
+      }
+    } catch(e) {}
+  } catch(e) {
+    if (statusEl){ statusEl.style.display="block"; statusEl.textContent="ZIP not found - please type your city"; statusEl.style.color="#A32D2D"; }
+  }
 }
 </script>
 
