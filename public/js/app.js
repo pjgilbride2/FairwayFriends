@@ -729,9 +729,14 @@ window.UI = {
       const seen=new Set(), norm=n=>n.toLowerCase().replace(/[^a-z0-9]/g,'');
       let courses=[];
       const KNOWN_COURSES=[
+        // Lutz/North Tampa courses missing from OSM
         {name:"Heritage Harbor Golf & Country Club",lat:28.1372,lon:-82.5012,phone:"(813) 949-4886",website:"https://www.heritageharborgolf.com",addr:"Lutz, FL",type:"Golf Course",holes:"18"},
         {name:"TPC Tampa Bay",lat:28.1637,lon:-82.5195,phone:"(813) 949-0090",website:"https://www.tpctampabay.com",addr:"Lutz, FL",type:"Golf Course",holes:"18"},
         {name:"Northdale Golf & Tennis Club",lat:28.0823,lon:-82.5281,phone:"(813) 962-0428",website:null,addr:"Tampa, FL",type:"Golf Course",holes:"18"},
+        // Tampa municipal courses (City of Tampa Parks & Rec)
+        {name:"Babe Zaharias Golf Course",lat:27.9966,lon:-82.4815,phone:"(813) 631-4374",website:"https://www.tampagov.net/parks-and-recreation/golf",addr:"Tampa, FL",type:"Municipal Golf Course",holes:"18"},
+        {name:"Rogers Park Golf Course",lat:27.9897,lon:-82.4464,phone:"(813) 356-1670",website:"https://www.tampagov.net/parks-and-recreation/golf",addr:"Tampa, FL",type:"Municipal Golf Course",holes:"18"},
+        {name:"Rocky Point Golf Course",lat:27.9653,lon:-82.5631,phone:"(813) 673-4316",website:"https://www.tampagov.net/parks-and-recreation/golf",addr:"Tampa, FL",type:"Municipal Golf Course",holes:"18"},
       ];
       KNOWN_COURSES.forEach(k=>{
         const d=_haversine(lat,lon,k.lat,k.lon);
@@ -745,11 +750,16 @@ window.UI = {
 
       // ── 5. Overpass: short timeout mirrors in parallel ─────────────
       const radius=40234;
-      const q='[out:json][timeout:15];('+
+      const q='[out:json][timeout:20];('+
         'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
         'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
+        'node["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
+        'way["amenity"="golf_course"]["name"](around:'+radius+','+lat+','+lon+');'+
+        'node["amenity"="golf_course"]["name"](around:'+radius+','+lat+','+lon+');'+
         'way["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
-        ');out center tags 80;';
+        'way["leisure"="sports_centre"]["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
+        'way["landuse"="recreation_ground"]["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
+        ');out center tags 100;';
 
       const mirrors=[
         'https://overpass-api.de/api/interpreter',
@@ -786,7 +796,8 @@ window.UI = {
             return{name:t.name||t.operator||'Golf Course',holes:t['golf:holes']||t.holes||null,
               phone:t.phone||null,website:t.website||null,
               addr:[t['addr:city'],t['addr:state']].filter(Boolean).join(', '),
-              type:t.club==='golf'?'Country Club':'Golf Course',
+              type:t.club==='golf'?'Country Club':
+                (t.operator_type==='public'||t.access==='yes'||t.fee==='yes'||(t.name||'').toLowerCase().includes('municipal')||(t.name||'').toLowerCase().includes('muni'))?'Municipal Golf Course':'Golf Course',
               dist:_haversine(lat,lon,cLat,cLon),lat:cLat,lon:cLon};
           });
         courses=[...courses,...parsed];
@@ -796,10 +807,19 @@ window.UI = {
       if(!txt1||courses.length<5){
         try{
           const bbox=0.36;
-          const url='https://nominatim.openstreetmap.org/search?q=golf+course&format=json&limit=40&addressdetails=1'+
-            '&viewbox='+(lon-bbox)+','+(lat+bbox)+','+(lon+bbox)+','+(lat-bbox)+'&bounded=1';
-          const nd=await (await fetch(url,{headers:{'Accept-Language':'en'}})).json();
-          nd.forEach(p=>{
+          // Search multiple golf terms to catch municipals tagged differently
+          const nomTerms=['golf course','municipal golf','city golf','public golf','golf club'];
+          const allNom=[];
+          for(const term of nomTerms){
+            try{
+              const url='https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(term)+'&format=json&limit=25&addressdetails=1'+
+                '&viewbox='+(lon-bbox)+','+(lat+bbox)+','+(lon+bbox)+','+(lat-bbox)+'&bounded=1';
+              const nd=await (await fetch(url,{headers:{'Accept-Language':'en'}})).json();
+              allNom.push(...nd);
+              await new Promise(r=>setTimeout(r,300)); // respect rate limit
+            }catch(_){}
+          }
+          allNom.forEach(p=>{
             const n=p.display_name?.split(',')[0]||'';if(!n)return;
             const k=norm(n);if(seen.has(k))return;seen.add(k);
             const cLat=parseFloat(p.lat),cLon=parseFloat(p.lon);
@@ -814,7 +834,7 @@ window.UI = {
       courses=courses.filter(c=>{
         if(CLOSED.includes(norm(c.name)))return false;
         const n=c.name.trim();
-        if(/golf|country.?club|links|course|tpc|pga|greens|resort/i.test(n))return true;
+        if(/golf|country.?club|links|course|tpc|pga|greens|resort|muni|municipal|par.?3|executive|putting|putt|fairway/i.test(n))return true;
         if(STREET_RE.test(n))return false;
         return true;
       });
