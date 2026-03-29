@@ -108,6 +108,7 @@ window.UI = {
   goToEditProfile() {
     const p = myProfile;
     const cityParts = (p.city || "").split(",").map(s => s.trim());
+    const elZip    = document.getElementById("edit-zip"); if(elZip && p.zip) elZip.value = p.zip;
     const elBio    = document.getElementById("edit-bio");
     const elCity   = document.getElementById("edit-city");
     const elState  = document.getElementById("edit-state");
@@ -163,6 +164,7 @@ window.UI = {
 
   async saveProfileEdits() {
     const bio       = (document.getElementById("edit-bio")?.value         || "").trim();
+    const zipVal    = (document.getElementById("edit-zip")?.value         || "").trim();
     const cityRaw   = (document.getElementById("edit-city")?.value        || "").trim();
     const stateRaw  = (document.getElementById("edit-state")?.value       || "").trim().toUpperCase();
     const homeCourse= (document.getElementById("edit-home-course")?.value || "").trim();
@@ -187,7 +189,7 @@ window.UI = {
       if (!window._currentUser) {
         throw new Error("Not signed in. Please sign in again.");
       }
-      await saveProfileData({ bio, city, homeCourse, handicap });
+      await saveProfileData({ bio, city, homeCourse, handicap, zip: zipVal });
       showToast("Profile saved! ✅");
       window._weatherCity = city;
       // Clear ALL cached location data so new city takes effect immediately
