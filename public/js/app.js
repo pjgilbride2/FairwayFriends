@@ -661,39 +661,46 @@ out center tags 200;`;
       const distStr = c.dist < 1 ? 'Less than 1 mi' : `${c.dist.toFixed(1)} mi away`;
       const holesStr = c.holes ? `· ${c.holes} holes` : '';
       const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(c.name)}&ll=${c.lat},${c.lon}`;
+      const golfnowUrl = 'https://www.golfnow.com/search?searchTerm=' + encodeURIComponent(c.name);
       const icon = (c.type||'').includes('Country') ? '🏌️' : '⛳';
       const typeBadge = c.type && c.type !== 'Golf Course'
         ? `<span style="font-size:10px;font-weight:600;color:var(--green);background:var(--green-light);padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap">${c.type}</span>` : '';
+      // Booking: use course website if available, otherwise GolfNow
+      const bookUrl = c.website ? c.website : golfnowUrl;
+      const bookLabel = c.website ? '📅 Book tee time' : '📅 Book on GolfNow';
+      const safeName = c.name.replace(/['"]/g,'');
       return `<div class="course-card">
         <div class="course-card-top">
           <div style="flex:1;min-width:0">
             <div class="course-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">${c.name}${typeBadge}</div>
-            <div class="course-meta">${distStr} ${holesStr}${c.addr ? ' · ' + c.addr : ''}</div>
+            <div class="course-meta">${distStr}${holesStr ? ' ' + holesStr : ''}${c.addr ? ' · ' + c.addr : ''}</div>
           </div>
           <div style="font-size:22px;margin-left:8px">${icon}</div>
         </div>
         <div class="course-actions">
-          <a href="${mapsUrl}" target="_blank" class="course-btn course-btn-map">📍 Directions</a>
-          ${c.website ? `<a href="${c.website}" target="_blank" class="course-btn">🌐 Website</a>` : ''}
+          <a href="${mapsUrl}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
+          <a href="${bookUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bookLabel}</a>
+          ${c.website ? `<a href="${c.website}" target="_blank" rel="noopener" class="course-btn">🌐 Website</a>` : `<a href="${golfnowUrl}" target="_blank" rel="noopener" class="course-btn">🔍 GolfNow</a>`}
           ${c.phone ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>` : ''}
-          <button class="course-btn course-btn-tee" onclick="safeUI('postTeeTimeAtCourse','${c.name.replace(/'/g,'').replace(/"/g,'')}')">
-            + Tee time
-          </button>
         </div>
       </div>`;
     }).join('');
   },
 
+  // ── Book tee time — opens course website or GolfNow search ──
+  bookTeeTime(name, website) {
+    if (website && website.trim()) {
+      // Course has its own website — open it directly
+      window.open(website, '_blank', 'noopener,noreferrer');
+    } else {
+      // No website — search GolfNow for this course (largest tee time marketplace)
+      const url = 'https://www.golfnow.com/search?searchTerm=' + encodeURIComponent(name);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  },
+
   postTeeTimeAtCourse(courseName) {
-    // Pre-fill course name in tee time composer and go to feed
-    safeUI('goScreen','feed');
-    const courseInput = document.getElementById('tee-time-course');
-    if (courseInput) courseInput.value = courseName;
-    // Scroll to tee time section
-    setTimeout(() => {
-      const ttSection = document.querySelector('.tee-times-section');
-      if (ttSection) ttSection.scrollIntoView({behavior:'smooth'});
-    }, 300);
+    safeUI('bookTeeTime', courseName, '');
   },
 
   // ── Players ──
