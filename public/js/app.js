@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=22";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=22";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=22";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=22";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=22";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=22";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=23";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=23";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=23";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=23";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=23";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=23";
 import { listenToConversations, renderConversationsList, getOrCreateConversation, createGroupConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=22";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=22";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=22";
+         teardownMessaging } from "./messages.js?v=23";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=23";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=23";
 
 
 // ── Haversine distance in miles ──
@@ -292,7 +292,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=22");
+      const { initials, avatarColor } = await import("./ui.js?v=23");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -796,9 +796,9 @@ window.UI = {
       if((window._nearbyCourses||[]).length===0){
         container.innerHTML='<div class="empty-state" style="padding:24px 20px">'+
           '<div style="font-size:32px;margin-bottom:12px">⛳</div>'+
-          '<div style="font-weight:600;margin-bottom:8px">Couldn't load courses</div>'+
+          '<div style="font-weight:600;margin-bottom:8px">Could not load courses</div>'+
           '<div style="font-size:14px;color:var(--muted);margin-bottom:16px">'+(e.message||'Connection error')+'</div>'+
-          '<button onclick="window._coursesLoading=false;safeUI('loadNearbyCourses')" '+
+          '<button onclick="window._coursesLoading=false;safeUI(\'loadNearbyCourses\')" '+
           'style="background:var(--green);color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer">Try Again</button></div>';
       }
     }finally{
