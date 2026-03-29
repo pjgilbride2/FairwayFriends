@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost } from "./feed.js";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js";
-import { goScreen, showToast, toggleChip } from "./ui.js";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=3";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=3";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost } from "./feed.js?v=3";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=3";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=3";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=3";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js";
+         teardownMessaging } from "./messages.js?v=3";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=3";
 
 // ── Expose all UI actions to inline HTML onclick handlers ──
 window.UI = {
