@@ -678,7 +678,7 @@ window.UI = {
 
       // ── 6. Parse + render results ───────────────────────────────────
       const seen = new Set(), norm = n => n.toLowerCase().replace(/[^a-z0-9]/g,'');
-      const courses = (JSON.parse(txt1).elements || [])
+      let courses = (JSON.parse(txt1).elements || [])
         .filter(e => { const n=e.tags?.name; if(!n)return false; const k=norm(n); if(seen.has(k))return false; seen.add(k); return true; })
         .map(e => {
           const cLat = e.lat||e.center?.lat||lat, cLon = e.lon||e.center?.lon||lon, t = e.tags||{};
@@ -712,21 +712,7 @@ window.UI = {
       courses = courses.slice(0, 80);
 
       // Known courses missing from OSM — injected directly
-      const KNOWN_COURSES = [
-        {name:"Heritage Harbor Golf & Country Club", lat:28.1372, lon:-82.5012, phone:"(813) 949-4886", website:"https://www.heritageharborgolf.com", addr:"Lutz, FL", type:"Golf Course", holes:"18"},
-        {name:"TPC Tampa Bay",                       lat:28.1637, lon:-82.5195, phone:"(813) 949-0090", website:"https://www.tpctampabay.com",          addr:"Lutz, FL", type:"Golf Course", holes:"18"},
-        {name:"Northdale Golf & Tennis Club",        lat:28.0823, lon:-82.5281, phone:"(813) 962-0428", website:null,                                    addr:"Tampa, FL", type:"Golf Course", holes:"18"},
-      ];
-      KNOWN_COURSES.forEach(k => {
-        const key = norm(k.name);
-        if (!seen.has(key)) { seen.add(key); courses.push({...k, dist:_haversine(lat,lon,k.lat,k.lon)}); }
-      });
-      // Remove permanently closed courses
-      const CLOSED = ['lutzexecutivegolfcenter'];
-      courses = courses.filter(c => !CLOSED.includes(norm(c.name)));
-      courses.sort((a,b)=>a.dist-b.dist);
-      courses = courses.slice(0,80);
-      window._nearbyCourses = courses;
+            window._nearbyCourses = courses;
       try { sessionStorage.setItem(ck, JSON.stringify({ts:Date.now(), data:courses})); } catch(_){}
       UI.filterCourses('');
       if (label) label.textContent = courses.length + ' golf courses within 25 miles';
