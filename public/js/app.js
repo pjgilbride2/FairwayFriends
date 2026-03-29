@@ -86,7 +86,7 @@ window.UI = {
     openNotif(id, type, refId);
   },
 
-  setGameMode(mode) { setGameMode(mode); },
+  setGameMode(mode) { const valid=['stroke','match','stableford','scramble','skins','bestball']; if(valid.includes(mode)) setGameMode(mode); },
   buildGamePanel() { buildGamePanel(); },
 
   loadScorecardWeather() {
