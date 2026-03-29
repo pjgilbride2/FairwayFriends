@@ -7,7 +7,11 @@ const PORT = process.env.PORT || 8080;
 app.use(express.static(path.join(__dirname, "public"), {
   setHeaders(res, filePath) {
     // Never cache HTML or JS/CSS — always serve fresh
-    if (filePath.match(/\.(html|js|css)$/)) {
+    if (filePath.match(/\.html$/)) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    } else if (filePath.match(/\.(js|css)$/) && filePath.includes("?v=")) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (filePath.match(/\.(js|css)$/)) {
       res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     } else if (filePath.match(/\.(svg|png|ico|woff2?)$/)) {
       res.setHeader("Cache-Control", "public, max-age=86400");
