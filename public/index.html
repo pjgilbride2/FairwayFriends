@@ -231,7 +231,7 @@
     <div class="composer">
       <div class="composer-row">
         <div class="avatar-sm" id="composer-avatar">?</div>
-        <textarea class="composer-input" id="post-text" placeholder="Post a tee time, tip, or say hi to the local crew…" rows="2"></textarea>
+        <textarea class="composer-input" id="post-text" maxlength="500" placeholder="Post a tee time, tip, or say hi to the local crew…" rows="2"></textarea>
       </div>
       <!-- Post photo preview -->
       <div id="post-image-preview" style="display:none;padding:8px 0 0;position:relative">
@@ -320,7 +320,7 @@
       <div style="padding:4px 16px 8px">
         <div class="search-bar">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" id="course-search-input" placeholder="Filter courses…"
+          <input type="text" id="course-search-input" maxlength="80" placeholder="Filter courses…"
             style="border:none;background:transparent;font-family:'DM Sans',sans-serif;
                    font-size:13px;color:var(--text);outline:none;flex:1"
             oninput="safeUI('filterCourses',this.value)">
@@ -559,11 +559,11 @@
         <div class="field-label">Location</div>
         <div class="input-row" style="margin-top:6px">
           <div>
-            <input class="auth-input" id="edit-city" type="text" placeholder="Land O' Lakes"
+            <input class="auth-input" id="edit-city" type="text" maxlength="60" placeholder="Land O' Lakes"
               style="font-size:14px">
           </div>
           <div>
-            <input class="auth-input" id="edit-state" type="text" placeholder="FL" maxlength="2"
+            <input class="auth-input" id="edit-state" type="text" maxlength="3" placeholder="FL" maxlength="2"
               style="font-size:14px;text-transform:uppercase">
           </div>
         </div>
@@ -585,7 +585,7 @@
       <!-- Home course -->
       <div style="margin-bottom:20px">
         <div class="field-label">Home course <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-        <input class="auth-input" id="edit-home-course" type="text"
+        <input class="auth-input" id="edit-home-course" type="text" maxlength="80"
           placeholder="e.g. Pebble Creek Golf Club" style="margin-top:6px;font-size:14px">
       </div>
 
@@ -665,7 +665,7 @@
     <div style="padding:10px 16px 4px">
       <div class="search-bar" style="display:flex;align-items:center;gap:8px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--muted)"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="msg-search" placeholder="Search conversations or find someone you follow…"
+        <input type="text" id="msg-search" maxlength="80" placeholder="Search conversations or find someone you follow…"
           style="flex:1;border:none;background:transparent;font-family:'DM Sans',sans-serif;
                  font-size:13px;color:var(--text);outline:none"
           oninput="safeUI('searchMessages', this.value)">
@@ -702,7 +702,7 @@
     <div style="padding:12px 16px;border-top:0.5px solid var(--border);
                 display:flex;gap:10px;align-items:flex-end;
                 position:sticky;bottom:0;background:var(--card-bg)">
-      <textarea id="msg-input" rows="1"
+      <textarea id="msg-input" maxlength="1000" rows="1"
         placeholder="Send a message…"
         style="flex:1;border:0.5px solid var(--border);border-radius:var(--radius-md);
                padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:14px;

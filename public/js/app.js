@@ -126,7 +126,7 @@ window.UI = {
   },
 
   async saveProfileEdits() {
-    const bio       = (document.getElementById("edit-bio")?.value         || "").trim();
+    const bio       = (document.getElementById("edit-bio")?.value         || "").trim().slice(0,160);
     const cityRaw   = (document.getElementById("edit-city")?.value        || "").trim();
     const stateRaw  = (document.getElementById("edit-state")?.value       || "").trim().toUpperCase();
     const homeCourse= (document.getElementById("edit-home-course")?.value || "").trim();
