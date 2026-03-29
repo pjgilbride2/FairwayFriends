@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── USERS ──
+    // Any logged-in user can read profiles (player discovery)
+    // Only the owner can write their own profile
+    match /users/{userId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // ── POSTS ──
+    // FIX: Allow empty text when an imageURL is provided (photo-only posts)
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.authorId == request.auth.uid
+        && (
+          // Text post: must have non-empty text
+          (request.resource.data.text is string
+           && request.resource.data.text.size() > 0
+           && request.resource.data.text.size() <= 500)
+          ||
+          // Photo post: can have empty text if imageURL is present
+          (request.resource.data.imageURL is string
+           && request.resource.data.imageURL.size() > 0)
+        );
+      allow update: if request.auth != null
+        && resource.data.authorId == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.authorId == request.auth.uid;
+    }
+
+    // ── TEE TIMES ──
+    match /teeTimes/{teeId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.hostId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.hostId == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.hostId == request.auth.uid;
+    }
+
+    // ── ROUNDS ──
+    match /rounds/{roundId} {
+      allow read:   if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+
+    // ── TEE TIME REQUESTS ──
+    match /teeRequests/{reqId} {
+      allow read:   if request.auth != null
+        && (resource.data.requesterId == request.auth.uid
+            || resource.data.hostId   == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.requesterId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.hostId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ── CONVERSATIONS ──
+    match /conversations/{convId} {
+      allow read:   if request.auth != null
+        && request.auth.uid in resource.data.participants;
+      allow create: if request.auth != null
+        && request.auth.uid in request.resource.data.participants;
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.participants;
+      allow delete: if false;
+
+      match /messages/{msgId} {
+        allow read:   if request.auth != null
+          && request.auth.uid in
+             get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+        allow create: if request.auth != null
+          && request.auth.uid in
+             get(/databases/$(database)/documents/conversations/$(convId)).data.participants
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000;
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}

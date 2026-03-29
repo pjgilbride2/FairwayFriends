@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fairway Friend</title>
+<meta name="description" content="Golf buddies, tee times and scorecards — all in one place">
+<meta name="theme-color" content="#085041">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fairway Friend">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-512.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<!-- ═══ SPLASH SCREEN ═══ -->
+<div id="splash-screen">
+  <svg width="88" height="88" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <rect width="512" height="512" rx="112" fill="#0F6E56"/>
+    <rect x="40" y="390" width="432" height="14" rx="7" fill="#1D9E75" opacity="0.5"/>
+    <rect x="248" y="100" width="10" height="230" rx="5" fill="#E1F5EE"/>
+    <path d="M258 108 L318 138 L258 168 Z" fill="#FAC775"/>
+    <circle cx="210" cy="370" r="42" fill="white" opacity="0.95"/>
+    <circle cx="198" cy="358" r="3.5" fill="#aaa" opacity="0.5"/>
+    <circle cx="215" cy="352" r="3.5" fill="#aaa" opacity="0.5"/>
+    <circle cx="227" cy="364" r="3.5" fill="#aaa" opacity="0.5"/>
+    <circle cx="203" cy="374" r="3.5" fill="#aaa" opacity="0.5"/>
+    <circle cx="220" cy="380" r="3.5" fill="#aaa" opacity="0.5"/>
+    <text x="305" y="345" font-family="Georgia,serif" font-size="88" font-weight="bold" fill="#FAC775" opacity="0.85">F</text>
+  </svg>
+  <div class="splash-title">Fairway <span>Friend</span><span class="splash-dot"></span></div>
+  <div class="splash-sub">Find your next round</div>
+  <div class="splash-dots">
+    <div class="sd"></div><div class="sd"></div><div class="sd"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div class="app-shell">
+
+  <!-- ═══════════ AUTH ═══════════ -->
+  <div class="screen" id="screen-auth">
+    <div class="auth-wrap">
+      <div class="auth-icon">
+        <svg width="72" height="72" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+          <rect width="512" height="512" rx="112" fill="#085041"/>
+          <rect x="248" y="100" width="10" height="230" rx="5" fill="#E1F5EE"/>
+          <path d="M258 108 L318 138 L258 168 Z" fill="#FAC775"/>
+          <circle cx="210" cy="370" r="42" fill="white" opacity="0.95"/>
+          <text x="305" y="345" font-family="Georgia,serif" font-size="88" font-weight="bold" fill="#FAC775" opacity="0.85">F</text>
+        </svg>
+      </div>
+      <div class="auth-logo">Fairway <span>Friend</span></div>
+      <div class="auth-tagline">Golf buddies, tee times &amp; scorecards — all in one place</div>
+
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login"  onclick="safeUI('switchAuthTab', 'login')">Sign in</div>
+        <div class="auth-tab"        id="tab-signup" onclick="safeUI('switchAuthTab', 'signup')">Create account</div>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="auth-form" id="form-login">
+        <div>
+          <div class="field-label">Email</div>
+          <input class="auth-input" id="login-email" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div>
+          <div class="field-label">Password</div>
+          <input class="auth-input" id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div class="auth-error" id="login-error"></div>
+        <button class="auth-btn" id="login-btn" onclick="safeUI('handleLogin')">Sign in</button>
+      </div>
+
+      <!-- SIGN UP -->
+      <div class="auth-form hidden" id="form-signup">
+        <div class="input-row">
+          <div>
+            <div class="field-label">First name</div>
+            <input class="auth-input" id="signup-first" type="text" placeholder="Jake" autocomplete="given-name">
+          </div>
+          <div>
+            <div class="field-label">Last name</div>
+            <input class="auth-input" id="signup-last" type="text" placeholder="D." autocomplete="family-name">
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Email</div>
+          <input class="auth-input" id="signup-email" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div>
+          <div class="field-label">Password</div>
+          <input class="auth-input" id="signup-password" type="password" placeholder="At least 6 characters" autocomplete="new-password">
+        </div>
+        <div class="auth-error" id="signup-error"></div>
+        <button class="auth-btn" id="signup-btn" onclick="safeUI('handleSignup')">Create account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ ONBOARDING ═══════════ -->
+  <div class="screen" id="screen-onboard">
+    <div style="padding:20px 20px 0">
+      <div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div>
+    </div>
+
+    <!-- Step 1: Handicap -->
+    <div class="onboard-step" id="onboard-1">
+      <div class="onboard-progress">
+        <div class="op-dot active"></div><div class="op-dot"></div><div class="op-dot"></div>
+      </div>
+      <div class="onboard-header">
+        <div class="onboard-title">What's your handicap?</div>
+        <div class="onboard-sub">Helps us match you with golfers at a similar level. You can update it anytime.</div>
+      </div>
+      <div class="hdcp-row">
+        <button class="hdcp-btn" onclick="safeUI('adjustHdcp', -1)">−</button>
+        <input class="hdcp-input" id="hdcp-val" type="number" value="18" min="0" max="54">
+        <button class="hdcp-btn" onclick="safeUI('adjustHdcp', 1)">+</button>
+      </div>
+      <div style="margin-top:14px;font-size:12px;color:var(--muted);text-align:center">No official handicap? Enter your average score minus 72</div>
+      <button class="onboard-next" onclick="safeUI('nextOnboard', 2)">Continue →</button>
+      <button class="onboard-skip" onclick="safeUI('nextOnboard', 2)">Skip for now</button>
+    </div>
+
+    <!-- Step 2: Location -->
+    <div class="onboard-step hidden" id="onboard-2">
+      <div class="onboard-progress">
+        <div class="op-dot done"></div><div class="op-dot active"></div><div class="op-dot"></div>
+      </div>
+      <div class="onboard-header">
+        <div class="onboard-title">Where do you play?</div>
+        <div class="onboard-sub">Your city and state help us show nearby golfers, courses, and accurate weather.</div>
+      </div>
+      <div class="input-row" style="margin-bottom:0">
+        <div>
+          <div class="field-label">City <span style="color:#A32D2D">*</span></div>
+          <input class="auth-input" id="onboard-city" type="text" placeholder="Land O' Lakes"
+            style="margin-top:6px" oninput="validateLocationFields()">
+        </div>
+        <div>
+          <div class="field-label">State <span style="color:#A32D2D">*</span></div>
+          <input class="auth-input" id="onboard-state" type="text" placeholder="FL" maxlength="2"
+            style="margin-top:6px;text-transform:uppercase" oninput="validateLocationFields()">
+        </div>
+      </div>
+      <div id="onboard-location-error" style="font-size:12px;color:#A32D2D;margin-top:8px;display:none">
+        Please enter both your city and state.
+      </div>
+      <div style="margin-top:16px">
+        <div class="field-label">Primary home course <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <input class="auth-input" id="onboard-course" type="text" placeholder="e.g. Pebble Creek Golf Club" style="margin-top:6px">
+      </div>
+      <button class="onboard-next" id="onboard-location-btn" onclick="safeUI('nextOnboard', 3)" disabled
+        style="opacity:0.45;cursor:not-allowed">Continue →</button>
+    </div>
+
+    <!-- Step 3: Vibes -->
+    <div class="onboard-step hidden" id="onboard-3">
+      <div class="onboard-progress">
+        <div class="op-dot done"></div><div class="op-dot done"></div><div class="op-dot active"></div>
+      </div>
+      <div class="onboard-header">
+        <div class="onboard-title">What's your vibe?</div>
+        <div class="onboard-sub">Pick what resonates — we'll match you with compatible golfers.</div>
+      </div>
+      <div class="vibe-grid" id="onboard-vibes">
+        <div class="vibe-toggle vt-trophy"   data-vibe="competitive" onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🏆</span>Competitive</div>
+        <div class="vibe-toggle vt-scramble" data-vibe="scramble"    onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🎯</span>Scramble</div>
+        <div class="vibe-toggle vt-unwind"   data-vibe="unwind"      onclick="safeUI('toggleVibe', this)"><span class="vt-icon">😌</span>Just to unwind</div>
+        <div class="vibe-toggle vt-social"   data-vibe="social"      onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🤝</span>Social</div>
+        <div class="vibe-toggle vt-early"    data-vibe="earlybird"   onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🌅</span>Early bird</div>
+        <div class="vibe-toggle vt-beer"     data-vibe="drinks"      onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🍺</span>Drinks welcome</div>
+        <div class="vibe-toggle vt-leaf"     data-vibe="420"         onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🍃</span>420 friendly</div>
+        <div class="vibe-toggle vt-music"    data-vibe="music"       onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🎵</span>Music on cart</div>
+        <div class="vibe-toggle vt-trophy"   data-vibe="bets"        onclick="safeUI('toggleVibe', this)"><span class="vt-icon">💰</span>Friendly wagers</div>
+        <div class="vibe-toggle vt-social"   data-vibe="19th"        onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🍻</span>19th hole always</div>
+        <div class="vibe-toggle vt-trophy"   data-vibe="tourney"     onclick="safeUI('toggleVibe', this)"><span class="vt-icon">📋</span>Tournament prep</div>
+        <div class="vibe-toggle vt-walking"  data-vibe="walking"     onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🚶</span>Walking preferred</div>
+      </div>
+      <button class="onboard-next" onclick="safeUI('finishOnboard')">Let's play →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ FEED ═══════════ -->
+  <div class="screen" id="screen-feed">
+    <div class="header">
+      <div>
+        <div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div>
+        <div class="header-sub" id="feed-location-sub">Finding golfers near you…</div>
+      </div>
+      <div class="avatar-sm" id="feed-avatar" onclick="safeUI('goScreen', 'profile')">?</div>
+    </div>
+    <div class="location-banner">
+      <div class="loc-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>
+      <div>
+        <div class="loc-text" id="feed-city">Your area</div>
+        <div class="loc-sub" id="feed-nearby-count">Loading nearby golfers…</div>
+      </div>
+    </div>
+    <div class="section-head" style="margin-top:4px">
+      <h2>Course conditions</h2>
+      <span class="see-all" id="wx-refresh" onclick="safeUI('refreshWeather')" style="cursor:pointer">Refresh</span>
+    </div>
+    <div class="wx-container">
+      <div id="wx-container">
+        <div class="wx-empty">Loading weather… ⛅</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>Open tee times</h2>
+      <span class="see-all" onclick="safeUI('goScreen', 'search')">See all</span>
+    </div>
+    <div id="tee-times-row" class="scroll-row">
+      <div style="padding:20px;color:var(--muted);font-size:13px">Loading…</div>
+    </div>
+    <div class="section-head" style="margin-top:8px">
+      <h2>Golfers near you</h2>
+      <span class="see-all" onclick="safeUI('goScreen', 'players')">See all</span>
+    </div>
+    <div class="players-list" id="nearby-players-feed">
+      <div class="empty-state">Loading nearby golfers…</div>
+    </div>
+    <div class="section-head" style="margin-top:8px"><h2>Community</h2></div>
+    <div class="composer">
+      <div class="composer-row">
+        <div class="avatar-sm" id="composer-avatar">?</div>
+        <textarea class="composer-input" id="post-text" placeholder="Post a tee time, tip, or say hi to the local crew…" rows="2"></textarea>
+      </div>
+      <!-- Post photo preview -->
+      <div id="post-image-preview" style="display:none;padding:8px 0 0;position:relative">
+        <img id="post-image-thumb" src="" alt=""
+          style="max-height:180px;border-radius:var(--radius-md);max-width:100%;object-fit:cover;display:block">
+        <button onclick="safeUI('clearPostImage')"
+          style="position:absolute;top:12px;right:4px;background:rgba(0,0,0,0.55);color:white;
+                 border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;
+                 display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+      </div>
+      <div class="composer-footer">
+        <div style="display:flex;gap:8px;align-items:center">
+          <!-- Photo from camera/files -->
+          <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;
+                        color:var(--green-dark);font-weight:500;padding:5px 10px;
+                        background:var(--green-light);border-radius:20px;border:0.5px solid #9FE1CB">
+            📷
+            <input type="file" id="post-photo-input" accept="image/*" capture="environment"
+              style="display:none" onchange="safeUI('handlePostPhoto', this)">
+          </label>
+          <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;
+                        color:var(--muted);font-weight:500;padding:5px 10px;
+                        background:var(--surface);border-radius:20px;border:0.5px solid var(--border)">
+            🖼️
+            <input type="file" id="post-file-input" accept="image/*"
+              style="display:none" onchange="safeUI('handlePostPhoto', this)">
+          </label>
+        </div>
+        <button class="post-btn" onclick="safeUI('handlePost')">Post</button>
+      </div>
+    </div>
+    <div class="feed-list" id="community-feed">
+      <div class="empty-state">No posts yet — be the first to say hi! 👋</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PLAYERS ═══════════ -->
+  <div class="screen" id="screen-players">
+    <div class="header">
+      <div><div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div><div class="header-sub">Golfers near you</div></div>
+    </div>
+    <div class="search-bar-wrap"><div class="search-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" placeholder="Find golfers by name or vibe…" oninput="safeUI('filterPlayers', this.value)">
+    </div></div>
+    <div class="filter-chips">
+      <div class="chip on" onclick="safeUI('toggleChip', this)">All</div>
+      <div class="chip" onclick="safeUI('toggleChip', this)">New to area</div>
+      <div class="chip" onclick="safeUI('toggleChip', this)">Competitive</div>
+      <div class="chip" onclick="safeUI('toggleChip', this)">Chill rounds</div>
+      <div class="chip" onclick="safeUI('toggleChip', this)">Social</div>
+    </div>
+    <div class="players-list" id="players-list-main"><div class="empty-state">Loading players…</div></div>
+  </div>
+
+  <!-- ═══════════ SEARCH / DISCOVER ═══════════ -->
+  <div class="screen" id="screen-search">
+    <div class="header"><div><div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div><div class="header-sub">Discover rounds</div></div></div>
+    <div class="search-bar-wrap"><div class="search-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" placeholder="Search courses, players, or areas…">
+    </div></div>
+    <div class="filter-chips">
+      <div class="chip on" onclick="safeUI('toggleChip', this)">All</div>
+      <div class="chip" onclick="safeUI('toggleChip', this)">Tee times</div>
+      <div class="chip" onclick="safeUI('toggleChip', this)">Beginners welcome</div>
+      <div class="chip" onclick="safeUI('toggleChip', this)">Weekend</div>
+      <div class="chip" onclick="safeUI('toggleChip', this)">18-hole</div>
+    </div>
+    <div class="section-head"><h2>All tee times</h2></div>
+    <div class="players-list" id="all-tee-times"><div class="empty-state">Loading…</div></div>
+  </div>
+
+  <!-- ═══════════ SCORECARD ═══════════ -->
+  <div class="screen" id="screen-scorecard">
+    <div class="header">
+      <div><div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div><div class="header-sub">Scorecard &amp; games</div></div>
+      <div class="avatar-sm" id="sc-avatar" onclick="safeUI('goScreen', 'profile')">?</div>
+    </div>
+    <div class="sc-hero">
+      <input id="sc-course-input" type="text" placeholder="Course name (e.g. Pebble Creek GC)"
+        style="width:100%;border:none;border-bottom:0.5px solid var(--border);padding:0 0 8px;
+               font-family:'Playfair Display',serif;font-size:17px;font-weight:500;
+               color:var(--text);background:transparent;outline:none;margin-bottom:4px">
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">Enter scores to track your round</div>
+      <div class="sc-stats-row">
+        <div class="sc-stat"><div class="sc-stat-num" id="sc-total">—</div><div class="sc-stat-label">Total score</div></div>
+        <div class="sc-stat"><div class="sc-stat-num" id="sc-vs-par">—</div><div class="sc-stat-label">vs. par</div></div>
+        <div class="sc-stat"><div class="sc-stat-num" id="sc-diff">—</div><div class="sc-stat-label">Differential</div></div>
+      </div>
+    </div>
+    <div class="game-pills">
+      <div class="game-pill active" onclick="safeUI('setGame', this,'stroke')">Stroke play</div>
+      <div class="game-pill" onclick="safeUI('setGame', this,'bingo')">Bingo Bango Bongo</div>
+      <div class="game-pill" onclick="safeUI('setGame', this,'scramble')">Scramble</div>
+      <div class="game-pill" onclick="safeUI('setGame', this,'match')">Match play</div>
+      <div class="game-pill" onclick="safeUI('setGame', this,'bestball')">Best ball</div>
+      <div class="game-pill" onclick="safeUI('setGame', this,'nassau')">Nassau</div>
+    </div>
+    <div id="game-panel"></div>
+
+    <!-- Round Day Forecast -->
+    <div style="padding:16px 20px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:500;color:var(--text)">Round day forecast</div>
+        <span style="font-size:12px;color:var(--green);cursor:pointer;font-weight:500"
+          onclick="safeUI('loadScorecardWeather')">Refresh</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <input type="date" id="sc-round-date"
+          style="flex:1;padding:8px 12px;border:0.5px solid var(--border);border-radius:var(--radius-md);
+                 font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);
+                 background:var(--surface);outline:none"
+          onchange="safeUI('loadScorecardWeather')">
+        <input type="time" id="sc-round-time"
+          style="width:110px;padding:8px 12px;border:0.5px solid var(--border);border-radius:var(--radius-md);
+                 font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);
+                 background:var(--surface);outline:none"
+          onchange="safeUI('loadScorecardWeather')">
+      </div>
+      <div id="sc-weather"></div>
+    </div>
+
+    <div class="nine-label">Front 9</div>
+    <div class="sc-table-wrap">
+      <table class="sc-table">
+        <thead><tr><th>Hole</th><th>Par</th><th>HCP</th><th>Score</th></tr></thead>
+        <tbody id="sc-front"></tbody>
+        <tr class="total-row"><td style="text-align:left;padding-left:8px;font-size:12px;color:var(--muted)">Out</td><td>36</td><td></td><td id="ft-you">—</td></tr>
+      </table>
+    </div>
+    <div class="nine-label" style="margin-top:12px">Back 9</div>
+    <div class="sc-table-wrap">
+      <table class="sc-table">
+        <thead><tr><th>Hole</th><th>Par</th><th>HCP</th><th>Score</th></tr></thead>
+        <tbody id="sc-back"></tbody>
+        <tr class="total-row"><td style="text-align:left;padding-left:8px;font-size:12px;color:var(--muted)">In</td><td>36</td><td></td><td id="bt-you">—</td></tr>
+        <tr class="total-row" style="border-top:1px solid var(--border)"><td style="text-align:left;padding-left:8px;font-size:12px;color:var(--muted)">Total</td><td>72</td><td></td><td id="tt-you">—</td></tr>
+      </table>
+    </div>
+    <div class="section-head" style="margin-top:12px"><h2>Handicap history</h2></div>
+    <div class="hcp-trend">
+      <div style="font-size:13px;color:var(--muted)">Last 5 rounds</div>
+      <div class="hcp-dots">
+        <div class="hcp-dot" style="height:14px"></div><div class="hcp-dot" style="height:18px"></div>
+        <div class="hcp-dot" style="height:16px"></div><div class="hcp-dot" style="height:20px"></div>
+        <div class="hcp-dot current" style="height:22px"></div>
+      </div>
+      <div style="font-size:12px;color:var(--green-dark);font-weight:500" id="hcp-label">HCP —</div>
+    </div>
+    <div class="round-history" id="round-history"><div class="empty-state">No rounds saved yet</div></div>
+    <div style="display:flex;gap:10px;padding:0 20px 16px">
+      <button class="add-round-btn" style="flex:2" onclick="safeUI('handleSaveRound')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save &amp; post to feed
+      </button>
+      <button class="add-round-btn" style="flex:1;background:var(--surface);color:var(--green-dark);border:0.5px solid var(--green)" onclick="safeUI('newRound')">
+        New round
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════ PROFILE ═══════════ -->
+  <div class="screen" id="screen-profile">
+    <div class="header">
+      <div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <div style="font-size:13px;color:var(--muted);cursor:pointer;font-weight:500" onclick="safeUI('goScreen', 'vibes')">Vibes</div>
+        <div style="font-size:13px;color:var(--green);cursor:pointer;font-weight:500" onclick="safeUI('goScreen', 'edit-profile')">Edit profile</div>
+      </div>
+    </div>
+    <div class="profile-hero">
+      <div style="position:relative;display:inline-block;margin:0 auto 12px">
+        <div class="profile-avatar-lg" id="profile-avatar-lg">?</div>
+        <button onclick="safeUI('triggerPhotoUpload')"
+          style="position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;
+                 background:var(--green);border:2px solid var(--card-bg);cursor:pointer;
+                 display:flex;align-items:center;justify-content:center;font-size:13px">📷</button>
+        <input type="file" id="photo-file-input" accept="image/*" style="display:none"
+          onchange="safeUI('handlePhotoUpload', this)">
+      </div>
+      <div class="profile-name" id="profile-name-display">Loading…</div>
+      <div class="profile-handle" id="profile-handle-display">@—</div>
+      <div class="profile-bio" id="profile-bio-display" style="cursor:pointer"
+        onclick="safeUI('goScreen', 'edit-profile')">Loading profile…</div>
+    </div>
+    <div class="profile-stats">
+      <div class="p-stat"><div class="p-stat-num" id="profile-rounds">0</div><div class="p-stat-label">Rounds</div></div>
+      <div class="p-stat"><div class="p-stat-num" id="profile-hdcp">HCP —</div><div class="p-stat-label">Handicap</div></div>
+      <div class="p-stat"><div class="p-stat-num" id="profile-friends">0</div><div class="p-stat-label">Friends</div></div>
+    </div>
+    <div style="padding:16px 20px 0">
+      <div style="font-size:13px;font-weight:500;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px">Your vibe</div>
+      <div class="vibe-grid" id="profile-vibes-display"></div>
+    </div>
+    <div style="padding:16px 20px"><div style="display:flex;flex-wrap:wrap;gap:8px" id="profile-badges"></div></div>
+    <div style="padding:0 20px">
+      <div class="section-head" style="padding:8px 0 12px"><h2>Details</h2></div>
+      <div class="detail-row"><span class="detail-label">City</span><span class="detail-val" id="profile-city">—</span></div>
+      <div class="detail-row"><span class="detail-label">Home course</span><span class="detail-val" id="profile-home-course">—</span></div>
+      <div class="detail-row"><span class="detail-label">Member since</span><span class="detail-val" id="profile-joined">—</span></div>
+    </div>
+    <div style="padding:0 20px">
+      <div class="section-head" style="padding:16px 0 10px">
+        <h2>My activity</h2>
+        <span class="see-all" onclick="safeUI('goScreen', 'my-activity')">See all</span>
+      </div>
+      <div id="profile-activity-preview">
+        <div class="empty-state" style="padding:20px 0">Loading activity…</div>
+      </div>
+    </div>
+    <button class="signout-btn" onclick="safeUI('handleSignOut')">Sign out</button>
+  </div>
+
+  <!-- ═══════════ MY ACTIVITY SCREEN ═══════════ -->
+  <div class="screen" id="screen-my-activity">
+    <div class="header">
+      <div style="cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px"
+        onclick="safeUI('goScreen', 'profile')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>Back
+      </div>
+      <div class="logo" style="font-size:18px">My activity</div>
+      <div style="width:40px"></div>
+    </div>
+    <div style="padding:12px 20px 0;font-size:13px;color:var(--muted)">
+      Only you can see hidden items. Tap 🙈 to hide, 🗑️ to delete permanently.
+    </div>
+    <div style="padding:12px 20px;display:flex;flex-direction:column;gap:10px" id="my-activity-list">
+      <div class="empty-state">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ EDIT PROFILE SCREEN ═══════════ -->
+  <div class="screen" id="screen-edit-profile">
+    <div class="header">
+      <div style="cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px"
+        onclick="safeUI('goScreen', 'profile')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>Back
+      </div>
+      <div class="logo" style="font-size:18px">Edit profile</div>
+      <div style="width:40px"></div>
+    </div>
+
+    <div style="padding:24px 20px 0">
+
+      <!-- Profile photo -->
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="position:relative;display:inline-block">
+          <img id="edit-photo-preview" src="" alt="Profile photo"
+            style="width:80px;height:80px;border-radius:50%;object-fit:cover;
+                   border:2px solid var(--green);display:none">
+          <div id="edit-photo-placeholder"
+            style="width:80px;height:80px;border-radius:50%;background:var(--green-light);
+                   display:flex;align-items:center;justify-content:center;
+                   font-size:28px;border:2px solid var(--green);margin:0 auto">📷</div>
+        </div>
+        <div style="margin-top:10px">
+          <button onclick="safeUI('triggerPhotoUpload')"
+            style="background:var(--green-light);color:var(--green-dark);border:0.5px solid #9FE1CB;
+                   border-radius:20px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer;
+                   font-family:'DM Sans',sans-serif">
+            Change photo
+          </button>
+        </div>
+        <div id="photo-upload-status" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+      </div>
+
+      <!-- Bio -->
+      <div style="margin-bottom:20px">
+        <div class="field-label">About me <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <textarea id="edit-bio" rows="3"
+          placeholder="e.g. Weekend golfer, love scrambles and cold beers on the cart. Always down for a round."
+          style="width:100%;margin-top:6px;padding:12px 14px;border:0.5px solid var(--border);
+                 border-radius:var(--radius-md);font-family:'DM Sans',sans-serif;font-size:14px;
+                 color:var(--text);background:var(--surface);outline:none;resize:none;
+                 line-height:1.5;transition:border-color .15s"
+          maxlength="160"
+          oninput="document.getElementById('bio-count').textContent = (160 - this.value.length) + ' left'">
+        </textarea>
+        <div style="font-size:11px;color:var(--muted);text-align:right;margin-top:4px" id="bio-count">160 left</div>
+      </div>
+
+      <!-- City + State -->
+      <div style="margin-bottom:20px">
+        <div class="field-label">Location</div>
+        <div class="input-row" style="margin-top:6px">
+          <div>
+            <input class="auth-input" id="edit-city" type="text" placeholder="Land O' Lakes"
+              style="font-size:14px">
+          </div>
+          <div>
+            <input class="auth-input" id="edit-state" type="text" placeholder="FL" maxlength="2"
+              style="font-size:14px;text-transform:uppercase">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">
+          Used to find nearby golfers and for your weather forecast
+        </div>
+        <button onclick="safeUI('useMyLocation')"
+          style="margin-top:8px;background:var(--green-light);color:var(--green-dark);border:0.5px solid #9FE1CB;
+                 border-radius:20px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;
+                 font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          </svg>
+          Use my current location
+        </button>
+        <div id="edit-location-status" style="font-size:12px;color:var(--green-dark);margin-top:6px;display:none"></div>
+      </div>
+
+      <!-- Home course -->
+      <div style="margin-bottom:20px">
+        <div class="field-label">Home course <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <input class="auth-input" id="edit-home-course" type="text"
+          placeholder="e.g. Pebble Creek Golf Club" style="margin-top:6px;font-size:14px">
+      </div>
+
+      <!-- Handicap -->
+      <div style="margin-bottom:24px">
+        <div class="field-label">Handicap</div>
+        <div class="hdcp-row" style="margin-top:6px">
+          <button class="hdcp-btn" onclick="safeUI('adjustEditHdcp', -1)">−</button>
+          <input class="hdcp-input" id="edit-hdcp" type="number" value="18" min="0" max="54">
+          <button class="hdcp-btn" onclick="safeUI('adjustEditHdcp', 1)">+</button>
+        </div>
+      </div>
+
+      <div id="edit-profile-error" style="font-size:13px;color:#A32D2D;background:#FCEBEB;padding:10px 14px;border-radius:var(--radius-md);display:none;margin-bottom:12px"></div>
+
+      <button class="auth-btn" id="save-profile-btn" onclick="safeUI('saveProfileEdits')">Save changes</button>
+      <button class="onboard-skip" onclick="safeUI('goScreen', 'profile')" style="margin-top:8px">Cancel</button>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ VIBES EDITOR ═══════════ -->
+  <div class="screen" id="screen-vibes">
+    <div class="header">
+      <div style="cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px" onclick="safeUI('goScreen', 'profile')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>Back
+      </div>
+      <div class="logo" style="font-size:18px">Your vibe</div>
+      <div style="width:40px"></div>
+    </div>
+    <div style="padding:16px 20px 8px"><div style="font-size:14px;color:var(--muted);line-height:1.5">Pick what describes how you like to play. This helps Fairway Friend match you with golfers on the same wavelength.</div></div>
+    <div class="vibe-section">
+      <div class="vibe-section-title">Game style</div>
+      <div class="vibe-grid">
+        <div class="vibe-toggle vt-trophy"   data-vibe="competitive" onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🏆</span>Competitive</div>
+        <div class="vibe-toggle vt-scramble" data-vibe="scramble"    onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🎯</span>Scramble format</div>
+        <div class="vibe-toggle vt-unwind"   data-vibe="unwind"      onclick="safeUI('toggleVibe', this)"><span class="vt-icon">😌</span>Just to unwind</div>
+        <div class="vibe-toggle vt-social"   data-vibe="social"      onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🤝</span>Social / meet people</div>
+        <div class="vibe-toggle vt-early"    data-vibe="earlybird"   onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🌅</span>Early bird</div>
+        <div class="vibe-toggle vt-rain"     data-vibe="allweather"  onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🌧</span>All-weather player</div>
+        <div class="vibe-toggle vt-walking"  data-vibe="walking"     onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🚶</span>Walking preferred</div>
+      </div>
+    </div>
+    <div class="vibe-section">
+      <div class="vibe-section-title">On the course</div>
+      <div class="vibe-grid">
+        <div class="vibe-toggle vt-beer"   data-vibe="drinks"  onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🍺</span>Drinks welcome</div>
+        <div class="vibe-toggle vt-leaf"   data-vibe="420"     onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🍃</span>420 friendly</div>
+        <div class="vibe-toggle vt-music"  data-vibe="music"   onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🎵</span>Music on the cart</div>
+        <div class="vibe-toggle vt-trophy" data-vibe="bets"    onclick="safeUI('toggleVibe', this)"><span class="vt-icon">💰</span>Friendly wagers</div>
+        <div class="vibe-toggle vt-social" data-vibe="19th"    onclick="safeUI('toggleVibe', this)"><span class="vt-icon">🍻</span>19th hole always</div>
+      </div>
+    </div>
+    <div class="vibe-section">
+      <div class="vibe-section-title">Goals</div>
+      <div class="vibe-grid">
+        <div class="vibe-toggle vt-trophy"   data-vibe="tourney"    onclick="safeUI('toggleVibe', this)"><span class="vt-icon">📋</span>Tournament prep</div>
+        <div class="vibe-toggle vt-unwind"   data-vibe="improve"    onclick="safeUI('toggleVibe', this)"><span class="vt-icon">📈</span>Working on my game</div>
+        <div class="vibe-toggle vt-social"   data-vibe="newplayers" onclick="safeUI('toggleVibe', this)"><span class="vt-icon">👋</span>Meet new people</div>
+        <div class="vibe-toggle vt-scramble" data-vibe="regular"    onclick="safeUI('toggleVibe', this)"><span class="vt-icon">📅</span>Find a regular group</div>
+      </div>
+    </div>
+    <div id="vibes-saved-msg" class="vibes-saved-msg">✅ Vibes saved!</div>
+    <button class="save-vibes-btn" onclick="safeUI('handleSaveVibes')">Save my vibe</button>
+  </div>
+
+
+  <!-- ═══════════ MESSAGES SCREEN ═══════════ -->
+  <div class="screen" id="screen-messages">
+    <div class="header">
+      <div><div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div>
+      <div class="header-sub">Messages</div></div>
+      <div class="avatar-sm" id="msg-avatar" onclick="safeUI('goScreen', 'profile')">?</div>
+    </div>
+    <div style="padding:12px 20px;display:flex;flex-direction:column;gap:2px" id="conversations-list">
+      <div class="empty-state">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ CONVERSATION SCREEN ═══════════ -->
+  <div class="screen" id="screen-conversation">
+    <div class="header">
+      <div style="cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px"
+        onclick="safeUI('goScreen', 'messages')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>Back
+      </div>
+      <div class="logo" style="font-size:17px" id="conv-header-name">Chat</div>
+      <div style="width:40px"></div>
+    </div>
+    <div id="messages-thread"
+      style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;
+             gap:8px;min-height:400px;max-height:calc(100vh - 200px)">
+      <div class="empty-state">Loading…</div>
+    </div>
+    <div style="padding:12px 16px;border-top:0.5px solid var(--border);
+                display:flex;gap:10px;align-items:flex-end;
+                position:sticky;bottom:0;background:var(--card-bg)">
+      <textarea id="msg-input" rows="1"
+        placeholder="Send a message…"
+        style="flex:1;border:0.5px solid var(--border);border-radius:var(--radius-md);
+               padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:14px;
+               color:var(--text);background:var(--surface);outline:none;resize:none;
+               max-height:100px;line-height:1.4"
+        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();safeUI('sendMsg')}">
+      </textarea>
+      <button onclick="safeUI('sendMsg')"
+        style="background:var(--green);color:white;border:none;border-radius:var(--radius-md);
+               padding:10px 16px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;
+               font-weight:500;flex-shrink:0">Send</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ BOTTOM NAV ═══════════ -->
+  <nav class="bottom-nav" id="bottom-nav" style="display:none">
+    <div class="nav-item active" id="nav-feed"      onclick="safeUI('goScreen', 'feed')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+      <span class="nav-label">Home</span>
+    </div>
+    <div class="nav-item" id="nav-search"    onclick="safeUI('goScreen', 'search')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <span class="nav-label">Discover</span>
+    </div>
+    <div class="nav-item" id="nav-scorecard" onclick="safeUI('goScreen', 'scorecard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+      <span class="nav-label">Scorecard</span>
+    </div>
+    <div class="nav-item" id="nav-players"   onclick="safeUI('goScreen', 'players')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      <span class="nav-label">Players</span>
+    </div>
+    <div class="nav-item" id="nav-messages"  onclick="safeUI('goScreen', 'messages')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span class="nav-label">Messages</span>
+    </div>
+    <div class="nav-item" id="nav-profile"   onclick="safeUI('goScreen', 'profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="nav-label">Profile</span>
+    </div>
+  </nav>
+
+  <!-- ═══════════ SHEET ═══════════ -->
+  <div class="sheet-overlay" id="sheet-overlay" onclick="if(event.target.id==='sheet-overlay') this.classList.remove('open')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="sheet-title"></div>
+      <div class="sheet-sub"   id="sheet-sub"></div>
+      <div id="sheet-vibe-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px"></div>
+      <div id="sheet-details"></div>
+      <button class="big-btn" id="sheet-cta">Request to join</button>
+    </div>
+  </div>
+
+</div><!-- end app-shell -->
+
+
+<!-- Inline validation script — runs immediately, no module dependency -->
+<script>
+// safeUI — queues UI calls until the app module has finished loading
+// Replaces all inline onclick="if(window.UI) UI.method()" patterns
+function safeUI(method) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  if (window.UI && typeof window.UI[method] === 'function') {
+    window.UI[method].apply(window.UI, args);
+  } else {
+    // Module not ready yet — retry once after a short delay
+    setTimeout(function() {
+      if (window.UI && typeof window.UI[method] === 'function') {
+        window.UI[method].apply(window.UI, args);
+      }
+    }, 300);
+  }
+}
+
+function validateLocationFields() {
+  var city  = (document.getElementById("onboard-city")  || {}).value || "";
+  var state = (document.getElementById("onboard-state") || {}).value || "";
+  var valid = city.trim().length > 0 && state.trim().length > 0;
+  var btn   = document.getElementById("onboard-location-btn");
+  var err   = document.getElementById("onboard-location-error");
+  if (btn) {
+    btn.disabled      = !valid;
+    btn.style.opacity = valid ? "1"       : "0.45";
+    btn.style.cursor  = valid ? "pointer" : "not-allowed";
+  }
+  if (err && valid) err.style.display = "none";
+}
+</script>
+
+<!-- ═══ MAIN APP MODULE ═══ -->
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

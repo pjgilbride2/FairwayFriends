@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#085041"/>
+  <rect x="40" y="390" width="432" height="14" rx="7" fill="#1D9E75" opacity="0.5"/>
+  <rect x="248" y="100" width="10" height="230" rx="5" fill="#E1F5EE"/>
+  <path d="M258 108 L318 138 L258 168 Z" fill="#FAC775"/>
+  <circle cx="210" cy="370" r="42" fill="white" opacity="0.95"/>
+  <circle cx="198" cy="358" r="3.5" fill="#aaa" opacity="0.5"/>
+  <circle cx="215" cy="352" r="3.5" fill="#aaa" opacity="0.5"/>
+  <circle cx="227" cy="364" r="3.5" fill="#aaa" opacity="0.5"/>
+  <circle cx="203" cy="374" r="3.5" fill="#aaa" opacity="0.5"/>
+  <circle cx="220" cy="380" r="3.5" fill="#aaa" opacity="0.5"/>
+  <text x="305" y="345" font-family="Georgia,serif" font-size="88" font-weight="bold" fill="#FAC775" opacity="0.85">F</text>
+</svg>
