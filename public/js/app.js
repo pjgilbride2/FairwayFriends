@@ -554,7 +554,7 @@ window.UI = {
         }
       } catch(_) {}
       // Check 30-minute cache first
-      const cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
+      cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
       try {
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
