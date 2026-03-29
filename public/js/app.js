@@ -595,6 +595,21 @@ window.UI = {
 
       // 25 miles ≈ 40,234 meters — use Overpass API (free, no key)
       const radius = 40234;
+
+      // Check 30-minute cache now that we have lat/lon
+      const cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const p = JSON.parse(cached);
+          if (p.ts && Date.now()-p.ts < 30*60*1000) {
+            window._nearbyCourses = p.data;
+            UI.filterCourses("");
+            if(label) label.textContent = p.data.length+" golf courses within 25 miles";
+            return;
+          }
+        }
+      } catch(_) {}
       if (label) label.textContent = 'Golf courses within 25 miles';
 
       const overpassUrl = 'https://overpass-api.de/api/interpreter';
