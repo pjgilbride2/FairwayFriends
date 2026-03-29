@@ -518,3 +518,4 @@ function showFormError(form, msg) {
 
 // ── Boot ──
 initAuth();
+// cache-bust Sat Mar 28 21:22:07 EDT 2026
