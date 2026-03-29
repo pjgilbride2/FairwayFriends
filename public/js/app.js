@@ -10,7 +10,7 @@ import { goScreen, showToast, toggleChip } from "./ui.js?v=3";
 import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=3";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=3";
+         teardownMessaging, loadFollowing, renderFollowingForSearch } from "./messages.js?v=3";
 import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=3";
 
 // ── Expose all UI actions to inline HTML onclick handlers ──
