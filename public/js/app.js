@@ -13,6 +13,17 @@ import { listenToConversations, renderConversationsList, getOrCreateConversation
          teardownMessaging } from "./messages.js?v=4";
 import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=4";
 
+
+// ── Haversine distance in miles ──
+function _haversine(lat1, lon1, lat2, lon2) {
+  const R = 3958.8; // Earth radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 // ── Expose all UI actions to inline HTML onclick handlers ──
 window.UI = {
 
@@ -37,6 +48,7 @@ window.UI = {
     }
     if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
     if (name === "feed")         { UI.refreshWeather(); startLocationWatch(); }
+    if (name === "search")        { UI.loadNearbyCourses(); }
     if (name === "edit-profile") UI.goToEditProfile();
     if (name === "messages")     UI.loadConversations();
     if (name === "my-activity")  UI.loadFullActivity();
@@ -486,6 +498,160 @@ window.UI = {
       loadReplies(postId);
       showToast("Reply posted ✅");
     } catch(e) { showToast("Could not post reply"); }
+  },
+
+  // ── Discover tabs ──
+  discoverTab(tab) {
+    const courses  = document.getElementById('disc-courses');
+    const teetimes = document.getElementById('disc-teetimes');
+    const tabC     = document.getElementById('disc-tab-courses');
+    const tabT     = document.getElementById('disc-tab-teetimes');
+    if (tab === 'courses') {
+      if (courses)  courses.style.display  = 'block';
+      if (teetimes) teetimes.style.display = 'none';
+      if (tabC) tabC.classList.add('disc-tab-active');
+      if (tabT) tabT.classList.remove('disc-tab-active');
+    } else {
+      if (courses)  courses.style.display  = 'none';
+      if (teetimes) teetimes.style.display = 'block';
+      if (tabC) tabC.classList.remove('disc-tab-active');
+      if (tabT) tabT.classList.add('disc-tab-active');
+    }
+  },
+
+  async loadNearbyCourses() {
+    const container = document.getElementById('courses-list');
+    const label     = document.getElementById('courses-radius-label');
+    if (!container) return;
+    container.innerHTML = '<div class="empty-state">Finding courses near you…</div>';
+
+    try {
+      // Get lat/lon — from GPS first, then from profile city
+      let lat = window._wxLat, lon = window._wxLon, cityName = window._weatherCity || myProfile.city || '';
+
+      if (!lat && cityName) {
+        const cityOnly = cityName.split(',')[0].trim();
+        const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityOnly)}&count=1&language=en&format=json`);
+        const gd  = await geo.json();
+        if (gd.results?.length) { lat = gd.results[0].latitude; lon = gd.results[0].longitude; }
+      }
+
+      if (!lat) {
+        // Try GPS as last resort
+        try {
+          const pos = await new Promise((res,rej) => navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}));
+          lat = pos.coords.latitude; lon = pos.coords.longitude;
+        } catch(_) {}
+      }
+
+      if (!lat) {
+        container.innerHTML = '<div class="empty-state">Add your city in Edit Profile to find nearby courses ⛳</div>';
+        return;
+      }
+
+      // 25 miles ≈ 40,234 meters — use Overpass API (free, no key)
+      const radius = 40234;
+      if (label) label.textContent = 'Golf courses within 25 miles';
+
+      const overpassUrl = 'https://overpass-api.de/api/interpreter';
+      const query = `[out:json][timeout:20];
+(
+  node["leisure"="golf_course"](around:${radius},${lat},${lon});
+  way["leisure"="golf_course"](around:${radius},${lat},${lon});
+  relation["leisure"="golf_course"](around:${radius},${lat},${lon});
+);
+out center tags 50;`;
+
+      const res  = await fetch(overpassUrl, { method:'POST', body:query });
+      const data = await res.json();
+      const elements = data.elements || [];
+
+      if (!elements.length) {
+        container.innerHTML = '<div class="empty-state">No golf courses found within 25 miles. Try updating your city in Edit Profile.</div>';
+        return;
+      }
+
+      // Deduplicate by name, compute distance, sort by distance
+      const seen = new Set();
+      const courses = elements
+        .filter(e => {
+          const name = e.tags?.name;
+          if (!name || seen.has(name)) return false;
+          seen.add(name); return true;
+        })
+        .map(e => {
+          const cLat = e.lat || e.center?.lat || lat;
+          const cLon = e.lon || e.center?.lon || lon;
+          const dMiles = _haversine(lat, lon, cLat, cLon);
+          return {
+            name:    e.tags?.name || 'Golf Course',
+            holes:   e.tags?.['golf:holes'] || e.tags?.holes || null,
+            phone:   e.tags?.phone || e.tags?.['contact:phone'] || null,
+            website: e.tags?.website || e.tags?.['contact:website'] || null,
+            addr:    [e.tags?.['addr:city'], e.tags?.['addr:state']].filter(Boolean).join(', '),
+            dist:    dMiles,
+            lat: cLat, lon: cLon,
+          };
+        })
+        .sort((a,b) => a.dist - b.dist)
+        .slice(0, 40);
+
+      window._nearbyCourses = courses;
+      UI.filterCourses('');
+      if (label) label.textContent = `${courses.length} golf courses within 25 miles`;
+
+    } catch(e) {
+      console.error('loadNearbyCourses error:', e);
+      container.innerHTML = '<div class="empty-state">Could not load courses. Check your connection and try again.</div>';
+    }
+  },
+
+  filterCourses(query) {
+    const courses = window._nearbyCourses || [];
+    const q = (query || '').toLowerCase().trim();
+    const filtered = q ? courses.filter(c => c.name.toLowerCase().includes(q)) : courses;
+    const container = document.getElementById('courses-list');
+    if (!container) return;
+    if (!filtered.length) {
+      container.innerHTML = '<div class="empty-state">No courses match your search.</div>';
+      return;
+    }
+    container.innerHTML = filtered.map(c => {
+      const distStr = c.dist < 1 ? 'Less than 1 mi' : `${c.dist.toFixed(1)} mi away`;
+      const holesStr = c.holes ? `· ${c.holes} holes` : '';
+      const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(c.name)}&ll=${c.lat},${c.lon}`;
+      return `<div class="course-card">
+        <div class="course-card-top">
+          <div style="flex:1;min-width:0">
+            <div class="course-name">${c.name}</div>
+            <div class="course-meta">${distStr} ${holesStr}${c.addr ? ' · ' + c.addr : ''}</div>
+          </div>
+          <div style="font-size:22px;margin-left:8px">⛳</div>
+        </div>
+        <div class="course-actions">
+          <a href="${mapsUrl}" target="_blank" class="course-btn course-btn-map">
+            📍 Directions
+          </a>
+          ${c.website ? `<a href="${c.website}" target="_blank" class="course-btn">🌐 Website</a>` : ''}
+          ${c.phone ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>` : ''}
+          <button class="course-btn course-btn-tee" onclick="safeUI('postTeeTimeAtCourse','${c.name.replace(/'/g,'').replace(/"/g,'')}')">
+            + Tee time
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  postTeeTimeAtCourse(courseName) {
+    // Pre-fill course name in tee time composer and go to feed
+    safeUI('goScreen','feed');
+    const courseInput = document.getElementById('tee-time-course');
+    if (courseInput) courseInput.value = courseName;
+    // Scroll to tee time section
+    setTimeout(() => {
+      const ttSection = document.querySelector('.tee-times-section');
+      if (ttSection) ttSection.scrollIntoView({behavior:'smooth'});
+    }, 300);
   },
 
   // ── Players ──

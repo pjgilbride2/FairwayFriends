@@ -289,20 +289,60 @@
 
   <!-- ═══════════ SEARCH / DISCOVER ═══════════ -->
   <div class="screen" id="screen-search">
-    <div class="header"><div><div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div><div class="header-sub">Discover rounds</div></div></div>
-    <div class="search-bar-wrap"><div class="search-bar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      <input type="text" placeholder="Search courses, players, or areas…">
-    </div></div>
-    <div class="filter-chips">
-      <div class="chip on" onclick="safeUI('toggleChip', this)">All</div>
-      <div class="chip" onclick="safeUI('toggleChip', this)">Tee times</div>
-      <div class="chip" onclick="safeUI('toggleChip', this)">Beginners welcome</div>
-      <div class="chip" onclick="safeUI('toggleChip', this)">Weekend</div>
-      <div class="chip" onclick="safeUI('toggleChip', this)">18-hole</div>
+    <div class="header">
+      <div><div class="logo">Fairway <span>Friend</span><span class="logo-dot"></span></div>
+      <div class="header-sub">Discover</div></div>
+      <div class="avatar-sm" id="discover-avatar" onclick="safeUI('goScreen','profile')">?</div>
     </div>
-    <div class="section-head"><h2>All tee times</h2></div>
-    <div class="players-list" id="all-tee-times"><div class="empty-state">Loading…</div></div>
+
+    <!-- Tab bar -->
+    <div style="display:flex;border-bottom:0.5px solid var(--border);padding:0 16px">
+      <div id="disc-tab-courses" class="disc-tab disc-tab-active" onclick="safeUI('discoverTab','courses')">
+        ⛳ Courses
+      </div>
+      <div id="disc-tab-teetimes" class="disc-tab" onclick="safeUI('discoverTab','teetimes')">
+        🕐 Tee Times
+      </div>
+    </div>
+
+    <!-- COURSES TAB -->
+    <div id="disc-courses" style="flex:1;overflow-y:auto">
+      <div style="padding:12px 16px 4px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:12px;color:var(--muted)" id="courses-radius-label">Golf courses within 25 miles</div>
+        <button onclick="safeUI('loadNearbyCourses')"
+          style="background:none;border:0.5px solid var(--border);border-radius:var(--radius-md);
+                 padding:4px 10px;font-size:11px;font-weight:500;color:var(--green);cursor:pointer">
+          Refresh
+        </button>
+      </div>
+
+      <!-- Search within courses -->
+      <div style="padding:4px 16px 8px">
+        <div class="search-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="course-search-input" placeholder="Filter courses…"
+            style="border:none;background:transparent;font-family:'DM Sans',sans-serif;
+                   font-size:13px;color:var(--text);outline:none;flex:1"
+            oninput="safeUI('filterCourses',this.value)">
+        </div>
+      </div>
+
+      <div id="courses-list" style="padding:0 16px 16px">
+        <div class="empty-state">Loading nearby courses…</div>
+      </div>
+    </div>
+
+    <!-- TEE TIMES TAB -->
+    <div id="disc-teetimes" style="flex:1;overflow-y:auto;display:none">
+      <div class="filter-chips" style="padding:8px 16px">
+        <div class="chip on" onclick="safeUI('toggleChip',this)">All</div>
+        <div class="chip" onclick="safeUI('toggleChip',this)">Beginners welcome</div>
+        <div class="chip" onclick="safeUI('toggleChip',this)">Weekend</div>
+        <div class="chip" onclick="safeUI('toggleChip',this)">18-hole</div>
+      </div>
+      <div class="section-head"><h2>All tee times</h2></div>
+      <div class="players-list" id="all-tee-times"><div class="empty-state">Loading…</div></div>
+    </div>
   </div>
 
   <!-- ═══════════ SCORECARD ═══════════ -->

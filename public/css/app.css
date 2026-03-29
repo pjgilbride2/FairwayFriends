@@ -440,3 +440,47 @@
 
 /* ── POST PHOTO COMPOSER ── */
 .composer-footer{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--border);margin-top:8px}
+
+/* ══════════════════════════════════════
+   DISCOVER / COURSES
+   ══════════════════════════════════════ */
+.disc-tab {
+  flex: 1; text-align: center; padding: 10px 0; font-size: 13px;
+  font-weight: 500; color: var(--muted); cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all .15s;
+}
+.disc-tab-active {
+  color: var(--green); border-bottom-color: var(--green);
+}
+.course-card {
+  background: var(--card-bg); border: 0.5px solid var(--border);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 10px;
+}
+.course-card-top {
+  display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px;
+}
+.course-name {
+  font-size: 15px; font-weight: 600; color: var(--text);
+  font-family: 'Playfair Display', serif; margin-bottom: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.course-meta {
+  font-size: 12px; color: var(--muted);
+}
+.course-actions {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.course-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 12px; border-radius: var(--radius-md);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 0.5px solid var(--border); background: var(--surface);
+  color: var(--text); text-decoration: none;
+}
+.course-btn-map {
+  background: var(--green-light); color: var(--green-dark);
+  border-color: var(--green-light);
+}
+.course-btn-tee {
+  background: var(--green); color: white; border-color: var(--green);
+}
