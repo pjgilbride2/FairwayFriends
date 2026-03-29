@@ -719,14 +719,15 @@ window.UI = {
       const mirrors=[
         'https://overpass-api.de/api/interpreter',
         'https://overpass.kumi.systems/api/interpreter',
-        'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+        'https://overpass.openstreetmap.ru/api/interpreter',
+        'https://overpass.private.coffee/api/interpreter',
       ];
 
       // Race all mirrors — first success wins, 8s hard timeout per mirror
       let txt1=null;
       const tryMirror=async(url)=>{
         const ctrl=new AbortController();
-        const t=setTimeout(()=>ctrl.abort(),8000);
+        const t=setTimeout(()=>ctrl.abort(),10000);
         try{
           const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q),signal:ctrl.signal});
           clearTimeout(t);
