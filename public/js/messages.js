@@ -1,34 +1,33 @@
 // ============================================================
-//  FAIRWAY FRIEND — Messaging
+//  FAIRWAY FRIEND — Messaging (DM + Group Chats)
 // ============================================================
 
-import { db } from "./firebase-config.js?v=21";
+import { db } from "./firebase-config.js?v=22";
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc,
   query, where, orderBy, limit, onSnapshot,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=21";
+import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=22";
 
 let _unsubMessages = null;
 let _unsubConvList = null;
 
-// ── Stable conversation ID from two UIDs ──
-function makeConvId(uid1, uid2) {
-  return [uid1, uid2].sort().join("__");
-}
+// ── Stable DM conversation ID ──
+function makeConvId(uid1, uid2) { return [uid1, uid2].sort().join("__"); }
 
-// ── Get or create a conversation ──
+// ── Get or create a 1-on-1 conversation ──
 export async function getOrCreateConversation(otherUid, otherName) {
   const me = window._currentUser;
   if (!me) return null;
   const cid = makeConvId(me.uid, otherUid);
-  const ref  = doc(db, "conversations", cid);
+  const ref = doc(db, "conversations", cid);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
     await setDoc(ref, {
       participants:     [me.uid, otherUid],
       participantNames: { [me.uid]: me.displayName || "Golfer", [otherUid]: otherName },
+      isGroup:          false,
       lastMessage:      "",
       lastMessageAt:    serverTimestamp(),
       createdAt:        serverTimestamp(),
@@ -37,7 +36,26 @@ export async function getOrCreateConversation(otherUid, otherName) {
   return cid;
 }
 
-// ── Send a message ──
+// ── Create a group conversation ──
+export async function createGroupConversation(memberUids, memberNames, groupName) {
+  const me = window._currentUser;
+  if (!me) return null;
+  const allUids  = [me.uid, ...memberUids.filter(u => u !== me.uid)];
+  const allNames = { [me.uid]: me.displayName || "Golfer", ...memberNames };
+  const ref = await addDoc(collection(db, "conversations"), {
+    participants:     allUids,
+    participantNames: allNames,
+    isGroup:          true,
+    groupName:        groupName || "Group Chat",
+    createdBy:        me.uid,
+    lastMessage:      "",
+    lastMessageAt:    serverTimestamp(),
+    createdAt:        serverTimestamp(),
+  });
+  return ref.id;
+}
+
+// ── Send a message (works for DM and group) ──
 export async function sendMessage(cid, text) {
   const me = window._currentUser;
   if (!me || !text.trim()) return;
@@ -47,38 +65,33 @@ export async function sendMessage(cid, text) {
     senderName: me.displayName || "Golfer",
     createdAt:  serverTimestamp(),
   });
-  // Use setDoc merge to update metadata (safer than updateDoc)
-  // Update conversation metadata — set lastSenderId and reset readBy for recipient
-  // This triggers the blue dot for the recipient and powers message notifications
+  // Fetch conv to get participants for readBy reset
   const convData = (await getDoc(doc(db, "conversations", cid))).data() || {};
   const participants = convData.participants || [];
-  const otherUid = participants.find(p => p !== me.uid);
-  const newReadBy = { [me.uid]: true };
-  if (otherUid) newReadBy[otherUid] = false; // recipient has NOT read it
-
+  // Mark all others as unread, me as read
+  const readBy = {};
+  participants.forEach(uid => { readBy[uid] = uid === me.uid; });
   await setDoc(doc(db, "conversations", cid), {
     lastMessage:   text.trim().slice(0, 80),
     lastSenderId:  me.uid,
     lastMessageAt: serverTimestamp(),
-    readBy:        newReadBy,
+    readBy,
   }, { merge: true });
-
-  return otherUid; // return so caller can create notification
+  // Return other participants for notifications
+  return participants.filter(uid => uid !== me.uid);
 }
 
-// ── Listen to messages in a conversation ──
+// ── Listen to messages ──
 export function listenToMessages(cid, onUpdate) {
   if (_unsubMessages) _unsubMessages();
   const q = query(
     collection(db, "conversations", cid, "messages"),
     orderBy("createdAt", "asc"),
-    limit(100)
+    limit(200)
   );
-  _unsubMessages = onSnapshot(q, (snap) => {
+  _unsubMessages = onSnapshot(q, snap => {
     onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  }, (err) => {
-    console.error("Messages listener error:", err.message);
-  });
+  }, err => { console.error("Messages listener:", err.message); });
 }
 
 export function stopListeningMessages() {
@@ -96,11 +109,10 @@ export function listenToConversations(onUpdate) {
     orderBy("lastMessageAt", "desc"),
     limit(30)
   );
-  _unsubConvList = onSnapshot(q, (snap) => {
+  _unsubConvList = onSnapshot(q, snap => {
     onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  }, (err) => {
-    console.error("Conversations listener error:", err.message);
-    // If permissions fail, show empty state gracefully
+  }, err => {
+    console.error("Conversations listener:", err.message);
     onUpdate([]);
   });
 }
@@ -118,39 +130,58 @@ export function renderConversationsList(convs, containerId) {
   if (!el) return;
   const me = window._currentUser;
   if (!convs.length) {
-    el.innerHTML = `<div class="empty-state">No conversations yet.<br>Search for someone you follow above to start messaging!</div>`;
+    el.innerHTML = '<div class="empty-state">No conversations yet.<br>Search for someone you follow to start messaging!</div>';
     return;
   }
   el.innerHTML = convs.map(c => {
-    const otherUid  = c.participants.find(p => p !== me?.uid) || "";
-    const otherName = (c.participantNames || {})[otherUid] || "Golfer";
-    const ini       = initials(otherName);
-    const aColor    = avatarColor(otherUid);
-    const timeStr   = c.lastMessageAt?.toDate ? relativeTime(c.lastMessageAt.toDate()) : "";
-    return `<div class="conv-row" onclick="safeUI('openConversation','${c.id}','${otherUid}','${esc(otherName)}')">
-      <div class="player-avatar ${aColor}" style="width:44px;height:44px;font-size:15px;flex-shrink:0">${ini}</div>
+    const isGroup  = c.isGroup;
+    const isUnread = c.lastSenderId && c.lastSenderId !== me?.uid && !(c.readBy||{})[me?.uid];
+
+    // Group: show group icon + name; DM: show other person
+    let displayName, ini, aColor, onclickArgs;
+    if (isGroup) {
+      displayName = esc(c.groupName || "Group Chat");
+      ini = "👥";
+      aColor = "av-indigo";
+      onclickArgs = `'${c.id}','','${displayName}',true`;
+    } else {
+      const otherUid  = (c.participants||[]).find(p => p !== me?.uid) || "";
+      const otherName = (c.participantNames||{})[otherUid] || "Golfer";
+      displayName = esc(otherName);
+      ini    = initials(otherName);
+      aColor = avatarColor(otherUid);
+      onclickArgs = `'${c.id}','${otherUid}','${displayName}'`;
+    }
+
+    const timeStr = c.lastMessageAt?.toDate ? relativeTime(c.lastMessageAt.toDate()) : "";
+    return `<div class="conv-row${isUnread?' conv-unread':''}" onclick="safeUI('openConversation',${onclickArgs})">
+      <div class="player-avatar ${aColor}" style="width:44px;height:44px;font-size:${isGroup?'20':'15'}px;flex-shrink:0">${ini}</div>
       <div class="conv-info">
-        <div class="conv-name">${esc(otherName)}</div>
-        <div class="conv-last">${esc(c.lastMessage || "Tap to start chatting")}</div>
+        <div class="conv-name">${displayName}${isGroup?` <span style="font-size:10px;color:var(--muted);font-weight:400">(${(c.participants||[]).length} members)</span>`:''}</div>
+        <div class="conv-last">${esc(c.lastMessage || "Tap to chat")}</div>
       </div>
-      <div class="conv-time">${timeStr}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div class="conv-time">${timeStr}</div>
+        ${isUnread?'<div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>':''}
+      </div>
     </div>`;
   }).join("");
 }
 
-// ── Render messages thread ──
-export function renderMessages(msgs, containerId) {
+// ── Render messages thread (shows sender name in group chats) ──
+export function renderMessages(msgs, containerId, isGroup) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const me = window._currentUser;
   if (!msgs.length) {
-    el.innerHTML = `<div class="empty-state" style="padding:30px 20px">Say hello! 👋</div>`;
+    el.innerHTML = '<div class="empty-state" style="padding:30px 20px">Say hello! 👋</div>';
     return;
   }
   el.innerHTML = msgs.map(m => {
     const isMine  = m.senderId === me?.uid;
     const timeStr = m.createdAt?.toDate ? relativeTime(m.createdAt.toDate()) : "";
-    return `<div class="msg-row ${isMine ? "msg-mine" : "msg-theirs"}">
+    return `<div class="msg-row ${isMine?"msg-mine":"msg-theirs"}">
+      ${isGroup && !isMine ? `<div style="font-size:11px;color:var(--muted);margin-bottom:2px;padding-left:2px">${esc(m.senderName||"Golfer")}</div>` : ""}
       <div class="msg-bubble">${esc(m.text)}</div>
       <div class="msg-time">${timeStr}</div>
     </div>`;
@@ -165,9 +196,8 @@ export async function loadFollowing() {
   const snap = await getDoc(doc(db, "users", me.uid));
   const friends = snap.exists() ? (snap.data().friends || []) : [];
   if (!friends.length) return [];
-  // Load profiles of followed users
   const profiles = await Promise.all(
-    friends.slice(0, 20).map(async uid => {
+    friends.slice(0, 30).map(async uid => {
       try {
         const s = await getDoc(doc(db, "users", uid));
         return s.exists() ? { uid, ...s.data() } : null;
@@ -177,20 +207,36 @@ export async function loadFollowing() {
   return profiles.filter(Boolean);
 }
 
-// ── Render following list for search ──
-export function renderFollowingForSearch(people, query, containerId) {
+// ── Render following list for DM / group member search ──
+export function renderFollowingForSearch(people, searchQuery, containerId, multiSelect) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  const filtered = query
-    ? people.filter(p => (p.displayName||"").toLowerCase().includes(query.toLowerCase()))
+  const q = (searchQuery||"").toLowerCase();
+  const filtered = q
+    ? people.filter(p => (p.displayName||"").toLowerCase().includes(q))
     : people;
   if (!filtered.length) {
-    el.innerHTML = `<div style="font-size:13px;color:var(--muted);padding:4px 0">No matches</div>`;
+    el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:4px 0">No matches</div>';
     return;
   }
   el.innerHTML = filtered.map(p => {
     const ini    = initials(p.displayName || "Golfer");
     const aColor = avatarColor(p.uid);
+    const selected = (window._groupMembers||[]).some(m=>m.uid===p.uid);
+    if (multiSelect) {
+      return `<div class="following-row${selected?' following-selected':''}"
+        onclick="safeUI('toggleGroupMember','${p.uid}','${esc(p.displayName||'Golfer')}')"
+        style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:0.5px solid var(--border)">
+        <div class="player-avatar ${aColor}" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${ini}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:500;color:var(--text)">${esc(p.displayName||"Golfer")}</div>
+          <div style="font-size:12px;color:var(--muted)">${esc(p.city||"")}${p.handicap!=null?" · HCP "+p.handicap:""}</div>
+        </div>
+        <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${selected?'var(--green)':'var(--border)'};
+          background:${selected?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;
+          font-size:13px;color:#fff;flex-shrink:0">${selected?'✓':''}</div>
+      </div>`;
+    }
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:0.5px solid var(--border)"
       onclick="safeUI('startConversation','${p.uid}','${esc(p.displayName||'Golfer')}')">
       <div class="player-avatar ${aColor}" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${ini}</div>

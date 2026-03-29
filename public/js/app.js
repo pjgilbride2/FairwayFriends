@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=21";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=21";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=21";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=21";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=21";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=21";
-import { listenToConversations, renderConversationsList, getOrCreateConversation,
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=22";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=22";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=22";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=22";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=22";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=22";
+import { listenToConversations, renderConversationsList, getOrCreateConversation, createGroupConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=21";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=21";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=21";
+         teardownMessaging } from "./messages.js?v=22";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=22";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=22";
 
 
 // ── Haversine distance in miles ──
@@ -292,7 +292,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=21");
+      const { initials, avatarColor } = await import("./ui.js?v=22");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -320,22 +320,89 @@ window.UI = {
     renderFollowingForSearch(people, query, "msg-following-people");
   },
 
-  async openConversation(convId, otherUid, otherName) {
-    document.getElementById("conv-header-name").textContent = otherName;
+  async openConversation(convId, otherUid, otherName, isGroup) {
+    const hdr = document.getElementById("conv-header-name");
+    if (hdr) hdr.textContent = otherName;
+    // Show member count badge for groups
+    const sub = document.getElementById("conv-header-sub");
+    if (sub) {
+      if (isGroup) {
+        const snap = await (async()=>{ try{ const {getDoc,doc,getFirestore}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"); const {getApp}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"); const d=await getDoc(doc(getFirestore(getApp()),"conversations",convId)); return d.data(); }catch{return null;} })();
+        sub.textContent = snap ? `${(snap.participants||[]).length} members` : "Group";
+        sub.style.display = "";
+      } else { sub.style.display = "none"; }
+    }
     goScreen("conversation");
     listenToMessages(convId, (msgs) => {
-      renderMessages(msgs, "messages-thread");
+      renderMessages(msgs, "messages-thread", !!isGroup);
     });
-    window._activeConvId  = convId;
-    window._activeConvMeta = { otherUid, otherName }; // needed by sendMsg for notifications
-    // Mark as read so blue dot clears
+    window._activeConvId   = convId;
+    window._activeConvIsGroup = !!isGroup;
+    window._activeConvMeta = { otherUid, otherName, isGroup: !!isGroup };
     markConversationRead(convId, window._currentUser?.uid);
   },
 
   async startConversation(otherUid, otherName) {
     const cid = await getOrCreateConversation(otherUid, otherName);
     if (!cid) return;
-    UI.openConversation(cid, otherUid, otherName);
+    UI.openConversation(cid, otherUid, otherName, false);
+  },
+
+  // ── Group messaging ──────────────────────────────────────
+  showNewGroupPanel() {
+    window._groupMembers = []; // reset selection
+    const panel = document.getElementById("new-group-panel");
+    const msgSearch = document.getElementById("msg-search-area");
+    if (panel) panel.style.display = panel.style.display==="none"?"":"none";
+    if (msgSearch) msgSearch.style.display = panel?.style.display==="none"?"":"none";
+    if (panel && panel.style.display !== "none") {
+      // Load following for group selection
+      loadFollowing().then(people => {
+        window._followingCache = people;
+        renderFollowingForSearch(people, "", "group-member-search-results", true);
+      });
+    }
+  },
+
+  toggleGroupMember(uid, name) {
+    window._groupMembers = window._groupMembers || [];
+    const idx = window._groupMembers.findIndex(m => m.uid === uid);
+    if (idx >= 0) { window._groupMembers.splice(idx, 1); }
+    else { window._groupMembers.push({ uid, name }); }
+    // Re-render list to update checkboxes
+    renderFollowingForSearch(window._followingCache||[], "", "group-member-search-results", true);
+    // Update chips
+    const chips = document.getElementById("group-member-chips");
+    if (chips) {
+      chips.innerHTML = (window._groupMembers||[]).map(m =>
+        `<span style="background:var(--green-light);color:var(--green-dark);padding:3px 10px;border-radius:12px;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:4px">
+          ${esc(m.name)} <span onclick="safeUI('toggleGroupMember','${m.uid}','${esc(m.name)}')" style="cursor:pointer;font-size:14px;line-height:1">×</span>
+        </span>`
+      ).join("");
+    }
+    const btn = document.getElementById("create-group-btn");
+    if (btn) btn.disabled = (window._groupMembers||[]).length < 1;
+  },
+
+  async createGroup() {
+    const members = window._groupMembers || [];
+    if (!members.length) { showToast("Add at least 1 person to your group"); return; }
+    const nameInput = document.getElementById("group-name-input");
+    const groupName = nameInput?.value?.trim() || "Group Chat";
+    const memberUids  = members.map(m => m.uid);
+    const memberNames = Object.fromEntries(members.map(m => [m.uid, m.name]));
+    const btn = document.getElementById("create-group-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Creating…"; }
+    try {
+      const cid = await createGroupConversation(memberUids, memberNames, groupName);
+      window._groupMembers = [];
+      const panel = document.getElementById("new-group-panel");
+      if (panel) panel.style.display = "none";
+      UI.openConversation(cid, "", groupName, true);
+    } catch(e) {
+      showToast("Could not create group");
+      if (btn) { btn.disabled = false; btn.textContent = "Create Group"; }
+    }
   },
 
   async sendMsg() {
@@ -347,20 +414,20 @@ window.UI = {
     input.style.height = "auto";
     try {
       const otherUid = await sendMessage(cid, text);
-      // Fire notification to the recipient
+      // Fire notification to all recipients (DM: 1, Group: many)
       const meta = window._activeConvMeta || {};
-      const recipient = otherUid || meta.otherUid;
-      if (recipient && recipient !== window._currentUser?.uid) {
+      const recipients = Array.isArray(otherUid) ? otherUid : (otherUid ? [otherUid] : (meta.otherUid ? [meta.otherUid] : []));
+      recipients.filter(r => r && r !== window._currentUser?.uid).forEach(r => {
         createNotification({
-          toUid:     recipient,
+          toUid:     r,
           fromUid:   window._currentUser.uid,
           fromName:  myProfile?.displayName || "Someone",
           fromPhoto: myProfile?.photoURL    || null,
           type:      "message",
           refId:     cid,
-          preview:   text.slice(0, 80),
+          preview:   (window._activeConvIsGroup ? (myProfile?.displayName||"Someone")+": " : "") + text.slice(0, 80),
         });
-      }
+      });
     } catch (e) {
       showToast("Could not send message");
     }
@@ -589,168 +656,152 @@ window.UI = {
         const cn  = city.split(',')[0].trim();
         const gck = 'geo_' + cn.toLowerCase().replace(/ /g, '_');
         let geo = null;
-        try { const c = sessionStorage.getItem(gck); if (c) { const p = JSON.parse(c); if (p.ts && Date.now()-p.ts < 86400000) geo = p; } } catch(_){}
+        try { const c=sessionStorage.getItem(gck); if(c){const p=JSON.parse(c); if(p.ts&&Date.now()-p.ts<86400000) geo=p;} } catch(_){}
         if (!geo) {
           try {
             const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(cn)+'&count=1&language=en&format=json')).json();
-            if (gd.results?.length) { geo = {lat:gd.results[0].latitude, lon:gd.results[0].longitude, ts:Date.now()}; sessionStorage.setItem(gck, JSON.stringify(geo)); }
+            if (gd.results?.length) { geo={lat:gd.results[0].latitude,lon:gd.results[0].longitude,ts:Date.now()}; sessionStorage.setItem(gck,JSON.stringify(geo)); }
           } catch(_) {}
         }
-        if (geo) { lat = geo.lat; lon = geo.lon; window._wxLat = lat; window._wxLon = lon; }
+        if (geo) { lat=geo.lat; lon=geo.lon; window._wxLat=lat; window._wxLon=lon; }
       }
       if (!lat) {
-        try { const p = await new Promise((r,j) => navigator.geolocation.getCurrentPosition(r,j,{timeout:5000})); lat = p.coords.latitude; lon = p.coords.longitude; window._wxLat = lat; window._wxLon = lon; } catch(_) {}
+        try { const p=await new Promise((r,j)=>navigator.geolocation.getCurrentPosition(r,j,{timeout:5000})); lat=p.coords.latitude; lon=p.coords.longitude; window._wxLat=lat; window._wxLon=lon; } catch(_) {}
       }
-      if (!lat) { container.innerHTML = '<div class="empty-state">Add your city in Edit Profile to find nearby courses \u26f3</div>'; window._coursesLoading = false; return; }
+      if (!lat) { container.innerHTML='<div class="empty-state">Add your city in Edit Profile to find nearby courses ⛳</div>'; window._coursesLoading=false; return; }
 
-      // ── 2. 2-hour cache ─────────────────────────────────────────────
-      const ck = 'gc_' + Math.round(lat*10)/10 + '_' + Math.round(lon*10)/10;
+      // ── 2. 24-hour cache (longer = faster repeat loads) ────────────
+      const ck = 'gc2_'+Math.round(lat*10)/10+'_'+Math.round(lon*10)/10;
       try {
-        const cd = sessionStorage.getItem(ck);
-        if (cd) { const p = JSON.parse(cd); if (p.ts && Date.now()-p.ts < 7200000) { window._nearbyCourses = p.data; UI.filterCourses(''); if (label) label.textContent = p.data.length + ' golf courses within 25 miles'; window._coursesLoading = false; return; } }
+        const cd=sessionStorage.getItem(ck);
+        if(cd){const p=JSON.parse(cd); if(p.ts&&Date.now()-p.ts<86400000&&p.data?.length>0){
+          window._nearbyCourses=p.data; UI.filterCourses('');
+          if(label)label.textContent=p.data.length+' golf courses within 25 miles';
+          window._coursesLoading=false; return;
+        }}
       } catch(_) {}
 
-      // ── 3. Skeleton cards ───────────────────────────────────────────
-      if (label) label.textContent = 'Finding courses near you\u2026';
-      container.innerHTML = Array(6).fill(0).map(() =>
-        '<div class="course-card" style="opacity:.35"><div class="course-card-top"><div style="flex:1">' +
-        '<div style="height:16px;background:var(--border);border-radius:4px;width:65%;margin-bottom:8px"></div>' +
-        '<div style="height:11px;background:var(--border);border-radius:4px;width:40%"></div>' +
-        '</div><div style="font-size:20px">\u26f3</div></div></div>'
+      // ── 3. Skeleton ────────────────────────────────────────────────
+      if(label) label.textContent='Finding courses near you…';
+      container.innerHTML=Array(4).fill(0).map(()=>
+        '<div class="course-card" style="opacity:.3"><div class="course-card-top"><div style="flex:1">'+
+        '<div style="height:16px;background:var(--border);border-radius:4px;width:60%;margin-bottom:8px"></div>'+
+        '<div style="height:11px;background:var(--border);border-radius:4px;width:35%"></div>'+
+        '</div><div style="font-size:20px">⛳</div></div></div>'
       ).join('');
 
-      // ── 4. Fetch with mirror fallback ───────────────────────────────
-      // Multiple Overpass mirrors — try each in order until one works
-      const MIRRORS = [
+      // ── 4. Inject KNOWN courses immediately (zero wait) ────────────
+      const seen=new Set(), norm=n=>n.toLowerCase().replace(/[^a-z0-9]/g,'');
+      let courses=[];
+      const KNOWN_COURSES=[
+        {name:"Heritage Harbor Golf & Country Club",lat:28.1372,lon:-82.5012,phone:"(813) 949-4886",website:"https://www.heritageharborgolf.com",addr:"Lutz, FL",type:"Golf Course",holes:"18"},
+        {name:"TPC Tampa Bay",lat:28.1637,lon:-82.5195,phone:"(813) 949-0090",website:"https://www.tpctampabay.com",addr:"Lutz, FL",type:"Golf Course",holes:"18"},
+        {name:"Northdale Golf & Tennis Club",lat:28.0823,lon:-82.5281,phone:"(813) 962-0428",website:null,addr:"Tampa, FL",type:"Golf Course",holes:"18"},
+      ];
+      KNOWN_COURSES.forEach(k=>{
+        const d=_haversine(lat,lon,k.lat,k.lon);
+        if(d<30){const key=norm(k.name); if(!seen.has(key)){seen.add(key);courses.push({...k,dist:d});}}
+      });
+      courses.sort((a,b)=>a.dist-b.dist);
+      if(courses.length){
+        window._nearbyCourses=courses; UI.filterCourses('');
+        if(label)label.textContent='Loading more courses…';
+      }
+
+      // ── 5. Overpass: short timeout mirrors in parallel ─────────────
+      const radius=40234;
+      const q='[out:json][timeout:15];('+
+        'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
+        'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
+        'way["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
+        ');out center tags 80;';
+
+      const mirrors=[
         'https://overpass-api.de/api/interpreter',
         'https://overpass.kumi.systems/api/interpreter',
         'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
       ];
-      const radius = 40234; // 25 miles in meters
-      const q = '[out:json][timeout:25];(' +
-        'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');' +
-        'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');' +
-        'way["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');' +
-        'way["club"="golf"]["name"](around:'+radius+','+lat+','+lon+');' +
-        'way["landuse"="recreation_ground"]["sport"="golf"](around:'+radius+','+lat+','+lon+');' +
-        ');out center tags 100;';
 
-      let txt1 = null;
-      for (const mirror of MIRRORS) {
-        try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 20000); // 20s timeout per mirror
-          const r = await fetch(mirror, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'data=' + encodeURIComponent(q),
-            signal: ctrl.signal
+      // Race all mirrors — first success wins, 8s hard timeout per mirror
+      let txt1=null;
+      const tryMirror=async(url)=>{
+        const ctrl=new AbortController();
+        const t=setTimeout(()=>ctrl.abort(),8000);
+        try{
+          const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q),signal:ctrl.signal});
+          clearTimeout(t);
+          if(!r.ok)return null;
+          const txt=await r.text();
+          return txt.trim().startsWith('<')?null:txt;
+        }catch{clearTimeout(t);return null;}
+      };
+
+      // Race all mirrors simultaneously
+      const results=await Promise.allSettled(mirrors.map(m=>tryMirror(m)));
+      for(const r of results){
+        if(r.status==='fulfilled'&&r.value){txt1=r.value;break;}
+      }
+
+      if(txt1){
+        const parsed=(JSON.parse(txt1).elements||[])
+          .filter(e=>{const n=e.tags?.name;if(!n)return false;const k=norm(n);if(seen.has(k))return false;seen.add(k);return true;})
+          .map(e=>{
+            const cLat=e.lat||e.center?.lat||lat,cLon=e.lon||e.center?.lon||lon,t=e.tags||{};
+            return{name:t.name||t.operator||'Golf Course',holes:t['golf:holes']||t.holes||null,
+              phone:t.phone||null,website:t.website||null,
+              addr:[t['addr:city'],t['addr:state']].filter(Boolean).join(', '),
+              type:t.club==='golf'?'Country Club':'Golf Course',
+              dist:_haversine(lat,lon,cLat,cLon),lat:cLat,lon:cLon};
           });
-          clearTimeout(timer);
-          if (!r.ok) { console.warn('Mirror '+mirror+' returned '+r.status); continue; }
-          const t = await r.text();
-          if (t.trim().startsWith('<')) { console.warn('Mirror '+mirror+' returned XML'); continue; }
-          txt1 = t;
-          break; // success
-        } catch(e) {
-          console.warn('Mirror failed:', e.message);
-          continue;
-        }
+        courses=[...courses,...parsed];
       }
 
-      // ── 5. Fallback: Nominatim if all mirrors failed ────────────────
-      if (!txt1) {
-        if (label) label.textContent = 'Searching via backup source\u2026';
-        try {
-          const bbox_lat = 0.36; // ~25mi
-          const bbox_lon = 0.36;
-          const url = 'https://nominatim.openstreetmap.org/search?' +
-            'q=golf+course&format=json&limit=50&addressdetails=1' +
-            '&viewbox='+(lon-bbox_lon)+','+(lat+bbox_lat)+','+(lon+bbox_lon)+','+(lat-bbox_lat) +
-            '&bounded=1';
-          const nr = await fetch(url, {headers:{'Accept-Language':'en'}});
-          const nd = await nr.json();
-          const seen2 = new Set(), norm2 = n => n.toLowerCase().replace(/[^a-z0-9]/g,'');
-          const nmCourses = nd
-            .filter(p => { const n = p.display_name?.split(',')[0]; if(!n)return false; const k=norm2(n); if(seen2.has(k))return false; seen2.add(k); return true; })
-            .map(p => {
-              const cLat = parseFloat(p.lat), cLon = parseFloat(p.lon);
-              const name = p.display_name?.split(',')[0] || 'Golf Course';
-              return { name, holes:null, phone:null, website:null, addr:(p.address?.city||p.address?.town||'')+(p.address?.state?', '+p.address.state:''), type:'Golf Course', dist:_haversine(lat,lon,cLat,cLon), lat:cLat, lon:cLon };
-            })
-            .sort((a,b) => a.dist - b.dist).slice(0, 60);
-          if (nmCourses.length) {
-            window._nearbyCourses = nmCourses;
-            try { sessionStorage.setItem(ck, JSON.stringify({ts:Date.now(), data:nmCourses})); } catch(_){}
-            UI.filterCourses('');
-            if (label) label.textContent = nmCourses.length + ' golf courses within 25 miles';
-            window._coursesLoading = false;
-            return;
-          }
-        } catch(e2) { console.warn('Nominatim fallback failed:', e2.message); }
-        throw new Error('All course sources are busy right now. Please try again in a minute.');
+      // ── 6. Nominatim fallback if Overpass got nothing ──────────────
+      if(!txt1||courses.length<5){
+        try{
+          const bbox=0.36;
+          const url='https://nominatim.openstreetmap.org/search?q=golf+course&format=json&limit=40&addressdetails=1'+
+            '&viewbox='+(lon-bbox)+','+(lat+bbox)+','+(lon+bbox)+','+(lat-bbox)+'&bounded=1';
+          const nd=await (await fetch(url,{headers:{'Accept-Language':'en'}})).json();
+          nd.forEach(p=>{
+            const n=p.display_name?.split(',')[0]||'';if(!n)return;
+            const k=norm(n);if(seen.has(k))return;seen.add(k);
+            const cLat=parseFloat(p.lat),cLon=parseFloat(p.lon);
+            courses.push({name:n,holes:null,phone:null,website:null,addr:'',type:'Golf Course',dist:_haversine(lat,lon,cLat,cLon),lat:cLat,lon:cLon});
+          });
+        }catch(_){}
       }
 
-      // ── 6. Parse + render results ───────────────────────────────────
-      const seen = new Set(), norm = n => n.toLowerCase().replace(/[^a-z0-9]/g,'');
-      let courses = (JSON.parse(txt1).elements || [])
-        .filter(e => { const n=e.tags?.name; if(!n)return false; const k=norm(n); if(seen.has(k))return false; seen.add(k); return true; })
-        .map(e => {
-          const cLat = e.lat||e.center?.lat||lat, cLon = e.lon||e.center?.lon||lon, t = e.tags||{};
-          return { name:t.name||t.operator||'Golf Course', holes:t['golf:holes']||t.holes||null,
-            phone:t.phone||null, website:t.website||null,
-            addr:[t['addr:city'],t['addr:state']].filter(Boolean).join(', '),
-            type:t.club==='golf'?'Country Club':'Golf Course',
-            dist:_haversine(lat,lon,cLat,cLon), lat:cLat, lon:cLon };
-        })
-        .sort((a,b) => a.dist - b.dist).slice(0, 80);
-
-      // ── Inject known local courses missing from OSM ────────────────
-      // Keyed by normalized name — merged if OSM later adds them
-      const KNOWN_COURSES = [
-        {name:"Heritage Harbor Golf & Country Club", lat:28.1372, lon:-82.5012, phone:"(813) 949-4886", website:"https://www.heritageharborgolf.com", addr:"Lutz, FL", type:"Golf Course", holes:"18"},
-        {name:"TPC Tampa Bay",                       lat:28.1637, lon:-82.5195, phone:"(813) 949-0090", website:"https://www.tpctampabay.com",          addr:"Lutz, FL", type:"Golf Course", holes:"18"},
-        {name:"Northdale Golf & Tennis Club",        lat:28.0823, lon:-82.5281, phone:"(813) 962-0428", website:null,                                    addr:"Tampa, FL", type:"Golf Course", holes:"18"},
-      ];
-      KNOWN_COURSES.forEach(k => {
-        const key = norm(k.name);
-        if (!seen.has(key)) {
-          seen.add(key);
-          courses.push({ ...k, dist: _haversine(lat, lon, k.lat, k.lon) });
-        }
-      });
-      // ── Remove permanently closed courses ──────────────────────────
-      const CLOSED = ['lutz executive golf center','proputt miniature golf'];
-      courses = courses.filter(c => !CLOSED.includes(norm(c.name)));
-      // ── Filter out street/road names OSM tags inside golf polygons ──
-      const STREET_RE = /(\s(way|circle|blvd|boulevard|lane|drive|parkway|court|road|avenue|ave|street|st|place|pl|trail|terrace|loop|run|path|cir|dr|ln|ct|rd))$/i;
-      courses = courses.filter(c => {
-        const n = c.name.trim();
-        if (/golf|country.?club|links|course|tpc|pga|greens|resort/i.test(n)) return true;
-        if (STREET_RE.test(n)) return false;
+      // ── 7. Filter + sort + dedupe ──────────────────────────────────
+      const CLOSED=['lutz executive golf center','proputt miniature golf'];
+      const STREET_RE=/(\s(way|circle|blvd|boulevard|lane|drive|parkway|court|road|avenue|ave|street|st|place|pl|trail|terrace|loop|run|path|cir|dr|ln|ct|rd))$/i;
+      courses=courses.filter(c=>{
+        if(CLOSED.includes(norm(c.name)))return false;
+        const n=c.name.trim();
+        if(/golf|country.?club|links|course|tpc|pga|greens|resort/i.test(n))return true;
+        if(STREET_RE.test(n))return false;
         return true;
       });
-      // Re-sort after injection
-      courses.sort((a, b) => a.dist - b.dist);
-      courses = courses.slice(0, 80);
+      courses.sort((a,b)=>a.dist-b.dist);
+      courses=courses.slice(0,80);
 
-      window._nearbyCourses = courses;
-      try { sessionStorage.setItem(ck, JSON.stringify({ts:Date.now(), data:courses})); } catch(_){}
-      UI.filterCourses('');
-      if (label) label.textContent = courses.length + ' golf courses within 25 miles';
+      // ── 8. Cache 24hr and render ───────────────────────────────────
+      try{sessionStorage.setItem(ck,JSON.stringify({ts:Date.now(),data:courses}));}catch(_){}
+      window._nearbyCourses=courses; UI.filterCourses('');
+      if(label)label.textContent=courses.length+' golf courses within 25 miles';
 
-    } catch(e) {
-      console.error('courses error:', e.message);
-      container.innerHTML =
-        '<div class="empty-state" style="padding:24px 20px">' +
-        '<div style="font-size:32px;margin-bottom:12px">\u26f3</div>' +
-        '<div style="font-weight:600;margin-bottom:8px">Couldn\'t load courses</div>' +
-        '<div style="font-size:14px;color:var(--muted);margin-bottom:16px">' + (e.message||'Connection error') + '</div>' +
-        '<button onclick="window._coursesLoading=false;safeUI(\'loadNearbyCourses\')" ' +
-        'style="background:var(--green);color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer">' +
-        'Try Again</button></div>';
-    } finally {
-      window._coursesLoading = false;
+    }catch(e){
+      console.error('courses error:',e.message);
+      if((window._nearbyCourses||[]).length===0){
+        container.innerHTML='<div class="empty-state" style="padding:24px 20px">'+
+          '<div style="font-size:32px;margin-bottom:12px">⛳</div>'+
+          '<div style="font-weight:600;margin-bottom:8px">Couldn't load courses</div>'+
+          '<div style="font-size:14px;color:var(--muted);margin-bottom:16px">'+(e.message||'Connection error')+'</div>'+
+          '<button onclick="window._coursesLoading=false;safeUI('loadNearbyCourses')" '+
+          'style="background:var(--green);color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer">Try Again</button></div>';
+      }
+    }finally{
+      window._coursesLoading=false;
     }
   },
 

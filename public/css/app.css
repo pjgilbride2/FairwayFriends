@@ -485,7 +485,90 @@
   background: var(--green); color: white; border-color: var(--green);
 }
 
-/* NOTIFICATIONS */
-.notif-item{cursor:pointer;transition:background .15s;}
-.notif-item:active{background:var(--border);}
-.notif-unread{background:color-mix(in srgb,var(--green) 6%,var(--bg));}
+
+/* ─── PERFORMANCE OPTIMIZATIONS ─── */
+/* Lazy render off-screen screens */
+.screen.hidden {
+  content-visibility: hidden;
+}
+/* Smooth nav transitions */
+.screen {
+  will-change: opacity;
+}
+/* Avatar images - no layout shift */
+.avatar-sm, .profile-avatar-lg, .avatar-lg {
+  contain: strict;
+}
+/* Skeleton pulse animation */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: .35; }
+  50%       { opacity: .6;  }
+}
+.course-card[style*="opacity:.35"] {
+  animation: skeletonPulse 1.2s ease-in-out infinite;
+}
+/* Faster tap feedback */
+.course-btn, .post-action, .chip, .vibe-toggle, .nav-item {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* Prevent font flash */
+body { font-display: swap; }
+
+/* ─── NOTIFICATIONS ─── */
+.notif-item {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.notif-item:active {
+  background: var(--border);
+}
+.notif-unread {
+  background: color-mix(in srgb, var(--green) 6%, var(--bg));
+}
+.notif-unread:active {
+  background: color-mix(in srgb, var(--green) 12%, var(--bg));
+}
+#notif-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  min-width: 9px;
+  height: 9px;
+  border-radius: 50px;
+  padding: 0 2px;
+  box-sizing: border-box;
+}
+
+/* ─── SCORECARD GAME MODES ─── */
+.game-mode-btn {
+  transition: all .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.game-mode-btn:active { transform: scale(.96); }
+.game-mode-active {
+  border-color: var(--green) !important;
+  background: var(--green-light) !important;
+  color: var(--green-dark) !important;
+  font-weight: 600 !important;
+}
+.sc-result-cell {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 32px;
+}
+/* Score color classes */
+.score-input.eagle  { color: #d97706; background: #fef3c7; border-radius: 4px; }
+.score-input.birdie { color: var(--green-dark); background: var(--green-light); border-radius: 4px; }
+.score-input.bogey  { color: #e53e3e; }
+.score-input.double { color: #e53e3e; font-weight: 700; }
+
+/* ── GROUP MESSAGING ── */
+.av-indigo { background: #6366f1; color: #fff; }
+.conv-unread .conv-name { font-weight: 700; }
+.conv-unread .conv-last { color: var(--text); font-weight: 500; }
+#create-group-btn:not(:disabled) { opacity: 1 !important; }
+#create-group-btn:disabled { opacity: .45; cursor: default; }
+.following-selected { background: var(--green-light) !important; border-radius: 8px; }
+#conv-header-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
