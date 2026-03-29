@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=19";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=19";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=19";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=19";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=19";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=19";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=20";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=20";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=20";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=20";
+import { goScreen, showToast, toggleChip } from "./ui.js?v=20";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=20";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=19";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=19";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=19";
+         teardownMessaging } from "./messages.js?v=20";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=20";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead } from "./notifications.js?v=20";
 
 
 // ── Haversine distance in miles ──
@@ -292,7 +292,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=19");
+      const { initials, avatarColor } = await import("./ui.js?v=20");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -707,6 +707,14 @@ window.UI = {
       // ── Remove courses known to be permanently closed ─────────────
       const CLOSED = ['lutz executive golf center','proputt miniature golf'];
       courses = courses.filter(c => !CLOSED.includes(norm(c.name)));
+      // Filter out street/road names OSM tags inside golf course polygons
+      const STREET_RE = /(\s(way|circle|blvd|boulevard|lane|drive|parkway|court|road|avenue|ave|street|st|place|pl|trail|terrace|loop|run|path|cir|dr|ln|ct|rd))$/i;
+      courses = courses.filter(c => {
+        const n = c.name.trim();
+        if (/golf|country.?club|links|course|tpc|pga|greens|resort/i.test(n)) return true;
+        if (STREET_RE.test(n)) return false;
+        return true;
+      });
       // Re-sort after injection
       courses.sort((a, b) => a.dist - b.dist);
       courses = courses.slice(0, 80);
