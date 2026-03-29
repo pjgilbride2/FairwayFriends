@@ -562,7 +562,7 @@ window.UI = {
       } catch(_) {}
       if(label) label.textContent='Searching for courses…';
       const radius=40234;
-      const q='[out:json][timeout:25];(nwr["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');nwr["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');nwr["club"="golf"]["name"](around:'+radius+','+lat+','+lon+'););out center tags 100;';
+      const q='[out:json][timeout:25];(node["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');way["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');way["club"="golf"]["name"](around:'+radius+','+lat+','+lon+'););out center tags 100;';
       const res=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
       if(!res.ok) throw new Error('Overpass HTTP '+res.status);
       const raw=await res.text();
