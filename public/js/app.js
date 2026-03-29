@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=2";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=2";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost } from "./feed.js?v=2";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=2";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=2";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=2";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost } from "./feed.js";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js";
+import { goScreen, showToast, toggleChip } from "./ui.js";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging } from "./messages.js?v=2";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=2";
+         teardownMessaging } from "./messages.js";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js";
 
 // ── Expose all UI actions to inline HTML onclick handlers ──
 window.UI = {
@@ -238,13 +238,35 @@ window.UI = {
     listenToConversations((convs) => {
       renderConversationsList(convs, "conversations-list");
     });
-    // update avatar
+    // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js");
+      const { initials, avatarColor } = await import("./ui.js?v=2");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
+    // Pre-load following list for search
+    try {
+      window._msgFollowing = await loadFollowing();
+    } catch(e) { window._msgFollowing = []; }
+    // Clear search
+    const searchEl = document.getElementById("msg-search");
+    if (searchEl) searchEl.value = "";
+    const followingList = document.getElementById("msg-following-list");
+    if (followingList) followingList.style.display = "none";
+  },
+
+  // ── Search messages / following ──
+  searchMessages(query) {
+    const followingList  = document.getElementById("msg-following-list");
+    const followingPeople = document.getElementById("msg-following-people");
+    if (!query || !query.trim()) {
+      if (followingList) followingList.style.display = "none";
+      return;
+    }
+    if (followingList) followingList.style.display = "block";
+    const people = window._msgFollowing || [];
+    renderFollowingForSearch(people, query, "msg-following-people");
   },
 
   async openConversation(convId, otherUid, otherName) {

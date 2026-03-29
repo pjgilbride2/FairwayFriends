@@ -356,7 +356,7 @@
 .wx-hours-wrap{padding:0 14px 10px}
 .wx-daily-wrap{padding:0 14px 10px}
 .wx-section-title{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:10px 0 6px}
-.wx-hours{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.wx-hours{display:flex;flex-direction:row;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .wx-hours::-webkit-scrollbar{display:none}
 .wx-hour{min-width:48px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:var(--radius-md);background:var(--surface);flex-shrink:0}
 .wx-hour-time{font-size:10px;color:var(--muted);font-weight:500}
@@ -365,9 +365,10 @@
 .wx-hour-wind{font-size:10px;color:var(--muted)}
 .wx-hour-rain{font-size:10px;color:#0C447C;font-weight:500;min-height:13px}
 
-/* 4-day */
-.wx-days{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.wx-day{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:var(--radius-md);background:var(--surface)}
+/* 4-day — single scrollable row */
+.wx-days{display:flex;flex-direction:row;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.wx-days::-webkit-scrollbar{display:none}
+.wx-day{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 6px;border-radius:var(--radius-md);background:var(--surface);flex-shrink:0;min-width:54px}
 .wx-day-name{font-size:11px;font-weight:500;color:var(--muted)}
 .wx-day-icon{font-size:20px}
 .wx-day-temp{font-size:13px;font-weight:600;color:var(--text)}
