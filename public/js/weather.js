@@ -119,21 +119,25 @@ export async function loadWeather(cityString) {
     }
   }
 
-  // Step 2: silently try GPS — overrides city coords if it works
-  try {
-    const pos = await new Promise((res,rej) =>
-      navigator.geolocation.getCurrentPosition(res, rej, {timeout:4000})
-    );
-    lat = pos.coords.latitude;
-    lon = pos.coords.longitude;
+  // Step 2: try GPS only if we don't already have city coords
+  // (if city was just changed, _wxLat is null so we skip GPS to force re-geocode)
+  if (!lat) {
+    try {
+      const pos = await new Promise((res,rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, {timeout:4000})
+      );
+      lat = pos.coords.latitude;
+      lon = pos.coords.longitude;
+      window._wxLat = lat;
+      window._wxLon = lon;
+    } catch(_) {}
+  } else {
+    // City coords found — also cache them for round forecast use
     window._wxLat = lat;
     window._wxLon = lon;
-    // Keep the city name as the display label — GPS just makes coordinates more accurate
-  } catch(_) {
-    // GPS unavailable or denied — use city coords from Step 1
   }
 
-  // Step 3: use cached GPS from a previous successful call
+  // Step 3: use previously cached GPS only if still no coords
   if (!lat && window._wxLat) {
     lat = window._wxLat;
     lon = window._wxLon;
