@@ -539,7 +539,21 @@ window.UI = {
     const container = document.getElementById('courses-list');
     const label     = document.getElementById('courses-radius-label');
     if (!container) return;
-    container.innerHTML = '<div class="empty-state">Finding courses near you…</div>';
+    // Check 30-minute cache first
+      const cacheKey = "gc_"+Math.round(lat*10)/10+"_"+Math.round(lon*10)/10;
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const p = JSON.parse(cached);
+          if (p.ts && Date.now()-p.ts < 30*60*1000) {
+            window._nearbyCourses = p.data;
+            UI.filterCourses("");
+            if(label) label.textContent = p.data.length+" golf courses within 25 miles";
+            return;
+          }
+        }
+      } catch(_) {}
+      container.innerHTML = '<div class="empty-state">Finding courses near you…</div>';
 
     try {
       // Get lat/lon — from GPS first, then from profile city
@@ -574,9 +588,9 @@ window.UI = {
       // sport=golf amenities, and named golf/country club facilities
       const query = `[out:json][timeout:25];
 (
-  nwr["leisure"="golf_course"](around:\${radius},\${lat},\${lon});
-  nwr["sport"="golf"]["name"](around:\${radius},\${lat},\${lon});
-  nwr["club"="golf"]["name"](around:\${radius},\${lat},\${lon});
+  nwr["leisure"="golf_course"](around:${radius},${lat},${lon});
+  nwr["sport"="golf"]["name"](around:${radius},${lat},${lon});
+  nwr["club"="golf"]["name"](around:${radius},${lat},${lon});
 );
 out center tags 100;`;
 
