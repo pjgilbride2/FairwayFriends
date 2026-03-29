@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=3";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=3";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost } from "./feed.js?v=3";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js?v=3";
-import { goScreen, showToast, toggleChip } from "./ui.js?v=3";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=3";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleHelpful, submitReply, loadReplies } from "./feed.js?v=3";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores } from "./scorecard.js";
+import { goScreen, showToast, toggleChip } from "./ui.js";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js";
 import { listenToConversations, renderConversationsList, getOrCreateConversation,
          listenToMessages, renderMessages, sendMessage, stopListeningMessages,
-         teardownMessaging, loadFollowing, renderFollowingForSearch } from "./messages.js?v=3";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=3";
+         teardownMessaging } from "./messages.js";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js";
 
 // ── Expose all UI actions to inline HTML onclick handlers ──
 window.UI = {
@@ -241,7 +241,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=3");
+      const { initials, avatarColor } = await import("./ui.js?v=2");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -457,6 +457,35 @@ window.UI = {
     const thumb   = document.getElementById("post-image-thumb");
     if (preview) preview.style.display = "none";
     if (thumb)   { URL.revokeObjectURL(thumb.src); thumb.src = ""; }
+  },
+
+  // ── Post reactions ──
+  async toggleHelpful(postId) {
+    try { await toggleHelpful(postId); }
+    catch(e) { showToast("Could not update"); }
+  },
+
+  toggleReply(postId) {
+    const box = document.getElementById("reply-box-" + postId);
+    if (!box) return;
+    const isOpen = box.style.display !== "none";
+    box.style.display = isOpen ? "none" : "block";
+    if (!isOpen) {
+      loadReplies(postId);
+      setTimeout(()=>document.getElementById("reply-input-"+postId)?.focus(), 100);
+    }
+  },
+
+  async submitReply(postId) {
+    const input = document.getElementById("reply-input-" + postId);
+    const text = input?.value?.trim();
+    if (!text) return;
+    input.value = "";
+    try {
+      await submitReply(postId, text);
+      loadReplies(postId);
+      showToast("Reply posted ✅");
+    } catch(e) { showToast("Could not post reply"); }
   },
 
   // ── Players ──
