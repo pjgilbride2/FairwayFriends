@@ -572,25 +572,13 @@ window.UI = {
       const overpassUrl = 'https://overpass-api.de/api/interpreter';
       // Comprehensive query: catches golf_course, golf clubs, country clubs,
       // sport=golf amenities, and named golf/country club facilities
-      const query = `[out:json][timeout:30];
+      const query = `[out:json][timeout:25];
 (
-  node["leisure"="golf_course"](around:${radius},${lat},${lon});
-  way["leisure"="golf_course"](around:${radius},${lat},${lon});
-  relation["leisure"="golf_course"](around:${radius},${lat},${lon});
-  node["sport"="golf"](around:${radius},${lat},${lon});
-  way["sport"="golf"](around:${radius},${lat},${lon});
-  relation["sport"="golf"](around:${radius},${lat},${lon});
-  node["golf"="yes"](around:${radius},${lat},${lon});
-  way["golf"="yes"](around:${radius},${lat},${lon});
-  node["amenity"="golf_course"](around:${radius},${lat},${lon});
-  way["amenity"="golf_course"](around:${radius},${lat},${lon});
-  way["leisure"="golf_course"]["name"](around:${radius},${lat},${lon});
-  relation["leisure"="golf_course"]["name"](around:${radius},${lat},${lon});
-  node["club"="golf"](around:${radius},${lat},${lon});
-  way["club"="golf"](around:${radius},${lat},${lon});
-  relation["club"="golf"](around:${radius},${lat},${lon});
+  nwr["leisure"="golf_course"](around:\${radius},\${lat},\${lon});
+  nwr["sport"="golf"]["name"](around:\${radius},\${lat},\${lon});
+  nwr["club"="golf"]["name"](around:\${radius},\${lat},\${lon});
 );
-out center tags 200;`;
+out center tags 100;`;
 
       const res = await fetch(overpassUrl, {
         method:'POST',
