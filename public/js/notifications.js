@@ -3,13 +3,13 @@
 //  Tracks: new messages (blue dot), likes, replies, follows
 // ============================================================
 
-import { db } from "./firebase-config.js?v=28";
+import { db } from "./firebase-config.js?v=29";
 import {
   collection, query, where, orderBy, limit,
   onSnapshot, doc, updateDoc, writeBatch,
   serverTimestamp, addDoc, getDocs, getDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { esc, initials, avatarColor } from "./ui.js?v=28";
+import { esc, initials, avatarColor } from "./ui.js?v=29";
 
 let _unsubMessages = null;
 let _unsubNotifs   = null;
@@ -77,7 +77,7 @@ function _listenNotifications(uid) {
     const unread = notifs.filter(n => !n.read).length;
     _setNotifBadge(unread);
     window._notifications = notifs;
-    if (document.getElementById("screen-notifications")?.classList.contains("hidden") === false) {
+    if (document.getElementById("screen-notifications")?.classList.contains("active")) {
       renderNotifications(notifs);
     }
   }, (err) => {
@@ -87,7 +87,7 @@ function _listenNotifications(uid) {
       window._notifications = [];
       // Show friendly message if screen is open
       const el = document.getElementById("notif-list");
-      if (el && document.getElementById("screen-notifications")?.classList.contains("hidden") === false) {
+      if (el && document.getElementById("screen-notifications")?.classList.contains("active")) {
         el.innerHTML = '<div class="empty-state" style="margin-top:60px">' +
           '<div style="font-size:36px;margin-bottom:12px">\uD83D\uDD14</div>' +
           '<div>Setting up notifications\u2026</div>' +

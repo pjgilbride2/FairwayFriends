@@ -2,12 +2,12 @@
 //  FAIRWAY FRIEND — Premium Onboarding (exact artifact design)
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=28";
+import { db, storage } from "./firebase-config.js?v=29";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=28";
+import { showToast } from "./ui.js?v=29";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;

@@ -92,7 +92,10 @@ export function goScreen(name) {
   document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
 
   const screen = document.getElementById("screen-" + name);
-  if (screen) screen.classList.add("active");
+  if (screen) {
+    screen.classList.remove("hidden");   // remove hidden so active CSS takes effect
+    screen.classList.add("active");
+  }
 
   const nav = document.getElementById("nav-" + name);
   if (nav) nav.classList.add("active");
