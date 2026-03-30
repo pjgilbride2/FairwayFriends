@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=39";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=39";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=39";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=39";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=39";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=39";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=39";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=39";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=39";
-import { buildOnboardScreen } from "./onboard.js?v=39";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=40";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=40";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=40";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=40";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=40";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=40";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=40";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=40";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=40";
+import { buildOnboardScreen } from "./onboard.js?v=40";
 
 
 // ── Haversine distance in miles ──
@@ -553,7 +553,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=39");
+      const { initials, avatarColor } = await import("./ui.js?v=40");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -721,15 +721,15 @@ window.UI = {
   // ── Auth tab switch ──
   // ── Auth screen navigation ──
   showAuthLanding() {
-    document.getElementById("auth-landing").style.display = "flex";
-    document.getElementById("auth-signin").style.display  = "none";
-    document.getElementById("auth-email-signup").style.display = "none";
+    const _s = id => { const el=document.getElementById(id); if(el) el.style.display = id==='auth-landing'?'flex':'none'; };
+    _s('auth-landing'); _s('auth-signin'); _s('auth-email-signup');
   },
   showAuthSignIn() {
-    document.getElementById("auth-landing").style.display = "none";
-    document.getElementById("auth-signin").style.display  = "block";
-    document.getElementById("auth-email-signup").style.display = "none";
-    setTimeout(() => document.getElementById("login-email")?.focus(), 100);
+    const el = id => document.getElementById(id);
+    if(el('auth-landing'))    el('auth-landing').style.display    = 'none';
+    if(el('auth-signin'))     el('auth-signin').style.display     = 'block';
+    if(el('auth-email-signup')) el('auth-email-signup').style.display = 'none';
+    setTimeout(() => el('login-email')?.focus(), 100);
   },
   showAuthEmailSignup() {
     // Route to the full onboard flow instead of inline form

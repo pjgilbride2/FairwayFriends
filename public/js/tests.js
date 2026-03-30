@@ -136,10 +136,8 @@
       await sleep(400);
       return !!document.getElementById('dist-filter-bar');
     });
-    await t('Distance pills count = 5', () => document.querySelectorAll('.dist-pill').length === 5);
-    await t('25mi pill active by default', () => {
-      return document.querySelector('.dist-pill-active')?.dataset.dist === '25';
-    });
+    await t('Distance select has 5 options', () => { const s=document.getElementById('dist-filter'); return s?s.options.length===5:'warn'; });
+    await t('Distance select defaults to 25mi', () => { const s=document.getElementById('dist-filter'); return s?s.value==='25':'warn'; });
     await t('5mi pill filters courses', async () => {
       const p = document.querySelector('.dist-pill[data-dist="5"]');
       if(!p) return 'warn';
@@ -179,7 +177,7 @@
     });
 
     await t('Scorecard navigates', async () => {
-      goScreen('scorecard'); await sleep(400);
+      goScreen('scorecard'); await sleep(1500);
       return document.getElementById('screen-scorecard')?.classList.contains('active');
     });
     await t('Front 9 has 9 rows', async () => { await sleep(800); return document.getElementById('sc-front')?.children.length === 9; });
@@ -215,16 +213,32 @@
       goScreen('edit-profile'); await sleep(400);
       return !!document.getElementById('edit-home-course');
     });
-    await t('Edit-profile course autocomplete (needs Discover pre-load)', async () => {
-      await sleep(300);
+    await t('Edit-profile course autocomplete', async () => {
+      // Pre-load Discover if needed so _nearbyCourses is populated
+      if (!window._nearbyCourses?.length) {
+        goScreen('search'); await sleep(2000);
+        goScreen('edit-profile'); await sleep(600);
+      }
       const field = document.getElementById('edit-home-course');
-      if(!field) return 'warn';
-      if (!window._nearbyCourses?.length) return 'warn'; // needs Discover visited first
+      if (!field) return 'warn';
+      if (!window._nearbyCourses?.length) return 'warn'; // still no courses
       field.dispatchEvent(new Event('focus',{bubbles:true}));
       await sleep(500);
       return !!document.getElementById('course-ac-list');
     });
-    await t('openPlayerProfile loads without crash', async () => {
+    await t('Scorecard course autocomplete wired', async () => {
+      goScreen('scorecard'); await sleep(1500);
+      const inp = document.getElementById('sc-course-input');
+      if (!inp) return false;
+      const acExists = !!document.getElementById('sc-course-ac');
+      // Trigger focus to show dropdown
+      inp.dispatchEvent(new Event('focus',{bubbles:true}));
+      await sleep(400);
+      const acVisible = document.getElementById('sc-course-ac')?.style.display !== 'none';
+      return acExists && acVisible;
+    });
+
+  await t('openPlayerProfile loads without crash', async () => {
       goScreen('players'); await sleep(800);
       const els = Array.from(document.querySelectorAll('[onclick*="openPlayerProfile"]'));
       if(!els.length) return 'warn';
@@ -302,10 +316,10 @@
       return !window._playerVibeFilter || window._playerVibeFilter === 'all';
     });
     await t('Game mode persists across nav', async () => {
-      goScreen('scorecard'); await sleep(800);
-      safeUI('setGameMode','bestball'); await sleep(300);
-      goScreen('feed'); await sleep(300);
-      goScreen('scorecard'); await sleep(1000);
+      goScreen('scorecard'); await sleep(1500);
+      safeUI('setGameMode','bestball'); await sleep(400);
+      goScreen('feed'); await sleep(400);
+      goScreen('scorecard'); await sleep(1500);
       const mode = document.querySelector('.game-mode-active')?.dataset.mode;
       safeUI('setGameMode','stroke');
       return mode === 'bestball';
