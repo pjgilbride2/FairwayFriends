@@ -282,12 +282,6 @@ function buildWeatherCard(data, location) {
       <div class="wx-hours">${hours}</div>
     </div>
 
-    <!-- 4-day -->
-    <div class="wx-daily-wrap">
-      <div class="wx-section-title">4-day forecast</div>
-      <div class="wx-days">${daily}</div>
-    </div>
-
     <div class="wx-credit">Open-Meteo · auto-refreshes every 10 min</div>
   </div>`;
 }

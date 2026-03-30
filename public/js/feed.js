@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=35";
+import { db, storage } from "./firebase-config.js?v=36";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=35";
-import { createNotification } from "./notifications.js?v=35";
-import { loadRoundDayForecast } from "./weather.js?v=35";
+import { myProfile, myVibes } from "./profile.js?v=36";
+import { createNotification } from "./notifications.js?v=36";
+import { loadRoundDayForecast } from "./weather.js?v=36";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=35";
+} from "./ui.js?v=36";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -506,7 +506,7 @@ export function renderNearbyPlayers(players, containerId) {
     .join("");
 }
 
-export function filterPlayers(q, vibeFilter) {
+export function filterPlayers(q, vibeFilter, locationFilter) {
   const lower = (q||'').toLowerCase().trim();
   let filtered = lower
     ? allPlayers.filter(p =>
@@ -515,9 +515,14 @@ export function filterPlayers(q, vibeFilter) {
         (p.vibes||[]).some(v=>v.toLowerCase().includes(lower))
       )
     : [...allPlayers];
-  // Apply vibe chip filter
+  // Apply vibe dropdown filter
   if (vibeFilter && vibeFilter !== 'all') {
     filtered = filtered.filter(p => (p.vibes||[]).includes(vibeFilter));
+  }
+  // Apply location/area filter — match city name
+  if (locationFilter && locationFilter !== 'all') {
+    const locLower = locationFilter.toLowerCase();
+    filtered = filtered.filter(p => (p.city||'').toLowerCase().includes(locLower));
   }
   // Sort: vibe-match % descending
   const mv = myVibes || [];

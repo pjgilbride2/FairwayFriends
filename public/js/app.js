@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=35";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=35";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=35";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=35";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=35";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=35";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=35";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=35";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=35";
-import { buildOnboardScreen } from "./onboard.js?v=35";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=36";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=36";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=36";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=36";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=36";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=36";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=36";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=36";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=36";
+import { buildOnboardScreen } from "./onboard.js?v=36";
 
 
 // ── Haversine distance in miles ──
@@ -45,30 +45,43 @@ window.UI = {
       UI.loadScorecardWeather();
     }
     if (name === "players") {
-      // Inject vibe filter bar if not present
+      // Inject vibe + location filter dropdowns if not present
       const pList = document.getElementById('players-list-main');
       if (pList && !document.getElementById('players-vibe-bar')) {
-        const VIBE_LIST = ['Competitive','Casual','Social Drinker','420 Friendly','Music on Cart','Fast Pace','Walker','Cart Only','Early Bird','Twilight','Social Poster','Low Key'];
+        const ALL_VIBES = ['Competitive','Casual','Social Drinker','420 Friendly','Music on Cart',
+          'Fast Pace','Walker','Cart Only','Early Bird','Twilight','Social Poster','Low Key',
+          'Drinker','Score Keeper','Course Explorer'];
+        // Build unique city list from allPlayers for location filter
+        const cities = [...new Set((allPlayers||[]).map(p=>(p.city||'').split(',')[0].trim()).filter(Boolean))].sort();
         const pbar = document.createElement('div');
         pbar.id = 'players-vibe-bar';
-        pbar.style.cssText = 'overflow-x:auto;padding:10px 16px 4px;display:flex;gap:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;border-bottom:0.5px solid var(--border);margin-bottom:8px';
-        pbar.innerHTML = ['all',...VIBE_LIST].map((v,i)=>
-          `<button class="pvf-chip${i===0?' pvf-active':''}" data-vibe="${v}"
-            onclick="safeUI('setPlayerVibeFilter','${v}')"
-            style="white-space:nowrap;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;
-              cursor:pointer;border:1px solid ${i===0?'var(--green)':'var(--border)'};
-              background:${i===0?'var(--green-light)':'var(--surface)'};
-              color:${i===0?'var(--green-dark)':'var(--text)'};font-family:inherit;flex-shrink:0">
-            ${v==='all'?'All Vibes':v}
-          </button>`
-        ).join('');
+        pbar.style.cssText = 'display:flex;gap:10px;padding:10px 16px 10px;border-bottom:0.5px solid var(--border);';
+        pbar.innerHTML = `
+          <select id="player-vibe-select"
+            onchange="window._playerVibeFilter=this.value;safeUI('applyPlayerFilters')"
+            style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);
+              background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;
+              cursor:pointer;outline:none;appearance:none;
+              background-image:url('data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\'><path d=\'M1 1l5 5 5-5\' fill=\'none\' stroke=\'%23888\' stroke-width=\'1.5\'/></svg>');
+              background-repeat:no-repeat;background-position:right 10px center;padding-right:28px">
+            <option value="all">🏌️ All Vibes</option>
+            ${ALL_VIBES.map(v=>`<option value="${v}">${v}</option>`).join('')}
+          </select>
+          <select id="player-loc-select"
+            onchange="window._playerLocFilter=this.value;safeUI('applyPlayerFilters')"
+            style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);
+              background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;
+              cursor:pointer;outline:none;appearance:none;
+              background-image:url('data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\'><path d=\'M1 1l5 5 5-5\' fill=\'none\' stroke=\'%23888\' stroke-width=\'1.5\'/></svg>');
+              background-repeat:no-repeat;background-position:right 10px center;padding-right:28px">
+            <option value="all">📍 Any Area</option>
+            ${cities.map(c=>`<option value="${c}">${c}</option>`).join('')}
+          </select>
+        `;
         pList.parentNode.insertBefore(pbar, pList);
-        // Style for active state
-        const style = document.createElement('style');
-        style.textContent = '.pvf-chip.pvf-active{background:var(--green-light)!important;color:var(--green-dark)!important;border-color:var(--green)!important}';
-        document.head.appendChild(style);
       }
       window._playerVibeFilter = 'all';
+      window._playerLocFilter  = 'all';
     }
     if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
     if (name === "notifications") { updateProfileUI(); loadNotificationsScreen(); }
@@ -121,23 +134,27 @@ window.UI = {
         document.head.appendChild(style);
       }
       setTimeout(loadDiscoverTeeTimes, 1000);
-      // Inject distance filter if not already there
+      // Inject distance filter dropdown if not already there
       const coursesList = document.getElementById('courses-list');
       if (coursesList && !document.getElementById('dist-filter-bar')) {
         const bar = document.createElement('div');
         bar.id = 'dist-filter-bar';
-        bar.style.cssText = 'display:flex;gap:8px;align-items:center;padding:10px 16px 4px;flex-wrap:wrap;';
+        bar.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 16px 8px;';
         bar.innerHTML = `
-          <span style="font-size:12px;font-weight:500;color:var(--muted)">Distance:</span>
-          ${[5,10,25,50,999].map((d,i)=>
-            `<button class="dist-pill${i===2?' dist-pill-active':''}"
-              data-dist="${d}"
-              onclick="this.closest('#dist-filter-bar').querySelectorAll('.dist-pill').forEach(b=>b.classList.remove('dist-pill-active'));this.classList.add('dist-pill-active');document.getElementById('dist-filter').value='${d}';safeUI('filterCourses',document.getElementById('course-search-input')?.value||'')"
-              style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:${i===2?'var(--green)':'var(--surface)'};color:${i===2?'#fff':'var(--text)'};font-family:inherit;transition:all .2s">
-              ${d===999?'Any':`${d} mi`}
-            </button>`
-          ).join('')}
-          <input type="hidden" id="dist-filter" value="25">
+          <label for="dist-filter" style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">📍 Within</label>
+          <select id="dist-filter"
+            onchange="safeUI('filterCourses',document.getElementById('course-search-input')?.value||'')"
+            style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);
+              background:var(--surface);color:var(--text);font-size:14px;font-weight:500;
+              font-family:inherit;cursor:pointer;outline:none;appearance:none;
+              background-image:url('data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\'><path d=\'M1 1l5 5 5-5\' fill=\'none\' stroke=\'%23888\' stroke-width=\'1.5\'/></svg>');
+              background-repeat:no-repeat;background-position:right 12px center;padding-right:32px">
+            <option value="5">5 miles</option>
+            <option value="10">10 miles</option>
+            <option value="25" selected>25 miles</option>
+            <option value="50">50 miles</option>
+            <option value="999">Any distance</option>
+          </select>
         `;
         coursesList.parentNode.insertBefore(bar, coursesList);
       }
@@ -457,7 +474,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=35");
+      const { initials, avatarColor } = await import("./ui.js?v=36");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1144,16 +1161,30 @@ window.UI = {
   // ── Players ──
   filterPlayers(q) {
     const vibeFilter = window._playerVibeFilter || 'all';
-    filterPlayers(q, vibeFilter);
+    const locFilter  = window._playerLocFilter  || 'all';
+    filterPlayers(q, vibeFilter, locFilter);
   },
   setPlayerVibeFilter(vibe) {
     window._playerVibeFilter = vibe;
-    // Update UI
-    document.querySelectorAll('.pvf-chip').forEach(c => {
-      c.classList.toggle('pvf-active', c.dataset.vibe === vibe);
-    });
-    const q = document.getElementById('players-search')?.value || '';
-    filterPlayers(q, vibe);
+    const sel = document.getElementById('player-vibe-select');
+    if (sel) sel.value = vibe;
+    this.applyPlayerFilters();
+  },
+  applyPlayerFilters() {
+    const q    = document.getElementById('players-search')?.value || '';
+    const vibe = window._playerVibeFilter || 'all';
+    const loc  = window._playerLocFilter  || 'all';
+    filterPlayers(q, vibe, loc);
+    // Refresh location options based on current vibe-filtered set
+    const locSel = document.getElementById('player-loc-select');
+    if (locSel && loc === 'all') {
+      const cities = [...new Set((allPlayers||[])
+        .filter(p => vibe==='all'||(p.vibes||[]).includes(vibe))
+        .map(p=>(p.city||'').split(',')[0].trim()).filter(Boolean))].sort();
+      const cur = locSel.value;
+      locSel.innerHTML = `<option value="all">📍 Any Area</option>` +
+        cities.map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
+    }
   },
 
   // ── Scorecard ──
