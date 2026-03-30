@@ -459,15 +459,20 @@ window.UI = {
 
   // ── View another player's profile ──────────────────────
   async openPlayerProfile(uid) {
-    const { getDoc, doc, getFirestore } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const { getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-    const db = getFirestore(getApp());
-    const snap = await getDoc(doc(db, "users", uid));
-    if (!snap.exists()) { showToast("Profile not found"); return; }
-    const p = { uid, ...snap.data() };
-    window._viewingPlayer = p;
-    buildPlayerProfileScreen(p);
-    goScreen("player-profile");
+    try {
+      const { getDoc, doc, getFirestore } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      const { getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+      const db = getFirestore(getApp());
+      const snap = await getDoc(doc(db, "users", uid));
+      if (!snap.exists()) { showToast("Profile not found"); return; }
+      const p = { uid, ...snap.data() };
+      window._viewingPlayer = p;
+      buildPlayerProfileScreen(p);
+      goScreen("player-profile");
+    } catch(e) {
+      console.error("openPlayerProfile error:", e);
+      showToast("Could not load profile");
+    }
   },
 
   async startConversation(otherUid, otherName) {
@@ -1178,6 +1183,12 @@ function showFormError(form, msg) {
 initAuth();
 
 function buildPlayerProfileScreen(p) {
+  // Safe references — these are imported at module top but guard defensively
+  const _myVibes   = (typeof myVibes   !== 'undefined' ? myVibes   : null) || myProfile?.vibes || [];
+  const _initials  = typeof initials   !== 'undefined' ? initials   : (n) => (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const _avatarClr = typeof avatarColor !== 'undefined' ? avatarColor : () => 'pa-green';
+  const _esc       = typeof esc         !== 'undefined' ? esc         : (s) => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
   // Ensure screen exists in DOM
   let screen = document.getElementById("screen-player-profile");
   if (!screen) {
@@ -1189,17 +1200,17 @@ function buildPlayerProfileScreen(p) {
   }
 
   const isFriend = (myProfile.friends || []).includes(p.uid);
-  const sharedVibes = (p.vibes || []).filter(v => myVibes.includes(v));
+  const sharedVibes = (p.vibes || []).filter(v => _myVibes.includes(v));
   const allVibes = p.vibes || [];
-  const pct = myVibes.length
-    ? Math.round((sharedVibes.length / Math.max(myVibes.length, allVibes.length, 1)) * 100)
+  const pct = _myVibes.length
+    ? Math.round((sharedVibes.length / Math.max(_myVibes.length, allVibes.length, 1)) * 100)
     : null;
 
-  const ini = initials(p.displayName || "?");
-  const aColor = avatarColor(p.uid);
+  const ini = _initials(p.displayName || "?");
+  const aColor = _avatarClr(p.uid);
 
   const vibeHtml = allVibes.map(v => {
-    const shared = myVibes.includes(v);
+    const shared = _myVibes.includes(v);
     return `<span style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;
       border-radius:100px;font-size:13px;font-weight:500;
       background:${shared ? "rgba(var(--green-rgb),.12)" : "var(--surface)"};
@@ -1231,7 +1242,7 @@ function buildPlayerProfileScreen(p) {
   ].filter(Boolean).map(s => `
     <div style="flex:1;min-width:100px;text-align:center;padding:14px 10px;
       background:var(--surface);border-radius:14px;border:1px solid var(--border)">
-      <div style="font-size:18px;font-weight:700;color:var(--green)">${esc(String(s.val))}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--green)">${_esc(String(s.val))}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px">${s.label}</div>
     </div>`).join("");
 
@@ -1256,11 +1267,11 @@ function buildPlayerProfileScreen(p) {
         <div class="player-avatar ${aColor}"
           style="width:84px;height:84px;font-size:28px;margin:0 auto 14px">
           ${p.photoURL
-            ? `<img src="${esc(p.photoURL)}" style="width:84px;height:84px;border-radius:50%;object-fit:cover">`
+            ? `<img src="${_esc(p.photoURL)}" style="width:84px;height:84px;border-radius:50%;object-fit:cover">`
             : ini}
         </div>
-        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px">${esc(p.displayName || "Golfer")}</div>
-        ${p.city ? `<div style="font-size:14px;color:var(--muted);margin-bottom:4px">📍 ${esc(p.city)}</div>` : ""}
+        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px">${_esc(p.displayName || "Golfer")}</div>
+        ${p.city ? `<div style="font-size:14px;color:var(--muted);margin-bottom:4px">📍 ${_esc(p.city)}</div>` : ""}
         ${p.newToArea ? `<div style="font-size:12px;color:var(--green);margin-bottom:8px">🆕 New to the area</div>` : ""}
         ${pct !== null ? `<div style="display:inline-block;padding:4px 14px;border-radius:100px;
           background:${pct >= 60 ? "rgba(var(--green-rgb),.12)" : "var(--surface)"};
@@ -1280,7 +1291,7 @@ function buildPlayerProfileScreen(p) {
                  border:1px solid ${isFriend ? "var(--border)" : "var(--green)"}">
           ${isFriend ? "✓ Following" : "Connect"}
         </button>
-        <button onclick="UI.startConversation('${p.uid}','${esc(p.displayName||"Golfer")}')"
+        <button onclick="UI.startConversation('${p.uid}','${_esc(p.displayName||"Golfer")}')"
           style="flex:1;padding:12px;border-radius:14px;font-size:14px;font-weight:600;
                  cursor:pointer;font-family:inherit;background:var(--surface);
                  color:var(--green);border:1px solid var(--green)">
@@ -1295,7 +1306,7 @@ function buildPlayerProfileScreen(p) {
           text-transform:uppercase;margin-bottom:8px">About</div>
         <div style="padding:14px;background:var(--surface);border-radius:14px;
           border:1px solid var(--border);font-size:15px;color:var(--text);line-height:1.6">
-          "${esc(p.bio)}"
+          "${_esc(p.bio)}"
         </div>
       </div>` : ""}
 
@@ -1411,7 +1422,7 @@ async function loadHomeTeeTimesSection() {
     return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
         <div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${esc(c.name)}</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${_esc(c.name)}</div>
           <div style="font-size:11px;color:var(--muted)">${c.dist<1?'<1':c.dist.toFixed(1)} mi · ${today}</div>
         </div>
         ${!isPrivate ? `<a href="${bookBase}" target="_blank" rel="noopener"
@@ -1426,5 +1437,22 @@ async function loadHomeTeeTimesSection() {
 window.loadHomeTeeTimesSection = loadHomeTeeTimesSection;
 
 window.goScreen = goScreen;
+
+// Global unhandled promise rejection handler — prevents silent failures
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = e.reason?.message || String(e.reason);
+  // Don't surface quota/network errors to users
+  if (msg.includes('QuotaExceeded') || msg.includes('network') || msg.includes('WebChannel')) return;
+  console.error('[FW]', msg);
+  // Show user-friendly toast for critical errors only
+  if (msg.includes('permission-denied')) showToast('Permission denied — try signing out and back in');
+});
 window._initFeed = () => { initFeed(); initNearbyPlayers(); };
 window.buildOnboardScreen = buildOnboardScreen;
+
+// Load test suite in dev/staging
+(async () => {
+  try {
+    const mod = await import('./js/tests.js?v=33');
+  } catch(_) {}
+})();

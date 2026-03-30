@@ -19,7 +19,7 @@ import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
 } from "./ui.js?v=33";
 
-export export let allPlayers = [];
+export let allPlayers = [];
 let _unsubFeed     = null;
 let _unsubTeeTimes = null;
 let _unsubPlayers  = null;
@@ -517,11 +517,13 @@ export function filterPlayers(q, vibeFilter) {
   }
   // Sort: vibe-match % descending
   const mv = myVibes || [];
-  filtered.sort((a,b)=>{
-    const pa = mv.length ? (a.vibes||[]).filter(v=>mv.includes(v)).length/Math.max(mv.length,(a.vibes||[]).length,1) : 0;
-    const pb = mv.length ? (b.vibes||[]).filter(v=>mv.includes(v)).length/Math.max(mv.length,(b.vibes||[]).length,1) : 0;
-    return pb-pa;
-  });
+  try {
+    filtered.sort((a,b)=>{
+      const pa = mv.length ? (a.vibes||[]).filter(v=>mv.includes(v)).length/Math.max(mv.length,(a.vibes||[]).length,1) : 0;
+      const pb = mv.length ? (b.vibes||[]).filter(v=>mv.includes(v)).length/Math.max(mv.length,(b.vibes||[]).length,1) : 0;
+      return pb-pa;
+    });
+  } catch(_) {}
   renderNearbyPlayers(filtered, "players-list-main");
 }
 
