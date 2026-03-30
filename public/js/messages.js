@@ -2,13 +2,13 @@
 //  FAIRWAY FRIEND — Messaging (DM + Group Chats)
 // ============================================================
 
-import { db } from "./firebase-config.js?v=40";
+import { db } from "./firebase-config.js?v=41";
 import {
-  collection, doc, getDoc, getDocs, addDoc, setDoc,
+  collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc,
   query, where, orderBy, limit, onSnapshot,
-  serverTimestamp,
+  serverTimestamp, arrayUnion, arrayRemove,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=40";
+import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=41";
 
 let _unsubMessages = null;
 let _unsubConvList = null;
@@ -251,4 +251,28 @@ export function renderFollowingForSearch(people, searchQuery, containerId, multi
       <div style="font-size:12px;color:var(--green);font-weight:500">Message</div>
     </div>`;
   }).join("");
+}
+
+// ── Block / Unblock a user ───────────────────────────────────
+export async function blockUser(targetUid, targetName) {
+  const me = window._currentUser;
+  if (!me || !targetUid) return;
+  try {
+    const mySnap = await getDoc(doc(db, 'users', me.uid));
+    const blocked = mySnap.data()?.blockedUsers || [];
+    const isBlocked = blocked.includes(targetUid);
+    if (isBlocked) {
+      await updateDoc(doc(db, 'users', me.uid), { blockedUsers: arrayRemove(targetUid) });
+      if (window.myProfile) window.myProfile.blockedUsers = (window.myProfile.blockedUsers||[]).filter(u=>u!==targetUid);
+      showToast(targetName + ' unblocked');
+    } else {
+      await updateDoc(doc(db, 'users', me.uid), { blockedUsers: arrayUnion(targetUid) });
+      if (window.myProfile) window.myProfile.blockedUsers = [...(window.myProfile.blockedUsers||[]), targetUid];
+      showToast(targetName + ' blocked');
+    }
+    return !isBlocked; // returns new blocked state
+  } catch(e) {
+    showToast('Could not block user');
+    console.error('blockUser:', e);
+  }
 }

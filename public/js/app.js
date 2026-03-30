@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=40";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=40";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=40";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=40";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=40";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=40";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=40";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=40";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=40";
-import { buildOnboardScreen } from "./onboard.js?v=40";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=41";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=41";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=41";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=41";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=41";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=41";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=41";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=41";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=41";
+import { buildOnboardScreen } from "./onboard.js?v=41";
 
 
 // ── Haversine distance in miles ──
@@ -143,7 +143,39 @@ window.UI = {
       window._playerVibeFilter  = 'all';
       window._playerMilesFilter = 'all';
     }
-    if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
+    if (name === "profile") {
+      updateProfileUI(); UI.loadProfileActivity();
+      // Inject account-management section once
+      if (!document.getElementById('profile-account-section')) {
+        const profileScreen = document.getElementById('screen-profile');
+        if (profileScreen) {
+          const sec = document.createElement('div');
+          sec.id = 'profile-account-section';
+          sec.style.cssText = 'padding:20px 16px 40px;border-top:0.5px solid var(--border);margin-top:8px';
+          sec.innerHTML = `
+            <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px">Account</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <button onclick="safeUI('showSubscriptionManager')"
+                style="width:100%;padding:13px 16px;border-radius:14px;border:1.5px solid var(--border);
+                  background:var(--surface);color:var(--text);font-size:14px;font-weight:500;
+                  cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;justify-content:space-between">
+                <span>⭐ Subscription Plan</span>
+                <span id="profile-plan-badge" style="font-size:12px;color:var(--green);font-weight:600">Free</span>
+              </button>
+              <button onclick="safeUI('confirmDeleteAccount')"
+                style="width:100%;padding:13px 16px;border-radius:14px;border:1.5px solid #ef4444;
+                  background:transparent;color:#ef4444;font-size:14px;font-weight:500;
+                  cursor:pointer;font-family:inherit;text-align:left">
+                🗑️ Delete Account
+              </button>
+            </div>`;
+          profileScreen.appendChild(sec);
+        }
+      }
+      // Update plan badge
+      const badge = document.getElementById('profile-plan-badge');
+      if (badge) badge.textContent = myProfile.plan === 'pro' ? '⭐ Pro' : myProfile.plan === 'team' ? '👥 Team' : 'Free';
+    }
     if (name === "notifications") { updateProfileUI(); loadNotificationsScreen(); }
     if (name === "onboard")       { buildOnboardScreen(); }
     if (name === "auth")          { buildAuthScreen(); }
@@ -553,7 +585,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=40");
+      const { initials, avatarColor } = await import("./ui.js?v=41");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -584,6 +616,45 @@ window.UI = {
   async openConversation(convId, otherUid, otherName, isGroup) {
     const hdr = document.getElementById("conv-header-name");
     if (hdr) hdr.textContent = otherName;
+    // Inject block button for DM conversations
+    const convHeader = hdr?.parentElement;
+    const existingBlock = document.getElementById('conv-block-btn');
+    if (existingBlock) existingBlock.remove();
+    if (convHeader && !isGroup && otherUid) {
+      const isBlocked = (window.myProfile?.blockedUsers||[]).includes(otherUid);
+      const blockBtn = document.createElement('button');
+      blockBtn.id = 'conv-block-btn';
+      blockBtn.title = isBlocked ? 'Unblock user' : 'Block user';
+      blockBtn.style.cssText = 'background:none;border:none;cursor:pointer;padding:6px 8px;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:4px;border-radius:8px;font-family:inherit';
+      blockBtn.innerHTML = isBlocked ? '🚫 Unblock' : '⋯';
+      blockBtn.onclick = () => {
+        // Show action sheet
+        const sheet = document.createElement('div');
+        sheet.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:flex;align-items:flex-end;justify-content:center';
+        const curBlocked = (window.myProfile?.blockedUsers||[]).includes(otherUid);
+        sheet.innerHTML = `<div style="background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:16px 16px 36px">
+          <div style="font-size:15px;font-weight:600;text-align:center;margin-bottom:16px;color:var(--text)">${otherName}</div>
+          <button onclick="this.closest('div[style]').remove();safeUI('openPlayerProfile','${otherUid}')"
+            style="width:100%;padding:14px;border-radius:12px;background:var(--surface);border:1px solid var(--border);
+              color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-bottom:8px;text-align:left">
+            👤 View Profile
+          </button>
+          <button onclick="this.closest('div[style]').remove();safeUI('blockUserFromConversation','${otherUid}','${otherName}')"
+            style="width:100%;padding:14px;border-radius:12px;background:var(--surface);border:1px solid ${curBlocked?'var(--green)':'#ef4444'};
+              color:${curBlocked?'var(--green)':'#ef4444'};font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-bottom:8px;text-align:left">
+            🚫 ${curBlocked?'Unblock':'Block'} ${otherName}
+          </button>
+          <button onclick="this.closest('div[style]').remove()"
+            style="width:100%;padding:14px;border-radius:12px;background:var(--surface);border:1px solid var(--border);
+              color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;text-align:center">
+            Cancel
+          </button>
+        </div>`;
+        document.body.appendChild(sheet);
+        sheet.addEventListener('click', e => { if(e.target===sheet) sheet.remove(); });
+      };
+      convHeader.appendChild(blockBtn);
+    }
     // Show member count badge for groups
     const sub = document.getElementById("conv-header-sub");
     if (sub) {
@@ -624,6 +695,121 @@ window.UI = {
     } catch(e) {
       console.error("openPlayerProfile error:", e);
       showToast("Could not load profile");
+    }
+  },
+
+  // ── Account management ──────────────────────────────────
+  showSubscriptionManager() {
+    // Build a modal with plan options
+    const existing = document.getElementById('sub-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'sub-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:flex;align-items:flex-end;justify-content:center';
+    const curPlan = window.myProfile?.plan || 'free';
+    modal.innerHTML = `
+      <div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:24px 20px 40px">
+        <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px"></div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px">Subscription</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Current plan: <strong>${curPlan==='pro'?'⭐ Pro':curPlan==='team'?'👥 Team':'Free'}</strong></div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="padding:16px;border-radius:14px;border:2px solid ${curPlan==='pro'?'var(--green)':'var(--border)'};background:var(--surface)">
+            <div style="font-size:15px;font-weight:700">⭐ Pro — $9.99/mo</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Unlimited messages · Advanced stats · Priority matching</div>
+            ${curPlan!=='pro'?`<button onclick="safeUI('upgradeToPro')"
+              style="margin-top:12px;width:100%;padding:11px;border-radius:10px;background:var(--green);color:#fff;
+                border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+              Upgrade to Pro
+            </button>`:'<div style="margin-top:10px;font-size:13px;color:var(--green);font-weight:600">✓ Current plan</div>'}
+          </div>
+          <div style="padding:16px;border-radius:14px;border:1.5px solid ${curPlan==='free'?'var(--green)':'var(--border)'};background:var(--surface)">
+            <div style="font-size:15px;font-weight:700">Free</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Core features · 10 messages/day · Standard matching</div>
+            ${curPlan!=='free'?`<button onclick="safeUI('confirmDowngrade')"
+              style="margin-top:12px;width:100%;padding:11px;border-radius:10px;background:transparent;color:#ef4444;
+                border:1.5px solid #ef4444;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+              Downgrade to Free
+            </button>`:'<div style="margin-top:10px;font-size:13px;color:var(--green);font-weight:600">✓ Current plan</div>'}
+          </div>
+        </div>
+        <button onclick="document.getElementById('sub-modal')?.remove()"
+          style="margin-top:20px;width:100%;padding:13px;border-radius:14px;background:var(--surface);
+            color:var(--text);border:1.5px solid var(--border);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit">
+          Close
+        </button>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  },
+
+  confirmDowngrade() {
+    document.getElementById('sub-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'confirm-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = `
+      <div style="background:var(--bg);border-radius:20px;width:100%;max-width:360px;padding:24px">
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px">Downgrade to Free?</div>
+        <div style="font-size:14px;color:var(--muted);margin-bottom:20px">You'll lose Pro features at the end of your billing period.</div>
+        <div style="display:flex;gap:10px">
+          <button onclick="document.getElementById('confirm-modal')?.remove()"
+            style="flex:1;padding:12px;border-radius:12px;background:var(--surface);border:1.5px solid var(--border);
+              color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit">Cancel</button>
+          <button onclick="document.getElementById('confirm-modal')?.remove();safeUI('doDowngrade')"
+            style="flex:1;padding:12px;border-radius:12px;background:#ef4444;border:none;
+              color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Downgrade</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  },
+
+  async doDowngrade() {
+    await downgradeSubscription();
+    const badge = document.getElementById('profile-plan-badge');
+    if (badge) badge.textContent = 'Free';
+  },
+
+  upgradeToPro() {
+    document.getElementById('sub-modal')?.remove();
+    showToast('Upgrade coming soon — stay tuned! ⭐');
+  },
+
+  confirmDeleteAccount() {
+    const modal = document.createElement('div');
+    modal.id = 'delete-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = `
+      <div style="background:var(--bg);border-radius:20px;width:100%;max-width:360px;padding:24px">
+        <div style="font-size:18px;font-weight:700;color:#ef4444;margin-bottom:8px">Delete Account?</div>
+        <div style="font-size:14px;color:var(--muted);margin-bottom:6px">This will permanently delete:</div>
+        <ul style="font-size:14px;color:var(--text);margin:0 0 16px 16px;padding:0;line-height:1.8">
+          <li>Your profile and all data</li>
+          <li>Your messages and conversations</li>
+          <li>Your round history</li>
+        </ul>
+        <div style="font-size:13px;color:#ef4444;font-weight:500;margin-bottom:20px">⚠️ This cannot be undone.</div>
+        <div style="display:flex;gap:10px">
+          <button onclick="document.getElementById('delete-modal')?.remove()"
+            style="flex:1;padding:12px;border-radius:12px;background:var(--surface);border:1.5px solid var(--border);
+              color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit">Cancel</button>
+          <button onclick="document.getElementById('delete-modal')?.remove();safeUI('doDeleteAccount')"
+            style="flex:1;padding:12px;border-radius:12px;background:#ef4444;border:none;
+              color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Delete Forever</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  },
+
+  async doDeleteAccount() {
+    await deleteAccount();
+  },
+
+  // ── Block user (from conversation screen) ──────────────────
+  async blockUserFromConversation(targetUid, targetName) {
+    const nowBlocked = await blockUser(targetUid, targetName);
+    if (nowBlocked) {
+      // Go back to messages list
+      safeUI('goScreen','messages');
     }
   },
 

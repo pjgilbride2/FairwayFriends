@@ -3,14 +3,14 @@
 //  Handles: loading, saving, photo upload, UI rendering
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=40";
+import { db, storage } from "./firebase-config.js?v=41";
 import {
-  doc, getDoc, setDoc, serverTimestamp,
+  doc, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { VIBE_META, initials, avatarColor } from "./ui.js?v=40";
+import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=41";
 
 export let myProfile = {};
 export let myVibes   = [];
@@ -252,4 +252,40 @@ export function updateProfileUI() {
   document.querySelectorAll("[data-vibe]").forEach((el) => {
     el.classList.toggle("selected", myVibes.includes(el.dataset.vibe));
   });
+}
+
+// ── Delete account ────────────────────────────────────────────
+export async function deleteAccount() {
+  const user = window._currentUser;
+  if (!user) return;
+  try {
+    // Delete Firestore user doc
+    await deleteDoc(doc(db, 'users', user.uid));
+    // Delete Firebase Auth account
+    await user.delete();
+    showToast('Account deleted');
+    window.location.reload();
+  } catch(e) {
+    if (e.code === 'auth/requires-recent-login') {
+      showToast('Please sign out and sign back in, then try again');
+    } else {
+      showToast('Could not delete account: ' + (e.message||'unknown error'));
+    }
+  }
+}
+
+// ── Downgrade subscription ────────────────────────────────────
+export async function downgradeSubscription() {
+  const user = window._currentUser;
+  if (!user) return;
+  try {
+    await updateDoc(doc(db, 'users', user.uid), { plan: 'free', planUpdatedAt: serverTimestamp() });
+    if (window.myProfile) window.myProfile.plan = 'free';
+    showToast('Downgraded to Free plan');
+    // Refresh profile UI to reflect new plan
+    const { updateProfileUI } = await import('./profile.js?v=40');
+    updateProfileUI();
+  } catch(e) {
+    showToast('Could not update plan');
+  }
 }
