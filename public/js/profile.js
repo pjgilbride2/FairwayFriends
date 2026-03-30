@@ -119,13 +119,14 @@ export async function saveOnboardingData({ handicap, city, homeCourse, vibes }) 
 }
 
 // ── Save edited profile fields ──
-export async function saveProfileData({ bio, city, homeCourse, handicap }) {
+export async function saveProfileData({ bio, city, homeCourse, handicap, lat, lon }) {
   const user = window._currentUser;
   if (!user) throw new Error("Not signed in.");
 
   const updates = {
     bio:        bio        || "",
     city:       city       || "",
+    ...(lat && lon ? { lat, lon } : {}),
     homeCourse: homeCourse || "",
     handicap:   Number(handicap) || 18,
     updatedAt:  serverTimestamp(),

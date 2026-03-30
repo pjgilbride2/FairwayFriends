@@ -506,7 +506,36 @@ export function renderNearbyPlayers(players, containerId) {
     .join("");
 }
 
-export function filterPlayers(q, vibeFilter, locationFilter) {
+// Haversine for player distance
+function _playerMiles(p) {
+  const myLat = window._wxLat, myLon = window._wxLon;
+  if (!myLat || !myLon) return null;
+  // Use stored lat/lon if available
+  if (p.lat && p.lon) {
+    const R=3958.8, dLat=(p.lat-myLat)*Math.PI/180, dLon=(p.lon-myLon)*Math.PI/180;
+    const a=Math.sin(dLat/2)**2+Math.cos(myLat*Math.PI/180)*Math.cos(p.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  // Fall back to geocode cache from city
+  if (p.city) {
+    const cityName = p.city.split(',')[0].trim();
+    const gk = 'geo_'+cityName.toLowerCase().replace(/ /g,'_');
+    try {
+      const cached = sessionStorage.getItem(gk);
+      if (cached) {
+        const g = JSON.parse(cached);
+        if (g.lat && g.lon) {
+          const R=3958.8, dLat=(g.lat-myLat)*Math.PI/180, dLon=(g.lon-myLon)*Math.PI/180;
+          const a=Math.sin(dLat/2)**2+Math.cos(myLat*Math.PI/180)*Math.cos(g.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+          return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+        }
+      }
+    } catch(_) {}
+  }
+  return null; // unknown distance
+}
+
+export function filterPlayers(q, vibeFilter, milesFilter) {
   const lower = (q||'').toLowerCase().trim();
   let filtered = lower
     ? allPlayers.filter(p =>
@@ -519,18 +548,27 @@ export function filterPlayers(q, vibeFilter, locationFilter) {
   if (vibeFilter && vibeFilter !== 'all') {
     filtered = filtered.filter(p => (p.vibes||[]).includes(vibeFilter));
   }
-  // Apply location/area filter — match city name
-  if (locationFilter && locationFilter !== 'all') {
-    const locLower = locationFilter.toLowerCase();
-    filtered = filtered.filter(p => (p.city||'').toLowerCase().includes(locLower));
+  // Apply mileage filter using haversine
+  if (milesFilter && milesFilter !== 'all') {
+    const maxMi = parseFloat(milesFilter);
+    filtered = filtered.filter(p => {
+      const d = _playerMiles(p);
+      return d === null || d <= maxMi; // include unknowns so we don't hide everyone
+    });
   }
-  // Sort: vibe-match % descending
+  // Sort: nearby first (if we have location), then vibe match
+  const myLat = window._wxLat, myLon = window._wxLon;
+  // Sort: nearby + vibe-match
   const mv = myVibes || [];
   try {
     filtered.sort((a,b)=>{
+      // Primary: vibe match %; Secondary: distance (closer first)
       const pa = mv.length ? (a.vibes||[]).filter(v=>mv.includes(v)).length/Math.max(mv.length,(a.vibes||[]).length,1) : 0;
       const pb = mv.length ? (b.vibes||[]).filter(v=>mv.includes(v)).length/Math.max(mv.length,(b.vibes||[]).length,1) : 0;
-      return pb-pa;
+      if (pb !== pa) return pb - pa;
+      const da = _playerMiles(a) ?? 9999;
+      const db = _playerMiles(b) ?? 9999;
+      return da - db;
     });
   } catch(_) {}
   renderNearbyPlayers(filtered, "players-list-main");

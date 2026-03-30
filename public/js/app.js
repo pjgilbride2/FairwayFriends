@@ -68,20 +68,23 @@ window.UI = {
             ${ALL_VIBES.map(v=>`<option value="${v}">${v}</option>`).join('')}
           </select>
           <select id="player-loc-select"
-            onchange="window._playerLocFilter=this.value;safeUI('applyPlayerFilters')"
+            onchange="window._playerMilesFilter=this.value;safeUI('applyPlayerFilters')"
             style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);
               background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;
               cursor:pointer;outline:none;appearance:none;
               background-image:url('data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\'><path d=\'M1 1l5 5 5-5\' fill=\'none\' stroke=\'%23888\' stroke-width=\'1.5\'/></svg>');
               background-repeat:no-repeat;background-position:right 10px center;padding-right:28px">
-            <option value="all">📍 Any Area</option>
-            ${cities.map(c=>`<option value="${c}">${c}</option>`).join('')}
+            <option value="all">📍 Any distance</option>
+            <option value="5">Within 5 miles</option>
+            <option value="10">Within 10 miles</option>
+            <option value="25">Within 25 miles</option>
+            <option value="50">Within 50 miles</option>
           </select>
         `;
         pList.parentNode.insertBefore(pbar, pList);
       }
-      window._playerVibeFilter = 'all';
-      window._playerLocFilter  = 'all';
+      window._playerVibeFilter  = 'all';
+      window._playerMilesFilter = 'all';
     }
     if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
     if (name === "notifications") { updateProfileUI(); loadNotificationsScreen(); }
@@ -310,6 +313,25 @@ window.UI = {
     const cityRaw   = (document.getElementById("edit-city")?.value        || "").trim();
     const stateRaw  = (document.getElementById("edit-state")?.value       || "").trim().toUpperCase();
     const homeCourse= (document.getElementById("edit-home-course")?.value || "").trim();
+    // Geocode city to get lat/lon for distance filtering
+    let profLat = null, profLon = null;
+    if (city) {
+      const gk = 'geo_' + city.split(',')[0].trim().toLowerCase().replace(/ /g,'_');
+      try {
+        const cached = sessionStorage.getItem(gk);
+        if (cached) { const g=JSON.parse(cached); profLat=g.lat; profLon=g.lon; }
+      } catch(_) {}
+      if (!profLat) {
+        try {
+          const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(city.split(',')[0].trim())+'&count=1&language=en&format=json')).json();
+          if (gd.results?.length) {
+            profLat = gd.results[0].latitude;
+            profLon = gd.results[0].longitude;
+            sessionStorage.setItem(gk, JSON.stringify({lat:profLat,lon:profLon,ts:Date.now()}));
+          }
+        } catch(_) {}
+      }
+    }
     const handicapRaw = parseInt(document.getElementById("edit-hdcp")?.value);
     const handicap = isNaN(handicapRaw) ? 18 : Math.max(0, Math.min(54, handicapRaw));
     const errEl     = document.getElementById("edit-profile-error");
@@ -331,7 +353,7 @@ window.UI = {
       if (!window._currentUser) {
         throw new Error("Not signed in. Please sign in again.");
       }
-      await saveProfileData({ bio, city, homeCourse, handicap });
+      await saveProfileData({ bio, city, homeCourse, handicap, lat: profLat, lon: profLon });
       showToast("Profile saved! ✅");
       window._weatherCity = city;
       // Clear ALL cached location data so new city takes effect immediately
@@ -1160,9 +1182,9 @@ window.UI = {
 
   // ── Players ──
   filterPlayers(q) {
-    const vibeFilter = window._playerVibeFilter || 'all';
-    const locFilter  = window._playerLocFilter  || 'all';
-    filterPlayers(q, vibeFilter, locFilter);
+    const vibeFilter  = window._playerVibeFilter  || 'all';
+    const milesFilter = window._playerMilesFilter || 'all';
+    filterPlayers(q, vibeFilter, milesFilter);
   },
   setPlayerVibeFilter(vibe) {
     window._playerVibeFilter = vibe;
@@ -1171,21 +1193,11 @@ window.UI = {
     this.applyPlayerFilters();
   },
   applyPlayerFilters() {
-    const q    = document.getElementById('players-search')?.value || '';
-    const vibe = window._playerVibeFilter || 'all';
-    const loc  = window._playerLocFilter  || 'all';
-    filterPlayers(q, vibe, loc);
-    // Refresh location options based on current vibe-filtered set
-    const locSel = document.getElementById('player-loc-select');
-    if (locSel && loc === 'all') {
-      const cities = [...new Set((allPlayers||[])
-        .filter(p => vibe==='all'||(p.vibes||[]).includes(vibe))
-        .map(p=>(p.city||'').split(',')[0].trim()).filter(Boolean))].sort();
-      const cur = locSel.value;
-      locSel.innerHTML = `<option value="all">📍 Any Area</option>` +
-        cities.map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
-    }
-  },
+    const q     = document.getElementById('players-search')?.value || '';
+    const vibe  = window._playerVibeFilter  || 'all';
+    const miles = window._playerMilesFilter || 'all';
+    filterPlayers(q, vibe, miles);
+  },,
 
   // ── Scorecard ──
   async handleSaveRound() {

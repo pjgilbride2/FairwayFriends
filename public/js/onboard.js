@@ -415,6 +415,20 @@ function _wire() {
           _data.city  = d.places?.[0]?.['place name'] || '';
           _data.state = d.places?.[0]?.['state abbreviation'] || '';
           if (note) note.textContent = _data.city ? '📍 ' + _data.city + ', ' + _data.state : '';
+          // Geocode to get lat/lon for distance filtering
+          try {
+            const gk = 'geo_' + _data.city.toLowerCase().replace(/ /g,'_');
+            const cached = sessionStorage.getItem(gk);
+            if (cached) { const g=JSON.parse(cached); _data.lat=g.lat; _data.lon=g.lon; }
+            else {
+              const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(_data.city)+'&count=1&language=en&format=json')).json();
+              if (gd.results?.length) {
+                _data.lat = gd.results[0].latitude;
+                _data.lon = gd.results[0].longitude;
+                sessionStorage.setItem(gk, JSON.stringify({lat:_data.lat,lon:_data.lon,ts:Date.now()}));
+              }
+            }
+          } catch(_) {}
         }
       } catch(_) {}
     } else if (note) note.textContent = '';
@@ -618,6 +632,7 @@ async function _launchApp() {
       reasons: _data.reasons, howHeard: _data.howHeard,
       friends: [], roundCount: 0, newToArea: true,
       onboardComplete: true,
+      ...((_data.lat && _data.lon) ? { lat: _data.lat, lon: _data.lon } : {}),
       updatedAt: serverTimestamp(),
     }, { merge: true });
 
