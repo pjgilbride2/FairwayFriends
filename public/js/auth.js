@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=29";
+import { auth, db } from "./firebase-config.js?v=30";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -13,10 +13,10 @@ import {
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=29";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=29";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=29";
-import { goScreen, hideSplash } from "./ui.js?v=29";
+import { loadUserProfile } from "./profile.js?v=30";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=30";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=30";
+import { goScreen, hideSplash } from "./ui.js?v=30";
 
 let _listenersActive = false;
 
@@ -249,46 +249,17 @@ export function buildAuthScreen() {
       </div>
       <button class="au-submit" id="login-btn" onclick="safeUI('handleLogin')">Sign in</button>
       <div class="au-switch">
-        No account? <button onclick="safeUI('showAuthEmailSignup')">Create one</button>
+        No account? <button onclick="safeUI('goScreen','onboard')">Create one</button>
       </div>
     </div>
   </div>
-
-  <!-- ── CREATE ACCOUNT (email + password only — name/details captured in onboard) ── -->
-  <div id="auth-email-signup">
-    <button class="au-back" onclick="safeUI('showAuthLanding')">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
-      Back
-    </button>
-    <div class="au-card">
-      <div class="au-card-title">Create your account</div>
-      <div class="au-card-sub">Enter your email and a password to get started. You'll fill in your golf details next.</div>
-      <div id="signup-error" class="au-err"></div>
-      <div class="au-field">
-        <label>Email</label>
-        <input id="signup-email" type="email" maxlength="100" placeholder="you@example.com" autocomplete="email"
-          onkeydown="if(event.key==='Enter')document.getElementById('signup-password').focus()">
-      </div>
-      <div class="au-field">
-        <label>Password</label>
-        <input id="signup-password" type="password" maxlength="128" placeholder="At least 6 characters" autocomplete="new-password"
-          onkeydown="if(event.key==='Enter')safeUI('handleSignup')">
-        <div class="au-note">🔒 Minimum 6 characters</div>
-      </div>
-      <button class="au-submit" id="signup-btn" onclick="safeUI('handleSignup')">Get Started →</button>
-      <div class="au-terms" style="margin-top:14px">By creating an account you agree to our <a href="#" style="color:rgba(255,255,255,.6)">Terms</a> and <a href="#" style="color:rgba(255,255,255,.6)">Privacy Policy</a></div>
-      <div class="au-switch">
-        Already have an account? <button onclick="safeUI('showAuthSignIn')">Sign in</button>
-      </div>
-    </div>
-  </div>
-
 </div>`;
 
   // Wire Apple/Google buttons (currently just route to email signup)
-  document.getElementById("au-apple-btn").onclick  = () => safeUI("showAuthEmailSignup");
-  document.getElementById("au-google-btn").onclick = () => safeUI("showAuthEmailSignup");
-  document.getElementById("au-email-btn").onclick  = () => safeUI("showAuthEmailSignup");
+  const _goOnboard = () => { safeUI('goScreen','onboard'); };
+  document.getElementById("au-apple-btn").onclick  = _goOnboard;
+  document.getElementById("au-google-btn").onclick = _goOnboard;
+  document.getElementById("au-email-btn").onclick  = _goOnboard;
 }
 
 // ── Init auth state listener ──────────────────────────────────

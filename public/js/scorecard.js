@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=29";
+import { db } from "./firebase-config.js?v=30";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=29";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=29";
+import { myProfile, myVibes } from "./profile.js?v=30";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=30";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
