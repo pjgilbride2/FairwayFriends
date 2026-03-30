@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=33";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=33";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=33";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=33";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=33";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=33";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=33";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=33";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=33";
-import { buildOnboardScreen } from "./onboard.js?v=33";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=34";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=34";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=34";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=34";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=34";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=34";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=34";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=34";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=34";
+import { buildOnboardScreen } from "./onboard.js?v=34";
 
 
 // ── Haversine distance in miles ──
@@ -76,32 +76,7 @@ window.UI = {
     if (name === "auth")          { buildAuthScreen(); }
     if (name === "feed") {
       updateProfileUI(); UI.refreshWeather(); startLocationWatch();
-      // Inject tee times section if not present
-      const teeRow = document.getElementById('tee-times-row');
-      if (teeRow && !document.getElementById('home-tee-section')) {
-        const teeSection = document.createElement('div');
-        teeSection.style.cssText = 'padding:0 16px 16px';
-        teeSection.innerHTML = `
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:.3px">⛳ Open Tee Times Nearby</div>
-            <div style="display:flex;gap:6px">
-              ${[['all','Any'],['7','7AM'],['8','8AM'],['9','9AM'],['10','10AM'],['11','11AM'],['12','Noon'],['13','Afternoon']].map(([v,l])=>
-                `<button onclick="window._teeSectionFilter='${v}';window.loadHomeTeeTimesSection&&loadHomeTeeTimesSection()"
-                  style="padding:4px 9px;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;
-                    border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit">
-                  ${l}
-                </button>`
-              ).join('')}
-            </div>
-          </div>
-          <div id="home-tee-section" style="color:var(--muted);font-size:13px;padding:4px 0">
-            <div style="height:14px;background:var(--border);border-radius:4px;width:60%;margin-bottom:8px"></div>
-            <div style="height:14px;background:var(--border);border-radius:4px;width:40%"></div>
-          </div>`;
-        // Insert after weather section, before tee-times-row
-        teeRow.parentNode.insertBefore(teeSection, teeRow);
-      }
-      setTimeout(loadHomeTeeTimesSection, 1200);
+      // Tee times moved to Discover tab only
     }
     if (name === "search") {
       updateProfileUI();
@@ -112,6 +87,40 @@ window.UI = {
         window._coursesLoading = false;
       }
       window._lastCourseCity = currentCity;
+      // Inject tee times section into Discover tee times tab
+      const teesEl = document.getElementById('all-tee-times');
+      if (teesEl && !document.getElementById('disc-nearby-teetimes')) {
+        const teeNearby = document.createElement('div');
+        teeNearby.id = 'disc-nearby-teetimes';
+        teeNearby.style.cssText = 'padding:12px 0 0';
+        // Time filter header
+        const hdr = document.createElement('div');
+        hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0 0 10px;flex-wrap:wrap;gap:8px';
+        hdr.innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--text)">⛳ Available Tee Times</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${[['all','Any time'],['7','7AM'],['8','8AM'],['9','9AM'],['10','10AM'],['11','11AM'],['12','Noon'],['13','1PM+']].map(([v,l],i)=>
+              `<button class="disc-time-pill${i===0?' disc-time-active':''}" data-hour="${v}"
+                onclick="document.querySelectorAll('.disc-time-pill').forEach(b=>b.classList.remove('disc-time-active'));this.classList.add('disc-time-active');window._teeSectionFilter='${v}';loadDiscoverTeeTimes&&loadDiscoverTeeTimes()"
+                style="padding:4px 10px;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;
+                  border:1px solid ${i===0?'var(--green)':'var(--border)'};
+                  background:${i===0?'var(--green-light)':'var(--surface)'};
+                  color:${i===0?'var(--green-dark)':'var(--text)'};font-family:inherit;transition:all .15s">
+                ${l}
+              </button>`
+            ).join('')}
+          </div>`;
+        teeNearby.appendChild(hdr);
+        const nearbyList = document.createElement('div');
+        nearbyList.id = 'disc-tee-nearby-list';
+        nearbyList.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Loading nearby tee times…</div>';
+        teeNearby.appendChild(nearbyList);
+        teesEl.parentNode.insertBefore(teeNearby, teesEl);
+        // Style active disc pill
+        const style = document.createElement('style');
+        style.textContent = '.disc-time-pill.disc-time-active{background:var(--green-light)!important;color:var(--green-dark)!important;border-color:var(--green)!important}';
+        document.head.appendChild(style);
+      }
+      setTimeout(loadDiscoverTeeTimes, 1000);
       // Inject distance filter if not already there
       const coursesList = document.getElementById('courses-list');
       if (coursesList && !document.getElementById('dist-filter-bar')) {
@@ -194,7 +203,48 @@ window.UI = {
     if (elBio)    elBio.value    = p.bio        || "";
     if (elCity)   elCity.value   = cityParts[0] || "";
     if (elState)  elState.value  = cityParts[1] || "";
-    if (elCourse) elCourse.value = p.homeCourse || "";
+    if (elCourse) {
+      elCourse.value = p.homeCourse || "";
+      // Wire course autocomplete from nearby courses discovered by user
+      elCourse.setAttribute('autocomplete','off');
+      const acId = 'course-ac-list';
+      let acList = document.getElementById(acId);
+      if (!acList) {
+        acList = document.createElement('div');
+        acList.id = acId;
+        acList.style.cssText = [
+          'position:absolute','z-index:200','background:var(--bg)',
+          'border:1px solid var(--border)','border-radius:10px',
+          'box-shadow:0 6px 20px rgba(0,0,0,.15)','max-height:180px',
+          'overflow-y:auto','width:100%','left:0','top:calc(100% + 4px)','display:none'
+        ].join(';');
+        const wrap = elCourse.parentNode;
+        if (wrap) { wrap.style.position = 'relative'; wrap.appendChild(acList); }
+      }
+      const showSuggestions = () => {
+        const q = elCourse.value.toLowerCase().trim();
+        const courses = window._nearbyCourses || [];
+        const matches = q.length < 1
+          ? courses.slice(0,8)
+          : courses.filter(c => c.name.toLowerCase().includes(q)).slice(0,8);
+        if (!matches.length) { acList.style.display = 'none'; return; }
+        acList.innerHTML = matches.map(c => {
+          const safeName = c.name.replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+          const dist = c.dist ? c.dist.toFixed(1)+' mi' : '';
+          return `<div style="padding:10px 14px;cursor:pointer;font-size:14px;color:var(--text);
+              border-bottom:0.5px solid var(--border);transition:background .1s"
+            onmouseover="this.style.background='var(--surface)'"
+            onmouseout="this.style.background='transparent'"
+            onmousedown="document.getElementById('edit-home-course').value='${safeName}';document.getElementById('${acId}').style.display='none';event.preventDefault()">
+            ${esc(c.name)}${dist?` <span style="font-size:11px;color:var(--muted);">${dist}</span>`:''}
+          </div>`;
+        }).join('');
+        acList.style.display = 'block';
+      };
+      elCourse.oninput = showSuggestions;
+      elCourse.onfocus = showSuggestions;
+      elCourse.onblur  = () => setTimeout(() => { if(acList) acList.style.display='none'; }, 200);
+    }
     if (elHdcp)   elHdcp.value   = p.handicap   != null ? p.handicap : 18;
     if (elCount)  elCount.textContent = (160 - (p.bio || "").length) + " left";
     const errEl = document.getElementById("edit-profile-error");
@@ -407,7 +457,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=33");
+      const { initials, avatarColor } = await import("./ui.js?v=34");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1368,6 +1418,67 @@ function buildPlayerProfileScreen(p) {
 
 // ── Closest-3 courses tee times on home ─────────────────────────
 window._teeSectionFilter = 'all';
+async function loadDiscoverTeeTimes() {
+  const el = document.getElementById('disc-tee-nearby-list');
+  if (!el) return;
+  const courses = window._nearbyCourses || [];
+  if (!courses.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No nearby courses found yet — try loading the Courses tab first</div>';
+    return;
+  }
+  const closest = courses.slice().sort((a,b)=>a.dist-b.dist).slice(0,3);
+  const now = new Date();
+  const filterHour = window._teeSectionFilter === 'all' ? null : parseInt(window._teeSectionFilter);
+  const today = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+
+  function getTeeSlots(c) {
+    const slots = [];
+    for (let h=7; h<=17; h++) {
+      for (let m=0; m<60; m+=8) {
+        if (h < now.getHours()+1) continue;
+        if (filterHour !== null && h !== filterHour) continue;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const dh   = h > 12 ? h-12 : h === 0 ? 12 : h;
+        slots.push({ time: `${dh}:${String(m).padStart(2,'0')} ${ampm}`, h });
+      }
+    }
+    return slots.slice(0,5);
+  }
+
+  el.innerHTML = closest.map(c => {
+    const safeName  = c.name.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const bookBase  = c.website || `https://www.golfnow.com/search?searchTerm=${encodeURIComponent(c.name)}`;
+    const isPrivate = (c.type||'').includes('Country') || c.name.toLowerCase().includes('country club');
+    const slots     = isPrivate ? [] : getTeeSlots(c);
+
+    const slotsHtml = slots.length
+      ? slots.map(s => {
+          const url = c.website || `https://www.golfnow.com/search?searchTerm=${encodeURIComponent(c.name)}`;
+          return `<a href="${url}" target="_blank" rel="noopener"
+            style="padding:7px 12px;border-radius:10px;background:var(--green-light);color:var(--green-dark);
+              font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--green);white-space:nowrap">
+            ${s.time}
+          </a>`;
+        }).join('')
+      : `<span style="font-size:12px;color:var(--muted);font-style:italic">Members/Private</span>`;
+
+    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${safeName}</div>
+          <div style="font-size:11px;color:var(--muted)">${c.dist<1?'<1':c.dist.toFixed(1)} mi · ${today}</div>
+        </div>
+        <a href="${bookBase}" target="_blank" rel="noopener"
+          style="font-size:11px;color:var(--green);text-decoration:none;font-weight:500;white-space:nowrap">
+          All times →
+        </a>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${slotsHtml}</div>
+    </div>`;
+  }).join('');
+}
+window.loadDiscoverTeeTimes = loadDiscoverTeeTimes;
+
 async function loadHomeTeeTimesSection() {
   const el = document.getElementById('home-tee-section');
   if (!el) return;
@@ -1422,7 +1533,7 @@ async function loadHomeTeeTimesSection() {
     return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
         <div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${_esc(c.name)}</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${esc(c.name)}</div>
           <div style="font-size:11px;color:var(--muted)">${c.dist<1?'<1':c.dist.toFixed(1)} mi · ${today}</div>
         </div>
         ${!isPrivate ? `<a href="${bookBase}" target="_blank" rel="noopener"

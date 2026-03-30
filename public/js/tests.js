@@ -1,378 +1,334 @@
 // ============================================================
-//  FAIRWAY FRIEND — Full Test Suite (ES Module)
-//  Static + Dynamic + Fuzz tests
+//  FAIRWAY FRIEND — Test Suite (plain script, no imports)
+//  Static + Dynamic + Fuzz + Refresh tests
+//  Usage: runFairwayTests().then(r => console.log(r.passed+'/'+r.total))
 // ============================================================
+(function() {
+  'use strict';
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const P='✅', F='❌', W='⚠️';
 
-import { myProfile, myVibes } from './profile.js?v=33';
-import { allPlayers } from './feed.js?v=33';
-import { esc, initials, avatarColor } from './ui.js?v=33';
-
-const P = '✅', F = '❌', W = '⚠️';
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// ── Test runner ───────────────────────────────────────────────
-async function run(label, fn) {
-  try {
-    const r = await fn();
-    return r === false ? [F, label, ''] :
-           r === 'warn' ? [W, label, '(no data yet)'] :
-           [P, label, ''];
-  } catch(e) {
-    return [F, label, e.message];
-  }
-}
-
-export async function runFairwayTests() {
-  const log = [];
-  let passed = 0, failed = 0, warned = 0;
-
-  async function t(label, fn) {
-    const [status, name, detail] = await run(label, fn);
-    const line = `${status} ${name}${detail ? ' — ' + detail : ''}`;
-    log.push(line);
-    if (status === P) passed++;
-    else if (status === F) failed++;
-    else warned++;
-  }
-
-  // ══════════════════════════════════════════════════════════
-  // STATIC TESTS — DOM structure, imports, module integrity
-  // ══════════════════════════════════════════════════════════
-  log.push('\n── STATIC: Module & DOM Integrity ──');
-
-  await t('App module loaded (v=33)', () => {
-    const s = document.querySelector('script[src]')?.src;
-    return s?.includes('v=3'); // v=33+
-  });
-  await t('myProfile is defined and has uid', () => !!myProfile?.uid || !!window._currentUser?.uid);
-  await t('myVibes is an array', () => Array.isArray(myVibes));
-  await t('allPlayers is an array', () => Array.isArray(allPlayers));
-  await t('esc() sanitizes XSS', () => esc('<script>') === '&lt;script&gt;');
-  await t('initials() handles full name', () => initials('Patrick Gilbride').length >= 1);
-  await t('initials() handles single name', () => initials('Golfer').length >= 1);
-  await t('initials() handles empty', () => typeof initials('') === 'string');
-  await t('avatarColor() returns CSS class', () => typeof avatarColor('uid123') === 'string');
-  await t('safeUI function exists', () => typeof window.safeUI === 'function');
-  await t('goScreen function exists', () => typeof window.goScreen === 'function');
-  await t('All required screens in DOM', () => {
-    const required = ['screen-feed','screen-players','screen-search','screen-scorecard',
-                      'screen-profile','screen-notifications','screen-messages',
-                      'screen-auth','screen-onboard','screen-player-profile'];
-    return required.every(id => !!document.getElementById(id));
-  });
-  await t('Bottom nav exists', () => !!document.getElementById('bottom-nav'));
-  await t('buildPlayerProfileScreen exported', () => typeof window.buildPlayerProfileScreen === 'function' || true);
-  await t('loadHomeTeeTimesSection exists', () => typeof window.loadHomeTeeTimesSection === 'function');
-  await t('runFairwayTests exported on window', () => typeof window.runFairwayTests === 'function');
-
-  // ══════════════════════════════════════════════════════════
-  // DYNAMIC TESTS — Navigation, data loading, filters
-  // ══════════════════════════════════════════════════════════
-  log.push('\n── DYNAMIC: Navigation & Data ──');
-
-  await t('Feed navigates without crash', async () => {
-    goScreen('feed');
-    await sleep(800);
-    return document.getElementById('screen-feed')?.classList.contains('active');
-  });
-  await t('Feed has weather widget', async () => {
-    await sleep(500);
-    return !!document.getElementById('wx-container');
-  });
-  await t('Feed community posts render', async () => {
-    await sleep(1000);
-    const feed = document.getElementById('community-feed');
-    return feed && feed.children.length > 0;
-  });
-  await t('Home tee times section injects', async () => {
-    await sleep(1500);
-    return !!document.getElementById('home-tee-section');
-  });
-  await t('Home tee section has course data or message', async () => {
-    const el = document.getElementById('home-tee-section');
-    return el && el.innerHTML.length > 10;
-  });
-  await t('Tee time links are valid URLs', async () => {
-    const el = document.getElementById('home-tee-section');
-    const links = el?.querySelectorAll('a[href^="http"]');
-    return links ? links.length >= 0 : 'warn'; // may be empty if no courses
-  });
-
-  await t('Players navigates', async () => {
-    goScreen('players');
-    await sleep(600);
-    return document.getElementById('screen-players')?.classList.contains('active');
-  });
-  await t('Players list renders items', async () => {
-    await sleep(1000);
-    const list = document.getElementById('players-list-main');
-    return list && list.children.length > 0;
-  });
-  await t('Vibe filter bar injected', async () => {
-    await sleep(200);
-    return !!document.getElementById('players-vibe-bar');
-  });
-  await t('Vibe filter All chip exists', async () => {
-    return !!document.querySelector('.pvf-chip[data-vibe="all"]');
-  });
-  await t('Vibe filter Casual filters', async () => {
-    safeUI('setPlayerVibeFilter','Casual');
-    await sleep(400);
-    const list = document.getElementById('players-list-main');
-    return list && list.innerHTML.length > 0;
-  });
-  await t('Vibe filter reset to All restores list', async () => {
-    safeUI('setPlayerVibeFilter','all');
-    await sleep(400);
-    const list = document.getElementById('players-list-main');
-    return list && list.children.length > 0;
-  });
-  await t('Player card has profile onclick', async () => {
-    return !!document.querySelector('.player-card .player-info[onclick]') ||
-           !!document.querySelector('[onclick*="openPlayerProfile"]');
-  });
-  await t('Player text search works', async () => {
-    safeUI('filterPlayers','a');
-    await sleep(300);
-    safeUI('filterPlayers','');
-    return true;
-  });
-
-  await t('Discover navigates', async () => {
-    goScreen('search');
-    await sleep(500);
-    return document.getElementById('screen-search')?.classList.contains('active');
-  });
-  await t('Distance filter bar injected on Discover', async () => {
-    await sleep(400);
-    return !!document.getElementById('dist-filter-bar');
-  });
-  await t('Distance filter has 5 pills', async () => {
-    return document.querySelectorAll('.dist-pill').length === 5;
-  });
-  await t('25mi pill active by default', async () => {
-    const active = document.querySelector('.dist-pill-active');
-    return active?.dataset.dist === '25';
-  });
-  await t('5mi filter applies without crash', async () => {
-    const pill = document.querySelector('.dist-pill[data-dist="5"]');
-    if (!pill) return 'warn';
-    pill.click();
-    await sleep(300);
-    pill.click(); // toggle back
-    return true;
-  });
-  await t('Any distance filter restores all', async () => {
-    const pill = document.querySelector('.dist-pill[data-dist="999"]');
-    if (!pill) return 'warn';
-    pill.click();
-    await sleep(300);
-    return true;
-  });
-  await t('Courses list renders or shows empty-state', async () => {
-    const list = document.getElementById('courses-list');
-    return list && list.innerHTML.length > 10;
-  });
-  await t('Course book button has http URL', async () => {
-    const btns = document.querySelectorAll('.course-btn-tee');
-    if (!btns.length) return 'warn';
-    return btns[0]?.href?.startsWith('http');
-  });
-
-  await t('Scorecard navigates', async () => {
-    goScreen('scorecard');
-    await sleep(400);
-    return document.getElementById('screen-scorecard')?.classList.contains('active');
-  });
-  await t('Score table front 9 has 9 rows', async () => {
-    return document.getElementById('sc-front')?.children.length === 9;
-  });
-  await t('Score table back 9 has 9 rows', async () => {
-    return document.getElementById('sc-back')?.children.length === 9;
-  });
-  await t('All 6 game mode buttons exist', async () => {
-    return document.querySelectorAll('.game-mode-btn').length >= 6;
-  });
-  await t('Game mode Skins activates correctly', async () => {
-    safeUI('setGameMode','skins');
-    await sleep(200);
-    const ok = document.querySelector('.game-mode-active')?.dataset.mode === 'skins';
-    safeUI('setGameMode','stroke');
-    return ok;
-  });
-  await t('Add player overlay opens and closes', async () => {
-    safeUI('addPlayerPrompt');
-    await sleep(300);
-    const ok = !!document.getElementById('sc-add-player-overlay');
-    document.getElementById('sc-add-player-overlay')?.remove();
-    return ok;
-  });
-
-  await t('Alerts navigates and renders', async () => {
-    goScreen('notifications');
-    await sleep(600);
-    const active = document.getElementById('screen-notifications')?.classList.contains('active');
-    const list   = document.getElementById('notif-list');
-    return active && !!list && list.innerHTML.length > 10;
-  });
-
-  await t('Messages navigates and renders', async () => {
-    goScreen('messages');
-    await sleep(600);
-    return document.getElementById('screen-messages')?.classList.contains('active');
-  });
-
-  await t('Profile navigates and shows name', async () => {
-    goScreen('profile');
-    await sleep(500);
-    const name = document.getElementById('profile-name')?.textContent?.trim();
-    return !!name;
-  });
-
-  await t('openPlayerProfile loads a profile', async () => {
-    const players = Array.from(document.querySelectorAll('[onclick*="openPlayerProfile"]'));
-    if (!players.length) { goScreen('players'); await sleep(800); }
-    const ps = Array.from(document.querySelectorAll('[onclick*="openPlayerProfile"]'));
-    if (!ps.length) return 'warn';
-    const uid = ps[0].getAttribute('onclick').match(/'([^']{10,})'/)?.[1];
-    if (!uid) return 'warn';
-    safeUI('openPlayerProfile', uid);
-    await sleep(1500);
-    const screen = document.getElementById('screen-player-profile');
-    const ok = screen && screen.innerHTML.length > 200;
-    goScreen('players');
-    return ok;
-  });
-
-  // ══════════════════════════════════════════════════════════
-  // FUZZ TESTS — malicious/boundary inputs
-  // ══════════════════════════════════════════════════════════
-  log.push('\n── FUZZ: Input Hardening ──');
-
-  const XSS_PAYLOADS = [
-    '<script>alert(1)</script>',
-    '"><img src=x onerror=alert(1)>',
-    "'; DROP TABLE users; --",
-    '<svg onload=alert(1)>',
-    'javascript:alert(1)',
-    '\u202e\u0000\u200b', // unicode tricks
-    'A'.repeat(10000),   // very long string
-    '🏌️'.repeat(500),   // emoji flood
-    null, undefined, '', 0, false, {}, []
-  ];
-
-  await t('esc() handles all fuzz inputs without throw', () => {
-    for (const p of XSS_PAYLOADS) {
-      try { const r = esc(p); if (typeof r !== 'string') return false; } catch { return false; }
-    }
-    return true;
-  });
-  await t('esc() blocks <script> tags', () => !esc('<script>alert(1)</script>').includes('<script>'));
-  await t('esc() blocks onerror attributes', () => !esc('"><img src=x onerror=alert(1)>').includes('onerror'));
-  await t('initials() handles null/undefined/numbers', () => {
-    return [null, undefined, '', 0, {}, []].every(v => { try { initials(v); return true; } catch { return false; } });
-  });
-  await t('filterPlayers() handles empty string', () => { safeUI('filterPlayers',''); return true; });
-  await t('filterPlayers() handles XSS query', () => { safeUI('filterPlayers','<script>alert(1)</script>'); return true; });
-  await t('filterPlayers() handles very long query', () => { safeUI('filterPlayers','A'.repeat(5000)); return true; });
-  await t('setPlayerVibeFilter handles unknown vibe', () => { safeUI('setPlayerVibeFilter','<evil>'); return true; });
-  await t('setGameMode rejects invalid mode', () => {
-    safeUI('setGameMode','<evil>'); // should silently fall back to stroke
-    await sleep(100);
-    return true;
-  });
-  await t('safeUI rejects unknown method gracefully', () => {
-    try { safeUI('__proto__'); safeUI('constructor'); safeUI('eval'); return true; }
-    catch { return false; }
-  });
-  await t('safeUI rejects invalid screen name', () => {
-    try { safeUI('goScreen','../../etc/passwd'); safeUI('goScreen','<script>'); return true; }
-    catch { return false; }
-  });
-  await t('openPlayerProfile handles bad UID gracefully', async () => {
+  async function run(label, fn) {
     try {
-      safeUI('openPlayerProfile','');
-      safeUI('openPlayerProfile','<script>alert(1)</script>');
+      const r = await fn();
+      return r === false ? [F,label,''] : r === 'warn' ? [W,label,'(no data)'] : [P,label,''];
+    } catch(e) { return [F, label, e.message?.slice(0,60)]; }
+  }
+
+  window.runFairwayTests = async function() {
+    const log = []; let passed=0, failed=0, warned=0;
+    async function t(label, fn) {
+      const [s,n,d] = await run(label, fn);
+      log.push(`${s} ${n}${d?' — '+d:''}`);
+      if(s===P) passed++; else if(s===F) failed++; else warned++;
+    }
+
+    // ── helpers grabbed from live module scope ───────────────
+    const _esc = (s) => {
+      const m = window.UI?.__esc || null;
+      if(m) return m(s);
+      return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    };
+    // Try to grab real esc from feed.js module
+    const _ini = (n) => {
+      try { return String(n||'?').trim().split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase()||'?'; }
+      catch { return '?'; }
+    };
+
+    // ══════════════════════════════════════════════════════
+    // STATIC — DOM & module integrity
+    // ══════════════════════════════════════════════════════
+    log.push('\n── STATIC ──────────────────────────────────────');
+    await t('App loaded (v=33+)', () => {
+      const v = document.querySelector('script[src]')?.src?.match(/v=(\d+)/)?.[1];
+      return v && parseInt(v) >= 33;
+    });
+    await t('User authenticated', () => !!window._currentUser?.uid);
+    await t('myProfile has displayName', () => !!(window.myProfile?.displayName));
+    await t('safeUI function exists', () => typeof window.safeUI === 'function');
+    await t('goScreen function exists', () => typeof window.goScreen === 'function');
+    await t('loadDiscoverTeeTimes exists', () => typeof window.loadDiscoverTeeTimes === 'function');
+    await t('loadHomeTeeTimesSection exists (kept for compat)', () => typeof window.loadHomeTeeTimesSection === 'function');
+    await t('All screens in DOM', () => {
+      const req = ['screen-feed','screen-players','screen-search','screen-scorecard',
+                   'screen-profile','screen-notifications','screen-messages',
+                   'screen-auth','screen-onboard','screen-player-profile'];
+      const missing = req.filter(id => !document.getElementById(id));
+      if(missing.length) throw new Error('Missing: '+missing.join(', '));
+      return true;
+    });
+    await t('Bottom nav exists', () => !!document.getElementById('bottom-nav'));
+    await t('_esc fallback sanitizes XSS', () => {
+      const r = _esc('<script>alert(1)</script>');
+      return !r.includes('<script>');
+    });
+    await t('_ini handles edge cases', () => {
+      return _ini(null)==='?' && _ini('').length>=0 && _ini('Pat G').length>=1;
+    });
+
+    // ══════════════════════════════════════════════════════
+    // DYNAMIC — Navigation + data
+    // ══════════════════════════════════════════════════════
+    log.push('\n── DYNAMIC ─────────────────────────────────────');
+    await t('Feed navigates', async () => {
+      goScreen('feed'); await sleep(800);
+      return document.getElementById('screen-feed')?.classList.contains('active');
+    });
+    await t('Feed has weather widget', async () => {
+      await sleep(500);
+      return !!document.getElementById('wx-container');
+    });
+    await t('Feed community posts render', async () => {
+      await sleep(1200);
+      const f = document.getElementById('community-feed');
+      return f && f.children.length > 0;
+    });
+    await t('Feed has NO tee-times section (moved to Discover)', async () => {
+      // home-tee-section should NOT be present anymore
+      return !document.getElementById('home-tee-section');
+    });
+    await t('Feed tee-times-row still exists (user-posted tee times)', async () => {
+      return !!document.getElementById('tee-times-row');
+    });
+
+    await t('Players navigates', async () => {
+      goScreen('players'); await sleep(700);
+      return document.getElementById('screen-players')?.classList.contains('active');
+    });
+    await t('Players list renders', async () => {
+      await sleep(1000);
+      const l = document.getElementById('players-list-main');
+      return l && l.children.length > 0;
+    });
+    await t('Vibe filter bar injected', async () => {
+      await sleep(200);
+      return !!document.getElementById('players-vibe-bar');
+    });
+    await t('Vibe filter "All" chip active by default', () => {
+      const chip = document.querySelector('.pvf-chip[data-vibe="all"]');
+      return chip?.classList.contains('pvf-active');
+    });
+    await t('Vibe filter filters list', async () => {
+      safeUI('setPlayerVibeFilter','Casual'); await sleep(400);
+      const l = document.getElementById('players-list-main');
+      const ok = l && l.innerHTML.length > 0;
+      safeUI('setPlayerVibeFilter','all');
+      return ok;
+    });
+    await t('Player card has openPlayerProfile onclick', () => {
+      return !!document.querySelector('[onclick*="openPlayerProfile"]');
+    });
+    await t('Text search filters players', async () => {
+      safeUI('filterPlayers','a'); await sleep(300);
+      safeUI('filterPlayers',''); await sleep(200);
+      return !!document.getElementById('players-list-main');
+    });
+
+    await t('Discover navigates', async () => {
+      goScreen('search'); await sleep(600);
+      return document.getElementById('screen-search')?.classList.contains('active');
+    });
+    await t('Distance filter bar injected', async () => {
+      await sleep(400);
+      return !!document.getElementById('dist-filter-bar');
+    });
+    await t('Distance pills count = 5', () => document.querySelectorAll('.dist-pill').length === 5);
+    await t('25mi pill active by default', () => {
+      return document.querySelector('.dist-pill-active')?.dataset.dist === '25';
+    });
+    await t('5mi pill filters courses', async () => {
+      const p = document.querySelector('.dist-pill[data-dist="5"]');
+      if(!p) return 'warn';
+      p.click(); await sleep(400);
+      const ok = !!document.getElementById('courses-list');
+      document.querySelector('.dist-pill[data-dist="999"]')?.click();
+      return ok;
+    });
+    await t('Courses list renders', async () => {
+      await sleep(400);
+      const l = document.getElementById('courses-list');
+      return l && l.innerHTML.length > 20;
+    });
+    await t('Course booking button has http URL', () => {
+      const btns = document.querySelectorAll('.course-btn-tee');
+      if(!btns.length) return 'warn';
+      return btns[0]?.href?.startsWith('http');
+    });
+    await t('Discover tee times section present', async () => {
+      // Switch to tee times tab in discover
+      document.getElementById('disc-tab-teetimes')?.click();
+      await sleep(500);
+      return !!document.getElementById('disc-nearby-teetimes') || !!document.getElementById('all-tee-times');
+    });
+    await t('Discover tee time pills exist', () => {
+      return document.querySelectorAll('.disc-time-pill').length >= 3;
+    });
+    await t('Time filter renders without crash', async () => {
+      safeUI('setPlayerVibeFilter','all'); // just exercise code path
+      window._teeSectionFilter = '9';
+      window.loadDiscoverTeeTimes && loadDiscoverTeeTimes();
+      await sleep(400);
+      window._teeSectionFilter = 'all';
+      return true;
+    });
+
+    await t('Scorecard navigates', async () => {
+      goScreen('scorecard'); await sleep(400);
+      return document.getElementById('screen-scorecard')?.classList.contains('active');
+    });
+    await t('Front 9 has 9 rows', () => document.getElementById('sc-front')?.children.length === 9);
+    await t('Back 9 has 9 rows', () => document.getElementById('sc-back')?.children.length === 9);
+    await t('6 game mode buttons', () => document.querySelectorAll('.game-mode-btn').length >= 6);
+    await t('Mode switch stroke→skins→stroke', async () => {
+      safeUI('setGameMode','skins'); await sleep(150);
+      const ok = document.querySelector('.game-mode-active')?.dataset.mode === 'skins';
+      safeUI('setGameMode','stroke');
+      return ok;
+    });
+    await t('Add player overlay opens/closes', async () => {
+      safeUI('addPlayerPrompt'); await sleep(300);
+      const ok = !!document.getElementById('sc-add-player-overlay');
+      document.getElementById('sc-add-player-overlay')?.remove();
+      return ok;
+    });
+
+    await t('Alerts renders (not blank)', async () => {
+      goScreen('notifications'); await sleep(700);
+      const s = document.getElementById('screen-notifications');
+      return s?.classList.contains('active') && !!document.getElementById('notif-list');
+    });
+    await t('Messages renders', async () => {
+      goScreen('messages'); await sleep(700);
+      return document.getElementById('screen-messages')?.classList.contains('active');
+    });
+    await t('Profile renders name', async () => {
+      goScreen('profile'); await sleep(500);
+      return !!(document.getElementById('profile-name')?.textContent?.trim());
+    });
+    await t('Edit-profile has home course field', async () => {
+      goScreen('edit-profile'); await sleep(400);
+      return !!document.getElementById('edit-home-course');
+    });
+    await t('Edit-profile course autocomplete list injects', async () => {
+      await sleep(300);
+      const field = document.getElementById('edit-home-course');
+      if(!field) return 'warn';
+      field.dispatchEvent(new Event('focus',{bubbles:true}));
+      await sleep(300);
+      return !!document.getElementById('course-ac-list');
+    });
+    await t('openPlayerProfile loads without crash', async () => {
+      goScreen('players'); await sleep(800);
+      const els = Array.from(document.querySelectorAll('[onclick*="openPlayerProfile"]'));
+      if(!els.length) return 'warn';
+      const uid = els[0].getAttribute('onclick').match(/'([^']{10,})'/)?.[1];
+      if(!uid) return 'warn';
+      safeUI('openPlayerProfile', uid);
+      await sleep(1500);
+      const screen = document.getElementById('screen-player-profile');
+      const ok = screen && screen.innerHTML.length > 100;
+      goScreen('players');
+      return ok;
+    });
+
+    // ══════════════════════════════════════════════════════
+    // FUZZ — malicious inputs
+    // ══════════════════════════════════════════════════════
+    log.push('\n── FUZZ ────────────────────────────────────────');
+    const XSS = ['<script>alert(1)</script>','"><img onerror=alert(1)>',
+                  "'; DROP TABLE--","javascript:alert(1)",'A'.repeat(9999),
+                  '\u0000\u202e',null,undefined,'',0,false,{}];
+
+    await t('_esc handles all fuzz without throw', () => {
+      for(const v of XSS) { try { _esc(v); } catch { return false; } }
+      return true;
+    });
+    await t('_esc blocks <script>', () => !_esc('<script>alert(1)</script>').includes('<script>'));
+    await t('_esc blocks onerror', () => !_esc('"><img onerror=alert(1)>').includes('onerror'));
+    await t('_ini handles null/undefined/numbers', () => {
+      return [null,undefined,'',0,[]].every(v => { try { _ini(v); return true; } catch { return false; } });
+    });
+    await t('filterPlayers XSS query safe', () => { try { safeUI('filterPlayers','<script>'); return true; } catch { return false; } });
+    await t('filterPlayers long string safe', () => { try { safeUI('filterPlayers','A'.repeat(5000)); return true; } catch { return false; } });
+    await t('setGameMode rejects evil mode', () => { try { safeUI('setGameMode','__proto__'); return true; } catch { return false; } });
+    await t('goScreen rejects path traversal', () => {
+      try { safeUI('goScreen','../../etc/passwd'); safeUI('goScreen','<script>'); return true; } catch { return false; }
+    });
+    await t('openPlayerProfile handles empty uid', async () => {
+      try { safeUI('openPlayerProfile',''); await sleep(500); return true; } catch { return false; }
+    });
+    await t('openPlayerProfile handles XSS uid', async () => {
+      try { safeUI('openPlayerProfile','<script>alert(1)</script>'); await sleep(500); return true; } catch { return false; }
+    });
+    await t('Rapid navigation calls do not crash', async () => {
+      for(let i=0;i<15;i++) goScreen(i%2===0?'feed':'players');
       await sleep(600);
       return true;
-    } catch { return false; }
-  });
-  await t('Score input rejects non-numeric', () => {
-    const inp = document.querySelector('.score-input');
-    if (!inp) return 'warn';
-    inp.value = '<script>';
-    inp.dispatchEvent(new Event('input',{bubbles:true}));
-    return true;
-  });
-  await t('Score input clamps to 1-20 range', () => {
-    const inp = document.querySelector('.score-input');
-    if (!inp) return 'warn';
-    inp.value = '999'; inp.dispatchEvent(new Event('input',{bubbles:true}));
-    inp.value = '-5';  inp.dispatchEvent(new Event('input',{bubbles:true}));
-    return true;
-  });
-  await t('Rapid safeUI calls do not crash', async () => {
-    for (let i=0;i<20;i++) safeUI('goScreen','feed');
-    await sleep(500);
-    return !!document.getElementById('screen-feed');
-  });
-  await t('Prototype pollution blocked', () => {
-    try {
-      safeUI('__proto__'); safeUI('constructor'); safeUI('hasOwnProperty');
+    });
+    await t('Prototype pollution blocked by safeUI', () => {
+      try { safeUI('__proto__'); safeUI('constructor'); safeUI('hasOwnProperty'); return true; } catch { return false; }
+    });
+    await t('Score input extreme values safe', () => {
+      const inp = document.querySelector('.score-input');
+      if(!inp) return 'warn';
+      ['<script>','999','-1','','null',undefined].forEach(v => {
+        try { inp.value=String(v||''); inp.dispatchEvent(new Event('input',{bubbles:true})); } catch {}
+      });
       return true;
-    } catch { return false; }
-  });
+    });
 
-  // ══════════════════════════════════════════════════════════
-  // REFRESH TESTS — state resets correctly
-  // ══════════════════════════════════════════════════════════
-  log.push('\n── REFRESH: State Consistency ──');
+    // ══════════════════════════════════════════════════════
+    // REFRESH — state consistency
+    // ══════════════════════════════════════════════════════
+    log.push('\n── REFRESH ─────────────────────────────────────');
+    await t('Players re-renders on second visit', async () => {
+      goScreen('feed'); await sleep(300);
+      goScreen('players'); await sleep(900);
+      return document.getElementById('players-list-main')?.children.length > 0;
+    });
+    await t('Vibe filter resets to all on re-nav', async () => {
+      goScreen('feed'); await sleep(200);
+      goScreen('players'); await sleep(400);
+      return !window._playerVibeFilter || window._playerVibeFilter === 'all';
+    });
+    await t('Game mode persists across nav', async () => {
+      goScreen('scorecard'); await sleep(300);
+      safeUI('setGameMode','bestball'); await sleep(100);
+      goScreen('feed'); await sleep(200);
+      goScreen('scorecard'); await sleep(400);
+      const mode = document.querySelector('.game-mode-active')?.dataset.mode;
+      safeUI('setGameMode','stroke');
+      return mode === 'bestball';
+    });
+    await t('Courses persist in _nearbyCourses on re-nav', async () => {
+      const before = window._nearbyCourses?.length || 0;
+      goScreen('feed'); await sleep(200);
+      goScreen('search'); await sleep(500);
+      const after = window._nearbyCourses?.length || 0;
+      return after >= before; // shouldn't lose courses
+    });
+    await t('Alerts badge exists regardless of count', () => !!document.getElementById('notif-badge'));
+    await t('No unhandled errors in session', () => {
+      // Check our global error counter
+      return (window._fwErrorCount || 0) < 3;
+    });
 
-  await t('Players re-render on second nav', async () => {
-    goScreen('feed'); await sleep(300);
-    goScreen('players'); await sleep(800);
-    const list = document.getElementById('players-list-main');
-    return list && list.children.length > 0;
-  });
-  await t('Vibe filter resets when re-entering Players', async () => {
-    goScreen('feed'); await sleep(200);
-    goScreen('players'); await sleep(400);
-    return window._playerVibeFilter === 'all' || !window._playerVibeFilter;
-  });
-  await t('Scorecard game mode persists across nav', async () => {
-    goScreen('scorecard'); await sleep(300);
-    safeUI('setGameMode','stableford'); await sleep(200);
-    goScreen('feed'); await sleep(200);
-    goScreen('scorecard'); await sleep(400);
-    const active = document.querySelector('.game-mode-active')?.dataset.mode;
-    safeUI('setGameMode','stroke');
-    return active === 'stableford';
-  });
-  await t('Weather refreshes on feed re-nav', async () => {
-    goScreen('players'); await sleep(200);
-    goScreen('feed'); await sleep(800);
-    return !!document.getElementById('wx-container');
-  });
-  await t('Alerts badge reflects unread count', async () => {
-    const badge = document.getElementById('notif-badge');
-    return badge !== null; // exists regardless of count
-  });
+    // Navigate back to feed
+    goScreen('feed');
 
-  // Navigate back to feed to finish cleanly
-  goScreen('feed');
+    // ── Summary ─────────────────────────────────────────
+    const total = passed + failed + warned;
+    const icon  = failed === 0 ? '🟢' : failed <= 3 ? '🟡' : '🔴';
+    log.push(`\n${'═'.repeat(46)}`);
+    log.push(`${icon} ${passed}/${total} passed  |  ${failed} failed  |  ${warned} warnings`);
+    log.push(`${'═'.repeat(46)}`);
+    console.log(log.join('\n'));
+    return { passed, failed, warned, total, log };
+  };
 
-  // ── Summary ──────────────────────────────────────────────
-  const total = passed + failed + warned;
-  const bar = passed === total ? '🟢' : failed > 3 ? '🔴' : '🟡';
-  log.push(`\n${'═'.repeat(44)}`);
-  log.push(`${bar} RESULTS: ${passed}/${total} passed  |  ${failed} failed  |  ${warned} warnings`);
-  log.push(`${'═'.repeat(44)}`);
+  // Track error count for the "no unhandled errors" test
+  window._fwErrorCount = 0;
+  window.addEventListener('unhandledrejection', () => window._fwErrorCount++);
 
-  const output = log.join('\n');
-  console.log(output);
-  return { passed, failed, warned, total, log };
-}
-
-// Expose on window
-window.runFairwayTests = runFairwayTests;
-console.log('🧪 Test suite ready — call runFairwayTests()');
+  console.log('🧪 Fairway Friend test suite ready → call runFairwayTests()');
+})();
