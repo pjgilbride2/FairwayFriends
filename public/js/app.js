@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=29";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=29";
 import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=29";
 import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=29";
 import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=29";
@@ -47,6 +47,7 @@ window.UI = {
     if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
     if (name === "notifications") { updateProfileUI(); loadNotificationsScreen(); }
     if (name === "onboard")       { buildOnboardScreen(); }
+    if (name === "auth")          { buildAuthScreen(); }
     if (name === "feed")         { updateProfileUI(); UI.refreshWeather(); startLocationWatch(); }
     if (name === "search") {
       updateProfileUI();
@@ -475,12 +476,48 @@ window.UI = {
   },
 
   // ── Auth tab switch ──
+  // ── Auth screen navigation ──
+  showAuthLanding() {
+    document.getElementById("auth-landing").style.display = "flex";
+    document.getElementById("auth-signin").style.display  = "none";
+    document.getElementById("auth-email-signup").style.display = "none";
+  },
+  showAuthSignIn() {
+    document.getElementById("auth-landing").style.display = "none";
+    document.getElementById("auth-signin").style.display  = "block";
+    document.getElementById("auth-email-signup").style.display = "none";
+    setTimeout(() => document.getElementById("login-email")?.focus(), 100);
+  },
+  showAuthEmailSignup() {
+    document.getElementById("auth-landing").style.display = "none";
+    document.getElementById("auth-signin").style.display  = "none";
+    document.getElementById("auth-email-signup").style.display = "block";
+    setTimeout(() => document.getElementById("signup-email")?.focus(), 100);
+  },
+
+  // ── Forgot password ──
+  async handleForgotPassword() {
+    const email = document.getElementById("login-email")?.value.trim();
+    if (!email) { showFormError("login", "Enter your email address first."); return; }
+    try {
+      const { sendPasswordResetEmail, getAuth } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+      await sendPasswordResetEmail(getAuth(), email);
+      const errEl = document.getElementById("login-error");
+      if (errEl) {
+        errEl.textContent = "✅ Reset email sent! Check your inbox.";
+        errEl.style.color = "var(--green)";
+        errEl.style.display = "block";
+      }
+    } catch(e) {
+      showFormError("login", friendlyError(e.code));
+    }
+  },
+
+  // Legacy tab switcher kept for compatibility
   switchAuthTab(tab) {
-    document.querySelectorAll(".auth-tab").forEach((t, i) =>
-      t.classList.toggle("active", (i === 0 && tab === "login") || (i === 1 && tab === "signup"))
-    );
-    document.getElementById("form-login").classList.toggle("hidden",  tab !== "login");
-    document.getElementById("form-signup").classList.toggle("hidden", tab !== "signup");
+    // Map to new system
+    if (tab === "login")  { UI.showAuthSignIn(); }
+    if (tab === "signup") { UI.showAuthEmailSignup(); }
   },
 
   // ── Login ──
@@ -501,19 +538,19 @@ window.UI = {
 
   // ── Sign Up ──
   async handleSignup() {
-    const first = document.getElementById("signup-first").value.trim();
-    const last  = document.getElementById("signup-last").value.trim();
     const email = document.getElementById("signup-email").value.trim();
     const pass  = document.getElementById("signup-password").value;
     const btn   = document.getElementById("signup-btn");
-    if (!first || !email || !pass) { showFormError("signup", "Please fill in all required fields."); return; }
+    const errEl = document.getElementById("signup-error");
+    if (errEl) errEl.style.display = "none";
+    if (!email || !pass) { showFormError("signup", "Please fill in all fields."); return; }
     if (pass.length < 6) { showFormError("signup", "Password must be at least 6 characters."); return; }
     btn.disabled = true; btn.textContent = "Creating account…";
     try {
-      await doSignup(first, last, email, pass);
+      await doSignup("", "", email, pass);
       // auth state change fires → onboard screen shown by auth.js
     } catch (e) {
-      btn.disabled = false; btn.textContent = "Create account";
+      btn.disabled = false; btn.textContent = "Get Started →";
       showFormError("signup", friendlyError(e.code));
     }
   },
@@ -1032,7 +1069,12 @@ const GAME_PANELS = {
 
 function showFormError(form, msg) {
   const el = document.getElementById(form + "-error");
-  if (el) { el.textContent = msg; el.style.display = "block"; }
+  if (el) {
+    el.textContent = msg;
+    el.className = el.className.replace(' success','');
+    el.style.display = "block";
+    el.style.color = "";
+  }
 }
 
 // ── Boot ──
