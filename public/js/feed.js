@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=38";
+import { db, storage } from "./firebase-config.js?v=39";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=38";
-import { createNotification } from "./notifications.js?v=38";
-import { loadRoundDayForecast } from "./weather.js?v=38";
+import { myProfile, myVibes } from "./profile.js?v=39";
+import { createNotification } from "./notifications.js?v=39";
+import { loadRoundDayForecast } from "./weather.js?v=39";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=38";
+} from "./ui.js?v=39";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -535,6 +535,33 @@ function _playerMiles(p) {
   return null; // unknown distance
 }
 
+// Async geocode a player's city and cache it, then re-run filters
+function _geocodePlayerCity(p) {
+  if (!p.city) return;
+  const cityName = p.city.split(',')[0].trim();
+  if (!cityName) return;
+  const gk = 'geo_' + cityName.toLowerCase().replace(/ /g,'_');
+  // Don't re-geocode if already attempted
+  if (sessionStorage.getItem(gk+'_attempted')) return;
+  sessionStorage.setItem(gk+'_attempted','1');
+  fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(cityName)+'&count=1&language=en&format=json')
+    .then(r=>r.json())
+    .then(d=>{
+      if (d.results?.length) {
+        const lat=d.results[0].latitude, lon=d.results[0].longitude;
+        sessionStorage.setItem(gk, JSON.stringify({lat,lon,ts:Date.now()}));
+        // Re-apply current filters now that we have coords
+        const vibeFilter  = window._playerVibeFilter  || 'all';
+        const milesFilter = window._playerMilesFilter || 'all';
+        if (milesFilter !== 'all') {
+          const q = document.getElementById('players-search')?.value || '';
+          filterPlayers(q, vibeFilter, milesFilter);
+        }
+      }
+    })
+    .catch(()=>{});
+}
+
 export function filterPlayers(q, vibeFilter, milesFilter) {
   const lower = (q||'').toLowerCase().trim();
   let filtered = lower
@@ -553,7 +580,13 @@ export function filterPlayers(q, vibeFilter, milesFilter) {
     const maxMi = parseFloat(milesFilter);
     filtered = filtered.filter(p => {
       const d = _playerMiles(p);
-      return d === null || d <= maxMi; // include unknowns so we don't hide everyone
+      if (d === null) {
+        // Unknown distance — kick off async geocode for this player's city so
+        // next filter call will have the coords. Exclude for now (strict filter).
+        if (p.city) _geocodePlayerCity(p);
+        return false; // strict: exclude unknown distances
+      }
+      return d <= maxMi;
     });
   }
   // Sort: nearby first (if we have location), then vibe match

@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=38";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=38";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=38";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=38";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=38";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=38";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=38";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=38";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=38";
-import { buildOnboardScreen } from "./onboard.js?v=38";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=39";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=39";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=39";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=39";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=39";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=39";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=39";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=39";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=39";
+import { buildOnboardScreen } from "./onboard.js?v=39";
 
 
 // ── Haversine distance in miles ──
@@ -38,6 +38,63 @@ window.UI = {
       buildGamePanel();
       buildScoreTable();
       loadRoundHistory();
+      // Wire course input autocomplete (same as edit-profile)
+      const scCourseInp = document.getElementById('sc-course-input');
+      if (scCourseInp && !scCourseInp.dataset.acWired) {
+        scCourseInp.dataset.acWired = '1';
+        scCourseInp.setAttribute('autocomplete','off');
+        const scAcId = 'sc-course-ac';
+        let scAc = document.getElementById(scAcId);
+        if (!scAc) {
+          scAc = document.createElement('div');
+          scAc.id = scAcId;
+          scAc.style.cssText = [
+            'position:absolute','z-index:300','background:var(--bg)',
+            'border:1px solid var(--border)','border-radius:10px',
+            'box-shadow:0 6px 20px rgba(0,0,0,.15)','max-height:220px',
+            'overflow-y:auto','width:100%','left:0','top:calc(100% + 4px)','display:none'
+          ].join(';');
+          const wrap = scCourseInp.parentNode;
+          if (wrap) { wrap.style.position='relative'; wrap.appendChild(scAc); }
+        }
+        const showScAc = () => {
+          const q = scCourseInp.value.toLowerCase().trim();
+          const courses = window._nearbyCourses || [];
+          // Also include myProfile.homeCourse and known static courses as fallback
+          const extras = [
+            window.myProfile?.homeCourse,
+            'Heritage Harbor Golf & Country Club',
+            'TPC Tampa Bay','Northdale Golf & Tennis Club',
+            'Babe Zaharias Golf Course','Rogers Park Golf Course',
+            'Rocky Point Golf Course','Plantation Palms Golf Club',
+            'Avila Golf & Country Club','Cheval Golf & Country Club'
+          ].filter(Boolean).map(name=>({name}));
+          const allCourses = courses.length ? courses : extras;
+          const matches = q.length < 1
+            ? allCourses.slice(0,8)
+            : allCourses.filter(c=>(c.name||'').toLowerCase().includes(q)).slice(0,8);
+          if (!matches.length) { scAc.style.display='none'; return; }
+          scAc.innerHTML = matches.map(c => {
+            const safeName = esc(c.name||'');
+            const dist = c.dist ? ` <span style="font-size:11px;color:var(--muted)">${c.dist.toFixed(1)} mi</span>` : '';
+            return `<div style="padding:10px 14px;cursor:pointer;font-size:14px;color:var(--text);
+                border-bottom:0.5px solid var(--border)"
+              onmouseover="this.style.background='var(--surface)'"
+              onmouseout="this.style.background=''"
+              onmousedown="document.getElementById('sc-course-input').value='${safeName}';document.getElementById('${scAcId}').style.display='none';event.preventDefault()">
+              ⛳ ${safeName}${dist}
+            </div>`;
+          }).join('');
+          scAc.style.display = 'block';
+        };
+        scCourseInp.addEventListener('input', showScAc);
+        scCourseInp.addEventListener('focus', showScAc);
+        scCourseInp.addEventListener('blur', () => setTimeout(()=>{ if(scAc) scAc.style.display='none'; }, 200));
+        // Pre-fill with user's home course if field is empty
+        if (!scCourseInp.value && window.myProfile?.homeCourse) {
+          scCourseInp.value = window.myProfile.homeCourse;
+        }
+      }
       const dateInput = document.getElementById("sc-round-date");
       const timeInput = document.getElementById("sc-round-time");
       if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split("T")[0];
@@ -496,7 +553,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=38");
+      const { initials, avatarColor } = await import("./ui.js?v=39");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
