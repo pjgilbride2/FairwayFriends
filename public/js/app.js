@@ -6,6 +6,7 @@ import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthSc
 import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=41";
 import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=41";
 import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=41";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=41";
 import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=41";
 import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=41";
 import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=41";
@@ -38,6 +39,73 @@ window.UI = {
       buildGamePanel();
       buildScoreTable();
       loadRoundHistory();
+      // ── GPS Panel ────────────────────────────────────────
+      if (!document.getElementById('gps-panel')) {
+        const scScreen = document.getElementById('screen-scorecard');
+        const insertBefore = document.getElementById('sc-course-input')?.closest('.sc-hero, div');
+        const gpsPanel = document.createElement('div');
+        gpsPanel.id = 'gps-panel';
+        gpsPanel.style.cssText = 'margin:0 16px 14px;border-radius:16px;border:1.5px solid var(--border);background:var(--surface);overflow:hidden';
+        gpsPanel.innerHTML = `
+          <!-- Collapsed header — always visible -->
+          <div id="gps-header" onclick="document.getElementById('gps-body').style.display=document.getElementById('gps-body').style.display==='none'?'block':'none'"
+            style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span id="gps-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--border);display:inline-block"></span>
+              <span style="font-size:13px;font-weight:600;color:var(--text)">📡 GPS Tracker</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span id="gps-hole" style="font-size:12px;color:var(--muted)">Hole 1</span>
+              <span id="gps-dist" style="font-size:14px;font-weight:700;color:var(--green)">—</span>
+            </div>
+          </div>
+          <!-- Expanded body -->
+          <div id="gps-body" style="display:none;border-top:0.5px solid var(--border)">
+            <!-- Live stats row -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0">
+              <div style="text-align:center;padding:14px 8px;border-right:0.5px solid var(--border)">
+                <div id="gps-dist-big" style="font-size:28px;font-weight:700;color:var(--green)">—</div>
+                <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">To Pin</div>
+              </div>
+              <div style="text-align:center;padding:14px 8px;border-right:0.5px solid var(--border)">
+                <div id="gps-hole-big" style="font-size:28px;font-weight:700;color:var(--text)">1</div>
+                <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Hole</div>
+              </div>
+              <div style="text-align:center;padding:14px 8px">
+                <div id="gps-acc" style="font-size:20px;font-weight:600;color:var(--muted)">—</div>
+                <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Accuracy</div>
+              </div>
+            </div>
+            <!-- Action buttons -->
+            <div style="display:flex;gap:8px;padding:10px 12px;border-top:0.5px solid var(--border)">
+              <button id="gps-start-btn" onclick="safeUI('startGpsTracking')"
+                style="flex:1;padding:10px;border-radius:12px;border:none;background:var(--green);color:#fff;
+                  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
+                ▶ Start
+              </button>
+              <button onclick="safeUI('logGpsShot')"
+                style="flex:1;padding:10px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);
+                  color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
+                🏌️ Shot
+              </button>
+              <button onclick="safeUI('prevGpsHole')"
+                style="padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);
+                  color:var(--text);font-size:13px;cursor:pointer;font-family:inherit">◀</button>
+              <button onclick="safeUI('nextGpsHole')"
+                style="padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);
+                  color:var(--text);font-size:13px;cursor:pointer;font-family:inherit">▶</button>
+            </div>
+            <!-- Shot history strip -->
+            <div id="gps-shots-strip"
+              style="display:flex;gap:6px;overflow-x:auto;padding:8px 12px;border-top:0.5px solid var(--border);min-height:36px;scrollbar-width:none">
+              <span style="font-size:12px;color:var(--muted);align-self:center">No shots logged yet</span>
+            </div>
+          </div>`;
+        // Insert before the game-panel div
+        const gamePanel = document.getElementById('game-panel');
+        if (gamePanel) gamePanel.parentNode.insertBefore(gpsPanel, gamePanel);
+        else if (scScreen) scScreen.insertBefore(gpsPanel, scScreen.firstChild);
+      }
       // Wire course input autocomplete (same as edit-profile)
       const scCourseInp = document.getElementById('sc-course-input');
       if (scCourseInp && !scCourseInp.dataset.acWired) {
@@ -1449,6 +1517,60 @@ window.UI = {
     const courseName  = courseInput ? courseInput.value.trim() || "Unknown course" : "Unknown course";
     await saveRound(courseName);
   },
+
+  // ── GPS Tracking methods ──────────────────────────────────
+  async startGpsTracking() {
+    const btn = document.getElementById('gps-start-btn');
+    const dot = document.getElementById('gps-status-dot');
+    if (gpsIsActive()) {
+      stopGpsRound();
+      if (btn) { btn.textContent = '▶ Start'; btn.style.background = 'var(--green)'; }
+      if (dot) dot.style.background = 'var(--border)';
+      return;
+    }
+    // Get course lat/lon from _nearbyCourses or geocode course name
+    const courseName = document.getElementById('sc-course-input')?.value?.trim() || myProfile.homeCourse || '';
+    let cLat = window._wxLat, cLon = window._wxLon;
+    if (courseName) {
+      const match = (window._nearbyCourses || []).find(c => c.name === courseName);
+      if (match?.lat) { cLat = match.lat; cLon = match.lon; }
+    }
+    if (!cLat) { showToast('Set your location in profile to use GPS tracking'); return; }
+    if (btn) { btn.textContent = '⏹ Stop'; btn.style.background = '#ef4444'; }
+    if (dot) { dot.style.background = '#22c55e'; dot.style.animation = 'pulse 1.5s infinite'; }
+    // Add pulse animation
+    if (!document.getElementById('gps-pulse-style')) {
+      const st = document.createElement('style');
+      st.id = 'gps-pulse-style';
+      st.textContent = '@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}';
+      document.head.appendChild(st);
+    }
+    await startGpsRound(courseName, cLat, cLon, (hole, distFt, acc) => {
+      // Sync large display
+      const db = document.getElementById('gps-dist-big');
+      const hb = document.getElementById('gps-hole-big');
+      const ab = document.getElementById('gps-acc');
+      if (db) db.textContent = distFt != null ? distFt + ' ft' : '—';
+      if (hb) hb.textContent = hole;
+      if (ab) ab.textContent = acc != null ? '±' + acc + 'm' : '—';
+    });
+  },
+
+  logGpsShot() {
+    const shot = logShot();
+    if (!shot) return;
+    const strip = document.getElementById('gps-shots-strip');
+    if (!strip) return;
+    if (strip.querySelector('[data-placeholder]')) strip.innerHTML = '';
+    const chip = document.createElement('span');
+    chip.style.cssText = 'white-space:nowrap;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;background:var(--green-light);color:var(--green-dark);border:1px solid var(--green);flex-shrink:0';
+    chip.textContent = `H${shot.hole}${shot.distToPin ? ' · ' + shot.distToPin + 'ft' : ''}`;
+    strip.appendChild(chip);
+    strip.scrollLeft = strip.scrollWidth;
+  },
+
+  nextGpsHole() { nextHole(); const hb=document.getElementById('gps-hole-big'); if(hb) hb.textContent=document.getElementById('gps-hole').textContent.replace('Hole ',''); },
+  prevGpsHole() { prevHole(); const hb=document.getElementById('gps-hole-big'); if(hb) hb.textContent=document.getElementById('gps-hole').textContent.replace('Hole ',''); },
 
   // FIX: reset scores so a new round starts clean
   newRound() {
