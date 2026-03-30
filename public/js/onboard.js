@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=30";
+import { db, storage } from "./firebase-config.js?v=31";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=30";
+import { showToast } from "./ui.js?v=31";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -38,6 +38,8 @@ const BTN_LABELS  = {
 export function buildOnboardScreen() {
   const screen = document.getElementById('screen-onboard');
   if (!screen) return;
+  // Don't rebuild if already in progress (e.g. auth state change fires mid-onboard)
+  if (screen.dataset.built && _cur > 0) return;
   delete screen.dataset.built;
   screen.dataset.built = '1';
   _reset();
@@ -519,8 +521,11 @@ function _goTo(n) {
 
 // ── Continue with validation ──────────────────────────────────
 async function _continue() {
-  // Step 9 = success → go to feed
+  // Step 9 = success → go to feed (save already done)
   if (_cur === 9) { _launchApp(); return; }
+
+  // Step 8 → trigger save immediately, show success screen simultaneously
+  if (_cur === 8) { _goTo(9); _launchApp(); return; }
 
   // Step 1: create Firebase account
   if (_cur === 1) {
