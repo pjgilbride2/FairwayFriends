@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=32";
+import { db, storage } from "./firebase-config.js?v=33";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,14 +12,14 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=32";
-import { createNotification } from "./notifications.js?v=32";
-import { loadRoundDayForecast } from "./weather.js?v=32";
+import { myProfile, myVibes } from "./profile.js?v=33";
+import { createNotification } from "./notifications.js?v=33";
+import { loadRoundDayForecast } from "./weather.js?v=33";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=32";
+} from "./ui.js?v=33";
 
-export let allPlayers = [];
+export export let allPlayers = [];
 let _unsubFeed     = null;
 let _unsubTeeTimes = null;
 let _unsubPlayers  = null;
@@ -502,16 +502,26 @@ export function renderNearbyPlayers(players, containerId) {
     .join("");
 }
 
-export function filterPlayers(q) {
-  const lower = q.toLowerCase();
-  const filtered = lower
-    ? allPlayers.filter(
-        (p) =>
-          (p.displayName || "").toLowerCase().includes(lower) ||
-          (p.city || "").toLowerCase().includes(lower) ||
-          (p.vibes || []).some((v) => (VIBE_META[v]?.label || "").toLowerCase().includes(lower))
+export function filterPlayers(q, vibeFilter) {
+  const lower = (q||'').toLowerCase().trim();
+  let filtered = lower
+    ? allPlayers.filter(p =>
+        (p.displayName||'').toLowerCase().includes(lower) ||
+        (p.city||'').toLowerCase().includes(lower) ||
+        (p.vibes||[]).some(v=>v.toLowerCase().includes(lower))
       )
-    : allPlayers;
+    : [...allPlayers];
+  // Apply vibe chip filter
+  if (vibeFilter && vibeFilter !== 'all') {
+    filtered = filtered.filter(p => (p.vibes||[]).includes(vibeFilter));
+  }
+  // Sort: vibe-match % descending
+  const mv = myVibes || [];
+  filtered.sort((a,b)=>{
+    const pa = mv.length ? (a.vibes||[]).filter(v=>mv.includes(v)).length/Math.max(mv.length,(a.vibes||[]).length,1) : 0;
+    const pb = mv.length ? (b.vibes||[]).filter(v=>mv.includes(v)).length/Math.max(mv.length,(b.vibes||[]).length,1) : 0;
+    return pb-pa;
+  });
   renderNearbyPlayers(filtered, "players-list-main");
 }
 

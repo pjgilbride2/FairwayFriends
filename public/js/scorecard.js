@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=32";
+import { db } from "./firebase-config.js?v=33";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=32";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=32";
+import { myProfile, myVibes } from "./profile.js?v=33";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=33";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -534,7 +534,40 @@ export async function saveRound(courseName) {
   const elR=document.getElementById("profile-rounds"); if(elR) elR.textContent=myProfile.roundCount;
 
   await loadRoundHistory();
+  await _recalcHandicap(user.uid);
   showToast(`${modeName} round saved! ${modeEmoji}`);
+}
+
+// ── Auto-recalculate handicap from last 8 rounds ──────────────
+async function _recalcHandicap(uid) {
+  try {
+    const q8 = query(
+      collection(db,'rounds'),
+      where('uid','==',uid),
+      orderBy('createdAt','desc'),
+      limit(8)
+    );
+    const snap = await getDocs(q8);
+    const diffs = snap.docs
+      .map(d => d.data().differential)
+      .filter(d => d != null && !isNaN(d));
+    if (diffs.length < 3) return; // need at least 3 rounds
+    // USGA simplified: average of best differentials
+    // <8 rounds: best 1; 8 rounds: avg best 2
+    const sorted = [...diffs].sort((a,b)=>a-b);
+    const useCount = diffs.length >= 8 ? 2 : 1;
+    const avg = sorted.slice(0,useCount).reduce((s,v)=>s+v,0)/useCount;
+    const newHcp = Math.max(0, Math.min(54, parseFloat((avg*0.96).toFixed(1))));
+    await setDoc(doc(db,'users',uid),{handicap:newHcp},{merge:true});
+    // Update local profile
+    if (window.myProfile) window.myProfile.handicap = newHcp;
+    // Update scorecard display
+    const profileHcpEl = document.getElementById('profile-hcp');
+    if (profileHcpEl) profileHcpEl.textContent = newHcp;
+    showToast(`Handicap updated to ${newHcp} based on last ${diffs.length} rounds ⛳`);
+  } catch(e) {
+    console.warn('Handicap recalc error:', e.message);
+  }
 }
 
 // ── Round history ─────────────────────────────────────────────

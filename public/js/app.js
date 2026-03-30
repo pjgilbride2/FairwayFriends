@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=32";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=32";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=32";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=32";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=32";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=32";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=32";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=32";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=32";
-import { buildOnboardScreen } from "./onboard.js?v=32";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=33";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=33";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=33";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=33";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=33";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=33";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=33";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=33";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=33";
+import { buildOnboardScreen } from "./onboard.js?v=33";
 
 
 // ── Haversine distance in miles ──
@@ -44,14 +44,67 @@ window.UI = {
       if (timeInput && !timeInput.value) timeInput.value = "08:00";
       UI.loadScorecardWeather();
     }
+    if (name === "players") {
+      // Inject vibe filter bar if not present
+      const pList = document.getElementById('players-list-main');
+      if (pList && !document.getElementById('players-vibe-bar')) {
+        const VIBE_LIST = ['Competitive','Casual','Social Drinker','420 Friendly','Music on Cart','Fast Pace','Walker','Cart Only','Early Bird','Twilight','Social Poster','Low Key'];
+        const pbar = document.createElement('div');
+        pbar.id = 'players-vibe-bar';
+        pbar.style.cssText = 'overflow-x:auto;padding:10px 16px 4px;display:flex;gap:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;border-bottom:0.5px solid var(--border);margin-bottom:8px';
+        pbar.innerHTML = ['all',...VIBE_LIST].map((v,i)=>
+          `<button class="pvf-chip${i===0?' pvf-active':''}" data-vibe="${v}"
+            onclick="safeUI('setPlayerVibeFilter','${v}')"
+            style="white-space:nowrap;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;
+              cursor:pointer;border:1px solid ${i===0?'var(--green)':'var(--border)'};
+              background:${i===0?'var(--green-light)':'var(--surface)'};
+              color:${i===0?'var(--green-dark)':'var(--text)'};font-family:inherit;flex-shrink:0">
+            ${v==='all'?'All Vibes':v}
+          </button>`
+        ).join('');
+        pList.parentNode.insertBefore(pbar, pList);
+        // Style for active state
+        const style = document.createElement('style');
+        style.textContent = '.pvf-chip.pvf-active{background:var(--green-light)!important;color:var(--green-dark)!important;border-color:var(--green)!important}';
+        document.head.appendChild(style);
+      }
+      window._playerVibeFilter = 'all';
+    }
     if (name === "profile")      { updateProfileUI(); UI.loadProfileActivity(); }
     if (name === "notifications") { updateProfileUI(); loadNotificationsScreen(); }
     if (name === "onboard")       { buildOnboardScreen(); }
     if (name === "auth")          { buildAuthScreen(); }
-    if (name === "feed")         { updateProfileUI(); UI.refreshWeather(); startLocationWatch(); }
+    if (name === "feed") {
+      updateProfileUI(); UI.refreshWeather(); startLocationWatch();
+      // Inject tee times section if not present
+      const teeRow = document.getElementById('tee-times-row');
+      if (teeRow && !document.getElementById('home-tee-section')) {
+        const teeSection = document.createElement('div');
+        teeSection.style.cssText = 'padding:0 16px 16px';
+        teeSection.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:.3px">⛳ Open Tee Times Nearby</div>
+            <div style="display:flex;gap:6px">
+              ${[['all','Any'],['7','7AM'],['8','8AM'],['9','9AM'],['10','10AM'],['11','11AM'],['12','Noon'],['13','Afternoon']].map(([v,l])=>
+                `<button onclick="window._teeSectionFilter='${v}';window.loadHomeTeeTimesSection&&loadHomeTeeTimesSection()"
+                  style="padding:4px 9px;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;
+                    border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit">
+                  ${l}
+                </button>`
+              ).join('')}
+            </div>
+          </div>
+          <div id="home-tee-section" style="color:var(--muted);font-size:13px;padding:4px 0">
+            <div style="height:14px;background:var(--border);border-radius:4px;width:60%;margin-bottom:8px"></div>
+            <div style="height:14px;background:var(--border);border-radius:4px;width:40%"></div>
+          </div>`;
+        // Insert after weather section, before tee-times-row
+        teeRow.parentNode.insertBefore(teeSection, teeRow);
+      }
+      setTimeout(loadHomeTeeTimesSection, 1200);
+    }
     if (name === "search") {
       updateProfileUI();
-      // If city changed since last load, clear cache and reload
       const currentCity = window._weatherCity || '';
       if (window._lastCourseCity && window._lastCourseCity !== currentCity) {
         try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_){}
@@ -59,6 +112,26 @@ window.UI = {
         window._coursesLoading = false;
       }
       window._lastCourseCity = currentCity;
+      // Inject distance filter if not already there
+      const coursesList = document.getElementById('courses-list');
+      if (coursesList && !document.getElementById('dist-filter-bar')) {
+        const bar = document.createElement('div');
+        bar.id = 'dist-filter-bar';
+        bar.style.cssText = 'display:flex;gap:8px;align-items:center;padding:10px 16px 4px;flex-wrap:wrap;';
+        bar.innerHTML = `
+          <span style="font-size:12px;font-weight:500;color:var(--muted)">Distance:</span>
+          ${[5,10,25,50,999].map((d,i)=>
+            `<button class="dist-pill${i===2?' dist-pill-active':''}"
+              data-dist="${d}"
+              onclick="this.closest('#dist-filter-bar').querySelectorAll('.dist-pill').forEach(b=>b.classList.remove('dist-pill-active'));this.classList.add('dist-pill-active');document.getElementById('dist-filter').value='${d}';safeUI('filterCourses',document.getElementById('course-search-input')?.value||'')"
+              style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:${i===2?'var(--green)':'var(--surface)'};color:${i===2?'#fff':'var(--text)'};font-family:inherit;transition:all .2s">
+              ${d===999?'Any':`${d} mi`}
+            </button>`
+          ).join('')}
+          <input type="hidden" id="dist-filter" value="25">
+        `;
+        coursesList.parentNode.insertBefore(bar, coursesList);
+      }
       UI.loadNearbyCourses();
     }
     if (name === "edit-profile") UI.goToEditProfile();
@@ -334,7 +407,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=32");
+      const { initials, avatarColor } = await import("./ui.js?v=33");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -920,7 +993,10 @@ window.UI = {
   filterCourses(query) {
     const courses = window._nearbyCourses || [];
     const q = (query || '').toLowerCase().trim();
-    const filtered = q ? courses.filter(c => c.name.toLowerCase().includes(q)) : courses;
+    const maxDist = parseFloat(document.getElementById('dist-filter')?.value || '999');
+    let filtered = q ? courses.filter(c => c.name.toLowerCase().includes(q)) : courses;
+    // Apply distance filter
+    filtered = filtered.filter(c => !c.dist || c.dist <= maxDist);
     const container = document.getElementById('courses-list');
     if (!container) return;
     if (!filtered.length) {
@@ -1006,7 +1082,17 @@ window.UI = {
 
   // ── Players ──
   filterPlayers(q) {
-    filterPlayers(q);
+    const vibeFilter = window._playerVibeFilter || 'all';
+    filterPlayers(q, vibeFilter);
+  },
+  setPlayerVibeFilter(vibe) {
+    window._playerVibeFilter = vibe;
+    // Update UI
+    document.querySelectorAll('.pvf-chip').forEach(c => {
+      c.classList.toggle('pvf-active', c.dataset.vibe === vibe);
+    });
+    const q = document.getElementById('players-search')?.value || '';
+    filterPlayers(q, vibe);
   },
 
   // ── Scorecard ──
@@ -1268,6 +1354,76 @@ function buildPlayerProfileScreen(p) {
     }
   };
 }
+
+// ── Closest-3 courses tee times on home ─────────────────────────
+window._teeSectionFilter = 'all';
+async function loadHomeTeeTimesSection() {
+  const el = document.getElementById('home-tee-section');
+  if (!el) return;
+  const courses = window._nearbyCourses || [];
+  if (!courses.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Load Discover tab first to see nearby courses</div>';
+    return;
+  }
+  const closest = courses.slice().sort((a,b)=>a.dist-b.dist).slice(0,3);
+  const now = new Date();
+  const filterHour = window._teeSectionFilter === 'all' ? null : parseInt(window._teeSectionFilter);
+
+  // Generate realistic tee time slots (every 8 min from 7am to 5pm)
+  function getTeeSlots(courseName, date) {
+    const slots = [];
+    for (let h=7; h<=17; h++) {
+      for (let m=0; m<60; m+=8) {
+        const slotHour = h + (now.getHours() + 1 - 7 > 0 ? 0 : 0);
+        if (h < now.getHours()+1) continue; // skip past times
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const displayH = h > 12 ? h-12 : h;
+        const timeStr = `${displayH}:${m.toString().padStart(2,'0')} ${ampm}`;
+        if (filterHour !== null && h !== filterHour) continue;
+        slots.push({ time: timeStr, hour: h, min: m });
+      }
+    }
+    return slots.slice(0,4); // show max 4 per course
+  }
+
+  const today = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+
+  el.innerHTML = closest.map(c => {
+    const bookBase = c.website || `https://www.golfnow.com/search?searchTerm=${encodeURIComponent(c.name)}`;
+    const isPrivate = (c.type||'').includes('Country') || c.name.toLowerCase().includes('country club');
+    const slots = isPrivate ? [] : getTeeSlots(c.name, today);
+    const slotsHtml = slots.length
+      ? slots.map(s => {
+          const bookUrl = c.website
+            ? c.website
+            : `https://www.golfnow.com/search?searchTerm=${encodeURIComponent(c.name)}&date=${encodeURIComponent(today)}&time=${encodeURIComponent(s.time)}`;
+          return `<a href="${bookUrl}" target="_blank" rel="noopener"
+            style="display:inline-block;padding:7px 11px;border-radius:10px;
+              background:var(--green-light);color:var(--green-dark);
+              font-size:12px;font-weight:600;text-decoration:none;
+              border:1px solid var(--green);white-space:nowrap;flex-shrink:0">
+            ${s.time}
+          </a>`;
+        }).join('')
+      : `<span style="font-size:12px;color:var(--muted)">Member/Private — ${c.website?'<a href="'+c.website+'" target="_blank" rel="noopener" style="color:var(--green)">Visit website</a>':'No public tee times'}</span>`;
+
+    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${esc(c.name)}</div>
+          <div style="font-size:11px;color:var(--muted)">${c.dist<1?'<1':c.dist.toFixed(1)} mi · ${today}</div>
+        </div>
+        ${!isPrivate ? `<a href="${bookBase}" target="_blank" rel="noopener"
+          style="font-size:11px;color:var(--green);text-decoration:none;font-weight:500">
+          All times →
+        </a>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${slotsHtml}</div>
+    </div>`;
+  }).join('');
+}
+window.loadHomeTeeTimesSection = loadHomeTeeTimesSection;
 
 window.goScreen = goScreen;
 window._initFeed = () => { initFeed(); initNearbyPlayers(); };
