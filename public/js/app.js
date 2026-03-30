@@ -5,7 +5,7 @@
 import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, friendlyError } from "./auth.js?v=28";
 import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile } from "./profile.js?v=28";
 import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies } from "./feed.js?v=28";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES } from "./scorecard.js?v=28";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=28";
 import { goScreen, showToast, toggleChip } from "./ui.js?v=28";
 import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=28";
 import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=28";
@@ -85,6 +85,12 @@ window.UI = {
   openNotif(id, type, refId) {
     openNotif(id, type, refId);
   },
+
+  addPlayerPrompt()             { addPlayerPrompt(); },
+  addPlayerByName()             { addPlayerByName(); },
+  addPlayerByUid(uid,name,photo){ addPlayerByUid(uid,name,photo||""); },
+  removePlayer(idx)             { removePlayer(parseInt(idx)); },
+  searchPlayersForCard(q)       { searchPlayersForCard(q); },
 
   setGameMode(mode) { const _validModes=['stroke','match','stableford','scramble','skins','bestball']; if(_validModes.includes(mode)) setGameMode(mode); },
   buildGamePanel() { buildGamePanel(); },

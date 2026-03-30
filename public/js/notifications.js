@@ -181,7 +181,10 @@ function _notifText(n) {
   if (n.type === "like")   return `${name} liked your post`;
   if (n.type === "reply")  return `${name} replied: <em>${esc((n.preview||"").slice(0,60))}</em>`;
   if (n.type === "follow") return `${name} started following you`;
-  if (n.type === "message") return `${name} sent you a message`;
+  if (n.type === "message") {
+    const prev = (n.preview||"").slice(0,60);
+    return prev ? `${name}: <em>${esc(prev)}</em>` : `${name} sent you a message`;
+  }
   return `${name} did something`;
 }
 
@@ -197,27 +200,49 @@ function _relTime(date) {
 export async function markAllNotifsRead(uid) {
   if (!uid) return;
   const unread = (window._notifications || []).filter(n => !n.read);
-  if (!unread.length) return;
+  if (!unread.length) { _setNotifBadge(0); return; }
   const batch = writeBatch(db);
   unread.forEach(n => {
     batch.update(doc(db, "notifications", n.id), { read: true });
+    n.read = true; // optimistic update
   });
   await batch.commit();
+  // Optimistically update badge and re-render
+  _setNotifBadge(0);
+  renderNotifications(window._notifications || []);
 }
 
 // ─── Mark single notif read + navigate ────────────────────
 export async function openNotif(id, type, refId) {
   // Mark read
   try { await updateDoc(doc(db, "notifications", id), { read: true }); } catch(_) {}
-  // Navigate to relevant content
-  if (type === "follow") { safeUI("goScreen", "profile"); return; }
+
+  if (type === "follow") { safeUI("goScreen", "players"); return; }
+
   if (type === "message" && refId) {
-    // Open conversation
-    window._pendingConvId = refId;
-    safeUI("goScreen", "conversation");
+    // Look up the conversation to get the other participant name
+    try {
+      const convSnap = await getDoc(doc(db, "conversations", refId));
+      if (convSnap.exists()) {
+        const data = convSnap.data();
+        const myUid = window._currentUser?.uid;
+        const isGroup = data.isGroup;
+        const otherUid = (data.participants || []).find(p => p !== myUid) || "";
+        const otherName = isGroup
+          ? (data.groupName || "Group Chat")
+          : ((data.participantNames || {})[otherUid] || "Golfer");
+        safeUI("openConversation", refId, otherUid, otherName, isGroup || false);
+        return;
+      }
+    } catch(e) {
+      console.warn("openNotif conversation lookup failed:", e.message);
+    }
+    // Fallback — just go to messages
+    safeUI("goScreen", "messages");
     return;
   }
-  // For likes/replies, go to feed
+
+  // Likes/replies → feed
   safeUI("goScreen", "feed");
 }
 
