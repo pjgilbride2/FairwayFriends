@@ -31,7 +31,7 @@ window.UI = {
   goScreen(name) {
     // Sanitize — only allow known screen names
     const VALID_SCREENS = ["feed","players","search","scorecard","profile","edit-profile",
-      "vibes","messages","conversation","my-activity","auth","onboard","notifications"];
+      "vibes","messages","conversation","my-activity","auth","onboard","notifications","player-profile"];
     if(name && !VALID_SCREENS.includes(name)) { console.warn("Invalid screen:", name); return; }
     goScreen(name);
     if (name === "scorecard") {
@@ -66,7 +66,7 @@ window.UI = {
     if (name === "my-activity")  UI.loadFullActivity();
     if (name === "conversation") {} // handled by openConversation
     // Show/hide bottom nav based on screen type
-    const noBottomNav = ["auth","onboard","vibes","edit-profile","conversation","my-activity"];
+    const noBottomNav = ["auth","onboard","vibes","edit-profile","conversation","my-activity","player-profile"];
     const bottomNav   = document.getElementById("bottom-nav");
     if (bottomNav) {
       bottomNav.style.display = noBottomNav.includes(name) ? "none" : "flex";
@@ -382,6 +382,19 @@ window.UI = {
     window._activeConvIsGroup = !!isGroup;
     window._activeConvMeta = { otherUid, otherName, isGroup: !!isGroup };
     markConversationRead(convId, window._currentUser?.uid);
+  },
+
+  // ── View another player's profile ──────────────────────
+  async openPlayerProfile(uid) {
+    const { getDoc, doc, getFirestore } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const { getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const db = getFirestore(getApp());
+    const snap = await getDoc(doc(db, "users", uid));
+    if (!snap.exists()) { showToast("Profile not found"); return; }
+    const p = { uid, ...snap.data() };
+    window._viewingPlayer = p;
+    buildPlayerProfileScreen(p);
+    goScreen("player-profile");
   },
 
   async startConversation(otherUid, otherName) {
@@ -1077,6 +1090,184 @@ function showFormError(form, msg) {
 
 // ── Boot ──
 initAuth();
+
+function buildPlayerProfileScreen(p) {
+  // Ensure screen exists in DOM
+  let screen = document.getElementById("screen-player-profile");
+  if (!screen) {
+    screen = document.createElement("div");
+    screen.id = "screen-player-profile";
+    screen.className = "screen hidden";
+    document.getElementById("app-root")?.appendChild(screen)
+      || document.body.appendChild(screen);
+  }
+
+  const isFriend = (myProfile.friends || []).includes(p.uid);
+  const sharedVibes = (p.vibes || []).filter(v => myVibes.includes(v));
+  const allVibes = p.vibes || [];
+  const pct = myVibes.length
+    ? Math.round((sharedVibes.length / Math.max(myVibes.length, allVibes.length, 1)) * 100)
+    : null;
+
+  const ini = initials(p.displayName || "?");
+  const aColor = avatarColor(p.uid);
+
+  const vibeHtml = allVibes.map(v => {
+    const shared = myVibes.includes(v);
+    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;
+      border-radius:100px;font-size:13px;font-weight:500;
+      background:${shared ? "rgba(var(--green-rgb),.12)" : "var(--surface)"};
+      border:1px solid ${shared ? "var(--green)" : "var(--border)"};
+      color:${shared ? "var(--green)" : "var(--text)"}"
+    >${v}${shared ? " ✓" : ""}</span>`;
+  }).join("");
+
+  const goalMap = {
+    buddy: { icon: "🤝", label: "Find a Golf Buddy" },
+    teetimes: { icon: "⚡", label: "Last-Minute Tee Times" },
+    explore: { icon: "👀", label: "Exploring the App" },
+  };
+  const goalsHtml = (p.reasons || []).map(r => {
+    const g = goalMap[r];
+    if (!g) return "";
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+      background:var(--surface);border-radius:12px;border:1px solid var(--border)">
+      <span style="font-size:20px">${g.icon}</span>
+      <span style="font-size:14px;color:var(--text)">${g.label}</span>
+    </div>`;
+  }).join("");
+
+  const statsHtml = [
+    p.handicap != null ? { label: "Handicap", val: p.handicap } : null,
+    p.homeCourse        ? { label: "Home Course", val: p.homeCourse } : null,
+    p.city              ? { label: "Location", val: p.city } : null,
+    p.roundCount        ? { label: "Rounds Played", val: p.roundCount } : null,
+  ].filter(Boolean).map(s => `
+    <div style="flex:1;min-width:100px;text-align:center;padding:14px 10px;
+      background:var(--surface);border-radius:14px;border:1px solid var(--border)">
+      <div style="font-size:18px;font-weight:700;color:var(--green)">${esc(String(s.val))}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px">${s.label}</div>
+    </div>`).join("");
+
+  screen.innerHTML = `
+    <div style="max-width:480px;margin:0 auto;padding:0 0 100px">
+
+      <!-- Header bar -->
+      <div style="display:flex;align-items:center;padding:16px 16px 8px;position:sticky;top:0;
+        background:var(--bg);z-index:10;border-bottom:1px solid var(--border)">
+        <button onclick="history.back();safeUI('goScreen','players')"
+          style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text);
+                 display:flex;align-items:center;gap:6px;font-size:14px;font-family:inherit">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15,18 9,12 15,6"/>
+          </svg>
+          Players
+        </button>
+      </div>
+
+      <!-- Hero card -->
+      <div style="padding:24px 16px 16px;text-align:center">
+        <div class="player-avatar ${aColor}"
+          style="width:84px;height:84px;font-size:28px;margin:0 auto 14px">
+          ${p.photoURL
+            ? `<img src="${esc(p.photoURL)}" style="width:84px;height:84px;border-radius:50%;object-fit:cover">`
+            : ini}
+        </div>
+        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px">${esc(p.displayName || "Golfer")}</div>
+        ${p.city ? `<div style="font-size:14px;color:var(--muted);margin-bottom:4px">📍 ${esc(p.city)}</div>` : ""}
+        ${p.newToArea ? `<div style="font-size:12px;color:var(--green);margin-bottom:8px">🆕 New to the area</div>` : ""}
+        ${pct !== null ? `<div style="display:inline-block;padding:4px 14px;border-radius:100px;
+          background:${pct >= 60 ? "rgba(var(--green-rgb),.12)" : "var(--surface)"};
+          border:1px solid ${pct >= 60 ? "var(--green)" : "var(--border)"};
+          font-size:13px;font-weight:600;color:${pct >= 60 ? "var(--green)" : "var(--muted)"}">
+          ${pct}% vibe match
+        </div>` : ""}
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:10px;padding:0 16px 20px">
+        <button id="pp-connect-btn" onclick="window._ppToggleFollow('${p.uid}')"
+          style="flex:1;padding:12px;border-radius:14px;font-size:14px;font-weight:600;
+                 cursor:pointer;font-family:inherit;transition:all .2s;
+                 background:${isFriend ? "var(--surface)" : "var(--green)"};
+                 color:${isFriend ? "var(--text)" : "#fff"};
+                 border:1px solid ${isFriend ? "var(--border)" : "var(--green)"}">
+          ${isFriend ? "✓ Following" : "Connect"}
+        </button>
+        <button onclick="UI.startConversation('${p.uid}','${esc(p.displayName||"Golfer")}')"
+          style="flex:1;padding:12px;border-radius:14px;font-size:14px;font-weight:600;
+                 cursor:pointer;font-family:inherit;background:var(--surface);
+                 color:var(--green);border:1px solid var(--green)">
+          💬 Message
+        </button>
+      </div>
+
+      <!-- Bio -->
+      ${p.bio ? `
+      <div style="padding:0 16px 20px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;
+          text-transform:uppercase;margin-bottom:8px">About</div>
+        <div style="padding:14px;background:var(--surface);border-radius:14px;
+          border:1px solid var(--border);font-size:15px;color:var(--text);line-height:1.6">
+          "${esc(p.bio)}"
+        </div>
+      </div>` : ""}
+
+      <!-- Stats row -->
+      ${statsHtml ? `
+      <div style="padding:0 16px 20px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;
+          text-transform:uppercase;margin-bottom:8px">Stats</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">${statsHtml}</div>
+      </div>` : ""}
+
+      <!-- Goals -->
+      ${goalsHtml ? `
+      <div style="padding:0 16px 20px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;
+          text-transform:uppercase;margin-bottom:8px">On Fairway Friend to</div>
+        <div style="display:flex;flex-direction:column;gap:8px">${goalsHtml}</div>
+      </div>` : ""}
+
+      <!-- Vibes -->
+      ${allVibes.length ? `
+      <div style="padding:0 16px 20px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;
+          text-transform:uppercase;margin-bottom:8px">
+          Vibes ${sharedVibes.length ? `<span style="color:var(--green);font-weight:600">(${sharedVibes.length} shared)</span>` : ""}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">${vibeHtml}</div>
+      </div>` : ""}
+
+    </div>`;
+
+  // Follow toggle for the profile page
+  window._ppToggleFollow = async (targetUid) => {
+    const btn = document.getElementById("pp-connect-btn");
+    if (!btn) return;
+    const { getDoc: gd, doc: dc, getFirestore: gf, updateDoc: ud, arrayUnion: au, arrayRemove: ar }
+      = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const { getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const db2 = gf(getApp());
+    const me  = window._currentUser?.uid;
+    if (!me) return;
+    const isFriend = (myProfile.friends || []).includes(targetUid);
+    await ud(dc(db2, "users", me), { friends: isFriend ? ar(targetUid) : au(targetUid) });
+    if (isFriend) {
+      myProfile.friends = (myProfile.friends || []).filter(f => f !== targetUid);
+      btn.textContent = "Connect";
+      btn.style.background = "var(--green)";
+      btn.style.color = "#fff";
+      btn.style.border = "1px solid var(--green)";
+    } else {
+      myProfile.friends = [...(myProfile.friends || []), targetUid];
+      btn.textContent = "✓ Following";
+      btn.style.background = "var(--surface)";
+      btn.style.color = "var(--text)";
+      btn.style.border = "1px solid var(--border)";
+    }
+  };
+}
 
 window.goScreen = goScreen;
 window._initFeed = () => { initFeed(); initNearbyPlayers(); };

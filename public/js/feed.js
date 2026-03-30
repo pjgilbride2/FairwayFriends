@@ -468,9 +468,17 @@ export function renderNearbyPlayers(players, containerId) {
       const isFriend = (myProfile.friends || []).includes(p.uid);
       return `<div class="player-card">
         <div class="player-card-top">
-          <div class="player-avatar ${avatarColor(p.uid)}">${initials(p.displayName)}</div>
-          <div class="player-info">
-            <div class="player-name">${esc(p.displayName || "Golfer")}</div>
+          <div class="player-avatar ${avatarColor(p.uid)}" onclick="safeUI('openPlayerProfile','${p.uid}')"
+            style="cursor:pointer" title="View profile">
+            ${p.photoURL
+              ? `<img src="${esc(p.photoURL)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`
+              : initials(p.displayName)}
+          </div>
+          <div class="player-info" onclick="safeUI('openPlayerProfile','${p.uid}')" style="cursor:pointer;flex:1;min-width:0">
+            <div class="player-name" style="display:flex;align-items:center;gap:5px">
+              ${esc(p.displayName || "Golfer")}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--muted);flex-shrink:0"><polyline points="9,18 15,12 9,6"/></svg>
+            </div>
             <div class="player-meta">${p.newToArea ? "🆕 New to area · " : ""}HCP ${p.handicap || "?"}</div>
           </div>
           ${myVibes.length ? `<span class="match-pct ${cls}">${pct}%</span>` : `<span class="player-hdcp">HCP ${p.handicap || "?"}</span>`}
