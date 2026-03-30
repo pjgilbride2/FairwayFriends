@@ -3,13 +3,13 @@
 //  Tracks: new messages (blue dot), likes, replies, follows
 // ============================================================
 
-import { db } from "./firebase-config.js?v=34";
+import { db } from "./firebase-config.js?v=35";
 import {
   collection, query, where, orderBy, limit,
   onSnapshot, doc, updateDoc, writeBatch,
   serverTimestamp, addDoc, getDocs, getDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { esc, initials, avatarColor } from "./ui.js?v=34";
+import { esc, initials, avatarColor } from "./ui.js?v=35";
 
 let _unsubMessages = null;
 let _unsubNotifs   = null;
@@ -150,11 +150,13 @@ export function renderNotifications(notifs) {
       ? `<div style="width:40px;height:40px;border-radius:50%;background:url(${esc(photo)}) center/cover;flex-shrink:0"></div>`
       : `<div class="avatar-sm ${color}" style="width:40px;height:40px;font-size:15px;flex-shrink:0">${esc(ini)}</div>`;
 
+    const canViewSender = !!n.fromUid && n.fromUid !== window._currentUser?.uid;
     return `
       <div class="notif-item${unread ? " notif-unread" : ""}" data-id="${esc(n.id)}" data-type="${esc(n.type)}"
         onclick="safeUI('openNotif','${esc(n.id)}','${esc(n.type)}','${esc(n.refId||'')}')">
         <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)">
-          <div style="position:relative;flex-shrink:0">
+          <div style="position:relative;flex-shrink:0;cursor:${canViewSender?'pointer':'default'}"
+            ${canViewSender ? `onclick="event.stopPropagation();safeUI('openPlayerProfile','${n.fromUid}')"` : ''}>
             ${avatarHTML}
             <div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:11px;border:1.5px solid var(--border)">${icon}</div>
           </div>

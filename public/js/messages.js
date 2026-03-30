@@ -2,13 +2,13 @@
 //  FAIRWAY FRIEND — Messaging (DM + Group Chats)
 // ============================================================
 
-import { db } from "./firebase-config.js?v=34";
+import { db } from "./firebase-config.js?v=35";
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc,
   query, where, orderBy, limit, onSnapshot,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=34";
+import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=35";
 
 let _unsubMessages = null;
 let _unsubConvList = null;
@@ -154,10 +154,14 @@ export function renderConversationsList(convs, containerId) {
     }
 
     const timeStr = c.lastMessageAt?.toDate ? relativeTime(c.lastMessageAt.toDate()) : "";
+    const dmUid = !isGroup ? (c.participants||[]).find(p => p !== me?.uid) : null;
+    const avatarClick = dmUid ? `onclick="event.stopPropagation();safeUI('openPlayerProfile','${dmUid}')" style="cursor:pointer"` : '';
     return `<div class="conv-row${isUnread?' conv-unread':''}" onclick="safeUI('openConversation',${onclickArgs})">
-      <div class="player-avatar ${aColor}" style="width:44px;height:44px;font-size:${isGroup?'20':'15'}px;flex-shrink:0">${ini}</div>
+      <div class="player-avatar ${aColor}" ${avatarClick} style="width:44px;height:44px;font-size:${isGroup?'20':'15'}px;flex-shrink:0">${ini}</div>
       <div class="conv-info">
-        <div class="conv-name">${displayName}${isGroup?` <span style="font-size:10px;color:var(--muted);font-weight:400">(${(c.participants||[]).length} members)</span>`:''}</div>
+        <div class="conv-name" ${dmUid?`onclick="event.stopPropagation();safeUI('openPlayerProfile','${dmUid}')" style="cursor:pointer"`:''}>
+          ${displayName}${isGroup?` <span style="font-size:10px;color:var(--muted);font-weight:400">(${(c.participants||[]).length} members)</span>`:''}
+        </div>
         <div class="conv-last">${esc(c.lastMessage || "Tap to chat")}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">

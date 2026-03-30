@@ -2,16 +2,16 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=34";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=34";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=34";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=34";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=34";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=34";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=34";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=34";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=34";
-import { buildOnboardScreen } from "./onboard.js?v=34";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=35";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes } from "./profile.js?v=35";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=35";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=35";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=35";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=35";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch } from "./messages.js?v=35";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=35";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=35";
+import { buildOnboardScreen } from "./onboard.js?v=35";
 
 
 // ── Haversine distance in miles ──
@@ -457,7 +457,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=34");
+      const { initials, avatarColor } = await import("./ui.js?v=35");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -498,6 +498,9 @@ window.UI = {
       } else { sub.style.display = "none"; }
     }
     goScreen("conversation");
+    // Ensure bottom nav is always hidden in conversation (belt+suspenders)
+    const _bn = document.getElementById('bottom-nav');
+    if (_bn) _bn.style.display = 'none';
     listenToMessages(convId, (msgs) => {
       renderMessages(msgs, "messages-thread", !!isGroup);
     });
@@ -509,7 +512,10 @@ window.UI = {
 
   // ── View another player's profile ──────────────────────
   async openPlayerProfile(uid) {
+    if (!uid || uid === window._currentUser?.uid) return; // don't open own profile
     try {
+      // Record origin so back button returns to right screen
+      window._ppOriginScreen = document.querySelector('.screen.active')?.id?.replace('screen-','') || 'players';
       const { getDoc, doc, getFirestore } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
       const { getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
       const db = getFirestore(getApp());
@@ -1245,9 +1251,17 @@ function buildPlayerProfileScreen(p) {
     screen = document.createElement("div");
     screen.id = "screen-player-profile";
     screen.className = "screen hidden";
-    document.getElementById("app-root")?.appendChild(screen)
-      || document.body.appendChild(screen);
+    // Inject alongside other screens — find the last .screen element
+    const lastScreen = Array.from(document.querySelectorAll('.screen')).pop();
+    if (lastScreen?.parentNode) lastScreen.parentNode.insertBefore(screen, lastScreen.nextSibling);
+    else document.body.appendChild(screen);
   }
+  // Ensure full-page fit
+  screen.style.cssText = [
+    'overflow-y:auto','-webkit-overflow-scrolling:touch',
+    'min-height:100vh','background:var(--bg)',
+    'position:relative','width:100%'
+  ].join(';');
 
   const isFriend = (myProfile.friends || []).includes(p.uid);
   const sharedVibes = (p.vibes || []).filter(v => _myVibes.includes(v));
@@ -1297,18 +1311,18 @@ function buildPlayerProfileScreen(p) {
     </div>`).join("");
 
   screen.innerHTML = `
-    <div style="max-width:480px;margin:0 auto;padding:0 0 100px">
+    <div style="max-width:600px;margin:0 auto;padding:0 0 80px">
 
       <!-- Header bar -->
       <div style="display:flex;align-items:center;padding:16px 16px 8px;position:sticky;top:0;
         background:var(--bg);z-index:10;border-bottom:1px solid var(--border)">
-        <button onclick="history.back();safeUI('goScreen','players')"
+        <button onclick="safeUI('goScreen', window._ppOriginScreen||'players')"
           style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text);
                  display:flex;align-items:center;gap:6px;font-size:14px;font-family:inherit">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polyline points="15,18 9,12 15,6"/>
           </svg>
-          Players
+          Back
         </button>
       </div>
 
@@ -1561,9 +1575,4 @@ window.addEventListener('unhandledrejection', (e) => {
 window._initFeed = () => { initFeed(); initNearbyPlayers(); };
 window.buildOnboardScreen = buildOnboardScreen;
 
-// Load test suite in dev/staging
-(async () => {
-  try {
-    const mod = await import('./js/tests.js?v=33');
-  } catch(_) {}
-})();
+// Test suite is loaded as a plain <script> tag in index.html

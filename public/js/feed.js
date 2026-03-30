@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=34";
+import { db, storage } from "./firebase-config.js?v=35";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=34";
-import { createNotification } from "./notifications.js?v=34";
-import { loadRoundDayForecast } from "./weather.js?v=34";
+import { myProfile, myVibes } from "./profile.js?v=35";
+import { createNotification } from "./notifications.js?v=35";
+import { loadRoundDayForecast } from "./weather.js?v=35";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=34";
+} from "./ui.js?v=35";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -134,7 +134,7 @@ export async function openTeeSheet(id) {
     ["Spots available", `${t.spots || 1} of ${t.totalSpots || 4}`],
     ["Format",          t.format    || "18-hole stroke play"],
     ["Skill level",     t.skillLevel || "Any level"],
-    ["Host",            t.hostName  || "Unknown"],
+    ["Host", t.hostId && t.hostId !== window._currentUser?.uid ? `<span onclick="safeUI('openPlayerProfile','${t.hostId}')" style="color:var(--green);cursor:pointer;text-decoration:underline">${esc(t.hostName||'Unknown')}</span>` : esc(t.hostName||'Unknown')],
     ["Notes",           t.notes     || "—"],
   ]
     .map(([l, v]) => `<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${esc(String(v))}</span></div>`)
@@ -232,14 +232,16 @@ export function renderFeed(posts) {
       const vibeHtml = (p.vibes || []).map((v) => vibePip(v, true)).join("");
       const timeAgo = p.createdAt?.toDate ? relativeTime(p.createdAt.toDate()) : "just now";
       const isOwn   = p.authorId === window._currentUser?.uid;
+      const canViewProfile = p.authorId && p.authorId !== window._currentUser?.uid;
+      const profileClick   = canViewProfile ? `onclick="safeUI('openPlayerProfile','${p.authorId}')" style="cursor:pointer"` : '';
       const avatarHTML = p.photoURL
-        ? `<div style="width:38px;height:38px;border-radius:50%;background:url(${p.photoURL}) center/cover;flex-shrink:0"></div>`
-        : `<div class="player-avatar ${aColor}" style="width:38px;height:38px;font-size:13px">${ini}</div>`;
+        ? `<div ${profileClick} style="width:38px;height:38px;border-radius:50%;background:url(${p.photoURL}) center/cover;flex-shrink:0${canViewProfile?';cursor:pointer':''}"></div>`
+        : `<div class="player-avatar ${aColor}" ${profileClick} style="width:38px;height:38px;font-size:13px${canViewProfile?';cursor:pointer':''}">${ini}</div>`;
       return `<div class="post-card">
         <div class="post-header">
           ${avatarHTML}
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:500;color:var(--text)">${esc(p.authorName || "Golfer")}</div>
+          <div style="flex:1" ${profileClick}>
+            <div style="font-size:13px;font-weight:500;color:var(--text)${canViewProfile?';cursor:pointer':''}">${esc(p.authorName || "Golfer")}</div>
             <div style="font-size:11px;color:var(--muted)">${timeAgo}</div>
           </div>
           ${isOwn ? `<button onclick="deletePost('${p.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0">×</button>` : ""}
@@ -400,7 +402,9 @@ export async function loadReplies(postId) {
     const col = avatarColor(r.authorId || "");
     const time = r.createdAt?.toDate ? relativeTime(r.createdAt.toDate()) : "";
     return `<div style="display:flex;gap:8px;padding:8px 0;border-top:0.5px solid var(--border)">
-      <div class="avatar-sm ${col}" style="width:28px;height:28px;font-size:10px;flex-shrink:0">${ini}</div>
+      <div class="avatar-sm ${col}" style="width:28px;height:28px;font-size:10px;flex-shrink:0${r.authorId&&r.authorId!==window._currentUser?.uid?';cursor:pointer':''}"
+        ${r.authorId&&r.authorId!==window._currentUser?.uid?`onclick="safeUI('openPlayerProfile','${r.authorId}')"`:''}>
+        ${ini}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:500;color:var(--text)">${esc(r.authorName||"Golfer")} <span style="color:var(--muted);font-weight:400">${time}</span></div>
         <div style="font-size:13px;color:var(--text);margin-top:2px">${esc(r.text)}</div>
