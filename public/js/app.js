@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=56";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=56";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=56";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=56";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=56";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=56";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=56";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=56";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=56";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=56";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=56";
-import { buildOnboardScreen } from "./onboard.js?v=56";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=57";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=57";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=57";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=57";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=57";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=57";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=57";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=57";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=57";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=57";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=57";
+import { buildOnboardScreen } from "./onboard.js?v=57";
 
 
 // ── Haversine distance in miles ──
@@ -271,14 +271,22 @@ window.UI = {
       // Tee times moved to Discover tab only
     }
     if (name === "search") {
-      // If profile city changed since last discover load, force re-geocode
+      // Always resync location when entering Discover
       const _profileCity = myProfile.city || '';
-      if (_profileCity && _profileCity !== window._lastDiscoverCity) {
-        window._lastDiscoverCity = _profileCity;
-        window._wxLat = null; window._wxLon = null; // force re-geocode
-        try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc2_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
-        window._nearbyCourses = null;
-        window._coursesLoading = false;
+      const _geoKey = _profileCity ? 'geo_'+_profileCity.toLowerCase().replace(/[^a-z0-9]/g,'_') : '';
+      const _geoCached = _geoKey ? (() => { try { const c=sessionStorage.getItem(_geoKey); if(c){const p=JSON.parse(c); if(p.ts&&Date.now()-p.ts<86400000) return p;} } catch(_){} return null; })() : null;
+      // If profile city changed OR we have no coords but do have a geo cache for this city
+      const _cityChanged = _profileCity && _profileCity !== window._lastDiscoverCity;
+      const _hasNoCoords = !window._wxLat && _geoCached;
+      if (_cityChanged || _hasNoCoords) {
+        if (_cityChanged) {
+          window._lastDiscoverCity = _profileCity;
+          window._wxLat = null; window._wxLon = null;
+          try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc2_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+          window._nearbyCourses = null; window._coursesLoading = false;
+        }
+        // Restore coords from geo cache if available
+        if (_geoCached && !window._wxLat) { window._wxLat = _geoCached.lat; window._wxLon = _geoCached.lon; }
       }
       updateProfileUI();
       const currentCity = window._weatherCity || '';
@@ -725,7 +733,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=56");
+      const { initials, avatarColor } = await import("./ui.js?v=57");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1421,7 +1429,8 @@ window.UI = {
     try {
       // ── 1. Resolve lat/lon ──────────────────────────────────────────
       let lat = window._wxLat, lon = window._wxLon;
-      const city = window._weatherCity || myProfile.city || '';
+      // Profile city takes priority — _weatherCity can be stale from a previous session
+      const city = myProfile.city || window._weatherCity || '';
       if (!lat && city) {
         // Smart geocoding: strip to city name, add country_code=US, then disambiguate by state
         const _STATE_MAP = {
