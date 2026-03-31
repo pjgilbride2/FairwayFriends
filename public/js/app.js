@@ -323,6 +323,8 @@ window.UI = {
                 const lastMi=window._lastFetchedMiles||0;
                 if(newMi>lastMi){
                   window._nearbyCourses=null;window._coursesLoading=false;
+                  // Clear geo cache so new radius fetches fresh data
+                  try{Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k));}catch(_){}
                   safeUI('loadNearbyCourses');
                 }else{
                   safeUI('filterCourses',document.getElementById('course-search-input')?.value||'');
@@ -1280,6 +1282,11 @@ window.UI = {
   async loadNearbyCourses() {
     if (window._coursesLoading) return;
     window._coursesLoading = true;
+    // Clear cache if radius changed since last fetch
+    const _curMi = parseFloat(document.getElementById('dist-filter')?.value || '100');
+    if (window._lastFetchedMiles && _curMi !== window._lastFetchedMiles) {
+      try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+    }
     const container = document.getElementById('courses-list');
     const label     = document.getElementById('courses-radius-label');
     if (!container) { window._coursesLoading = false; return; }
@@ -1351,7 +1358,7 @@ window.UI = {
 
       // ── 5. Overpass: short timeout mirrors in parallel ─────────────
       const radius = Math.round((parseFloat(document.getElementById('dist-filter')?.value || '100') || 100) * 1609.34);
-      const q='[out:json][timeout:20];('+
+      const q='[out:json][timeout:30];('+
         'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
         'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
         'node["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
@@ -1360,7 +1367,7 @@ window.UI = {
         'way["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
         'way["leisure"="sports_centre"]["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
         'way["landuse"="recreation_ground"]["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
-        ');out center tags 100;';
+        ');out center tags;';
 
       const mirrors=[
         'https://overpass-api.de/api/interpreter',
