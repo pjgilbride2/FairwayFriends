@@ -1583,7 +1583,8 @@ window.UI = {
               const _distMi = _haversine(lat, lon, cLat, cLon);
               const _radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
               if (_distMi > _radiusMi) return;
-              const name = c.club_name || c.course_name || 'Golf Course';
+              // Strip numeric IDs injected by GolfCourseAPI e.g. "Phoenix Golf Club (1012909)"
+              const name = (c.club_name || c.course_name || 'Golf Course').replace(/\s*\(\d+\)\s*$/, '').trim();
               const key  = norm(name);
               if (seen.has(key)) return;
               seen.add(key);

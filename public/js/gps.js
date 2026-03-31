@@ -131,8 +131,10 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
 
   try {
     // Step 1: Search clubs by name (0.1 call cost)
+    // Strip numeric IDs from GolfCourseAPI-sourced names e.g. "Phoenix Golf Club (1012909)"
+    const _cleanName = courseName.replace(/\s*\(\d+\)\s*$/, '').trim();
     const searchResp = await fetch(
-      `${GOLFAPI_BASE}/clubs?name=${encodeURIComponent(courseName)}`,
+      `${GOLFAPI_BASE}/clubs?name=${encodeURIComponent(_cleanName)}`,
       { headers: { 'Authorization': `Bearer ${GOLFAPI_KEY}` }, signal: AbortSignal.timeout(8000) }
     );
     if (searchResp.ok) {
@@ -291,9 +293,22 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   } catch(e) { console.warn('GPS: GolfCourseAPI failed:', e.message); }
 
   // ── API 3: OSM Overpass — hole GPS coordinates (4-pass matching) ──────────
+  // Quick health-check: try one mirror with a 3s timeout — skip OSM if down
   const queryLat = gcapiCoords?.lat || lat;
   const queryLon = gcapiCoords?.lon || lon;
   const radius   = 1200;
+  let _osmAvailable = false;
+  try {
+    const _probe = await fetch(
+      'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent('[out:json][timeout:2];node["name"="test"](0,0,0,0);out;'),
+      { signal: AbortSignal.timeout(3000) }
+    );
+    _osmAvailable = _probe.ok && _probe.status !== 504 && _probe.status !== 429;
+  } catch(_) { _osmAvailable = false; }
+  if (!_osmAvailable) {
+    console.warn('GPS: OSM Overpass unavailable — skipping to synthetic');
+  }
+  if (_osmAvailable) {
 
   const osmQuery = `
     [out:json][timeout:20];
@@ -426,6 +441,7 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   } catch(e) {
     console.warn('GPS: OSM failed:', e.message);
   }
+  } // end if(_osmAvailable)
 
   // ── API 4: Synthetic fallback ──────────────────────────────────────────────
   console.log(`GPS: synthetic layout for ${courseName}`);
