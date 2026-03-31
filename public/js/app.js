@@ -1337,15 +1337,19 @@ window.UI = {
       const seen=new Set(), norm=n=>n.toLowerCase().replace(/[^a-z0-9]/g,'');
       let courses=[];
       const KNOWN_COURSES=[
-        // Lutz/North Tampa courses missing from OSM
-        {name:"Heritage Harbor Golf & Country Club",lat:28.1372,lon:-82.5012,phone:"(813) 949-4886",website:"https://www.heritageharborgolf.com",addr:"Lutz, FL",type:"Golf Course",holes:"18"},
-        {name:"TPC Tampa Bay",lat:28.1637,lon:-82.5195,phone:"(813) 949-0090",website:"https://www.tpctampabay.com",addr:"Lutz, FL",type:"Golf Course",holes:"18"},
-        {name:"Northdale Golf & Tennis Club",lat:28.0823,lon:-82.5281,phone:"(813) 962-0428",website:null,addr:"Tampa, FL",type:"Golf Course",holes:"18"},
-        // Tampa municipal courses (City of Tampa Parks & Rec)
-        {name:"Babe Zaharias Golf Course",lat:27.9966,lon:-82.4815,phone:"(813) 631-4374",website:"https://www.tampagov.net/parks-and-recreation/golf",addr:"Tampa, FL",type:"Municipal Golf Course",holes:"18"},
-        {name:"Rogers Park Golf Course",lat:27.9897,lon:-82.4464,phone:"(813) 356-1670",website:"https://www.tampagov.net/parks-and-recreation/golf",addr:"Tampa, FL",type:"Municipal Golf Course",holes:"18"},
-        {name:"Rocky Point Golf Course",lat:27.9653,lon:-82.5631,phone:"(813) 673-4316",website:"https://www.tampagov.net/parks-and-recreation/golf",addr:"Tampa, FL",type:"Municipal Golf Course",holes:"18"},
-      ];
+          {name:'Heritage Harbor Golf & Country Club',lat:28.1372,lon:-82.5012},
+          {name:'TPC Tampa Bay',lat:28.1673,lon:-82.5123},
+          {name:'Northdale Golf & Tennis Club',lat:28.1018,lon:-82.5223},
+          {name:'Babe Zaharias Golf Course',lat:28.0267,lon:-82.4334},
+          {name:'Rogers Park Golf Course',lat:28.0341,lon:-82.4445},
+          {name:'Rocky Point Golf Course',lat:27.9658,lon:-82.5732},
+          {name:'Innisbrook Resort Copperhead',lat:28.1278,lon:-82.7342},
+          {name:'Saddlebrook Resort Golf',lat:28.2195,lon:-82.3878},
+          {name:'Bloomingdale Golfers Club',lat:27.8612,lon:-82.2734},
+          {name:'Celebration Golf Club',lat:28.3201,lon:-81.5478},
+          {name:'Arnold Palmers Bay Hill Club',lat:28.4534,lon:-81.5089},
+          {name:'Orange County National Golf Center',lat:28.6012,lon:-81.5445},
+        ];
       KNOWN_COURSES.forEach(k=>{
         const d=_haversine(lat,lon,k.lat,k.lon);
         if(d<30){const key=norm(k.name); if(!seen.has(key)){seen.add(key);courses.push({...k,dist:d});}}
@@ -1380,9 +1384,10 @@ window.UI = {
       let txt1=null;
       const tryMirror=async(url)=>{
         const ctrl=new AbortController();
-        const t=setTimeout(()=>ctrl.abort(),10000);
+        const t=setTimeout(()=>ctrl.abort(),12000);
         try{
-          const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q),signal:ctrl.signal});
+          const getUrl=url+'?data='+encodeURIComponent(q);
+          const r=await fetch(getUrl,{method:'GET',signal:ctrl.signal});
           clearTimeout(t);
           if(!r.ok)return null;
           const txt=await r.text();
