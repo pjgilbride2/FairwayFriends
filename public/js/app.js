@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=57";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=57";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=57";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=57";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=57";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=57";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=57";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=57";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=57";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=57";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=57";
-import { buildOnboardScreen } from "./onboard.js?v=57";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=58";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=58";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=58";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=58";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=58";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=58";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=58";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=58";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=58";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=58";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=58";
+import { buildOnboardScreen } from "./onboard.js?v=58";
 
 
 // ── Haversine distance in miles ──
@@ -733,7 +733,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=57");
+      const { initials, avatarColor } = await import("./ui.js?v=58");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
