@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=68";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=68";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=68";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=68";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=68";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=68";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=68";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=68";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=68";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=68";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=68";
-import { buildOnboardScreen } from "./onboard.js?v=68";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=69";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=69";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=69";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=69";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=69";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=69";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=69";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=69";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=69";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=69";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=69";
+import { buildOnboardScreen } from "./onboard.js?v=69";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=68");
+      const { initials, avatarColor } = await import("./ui.js?v=69");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1622,6 +1622,7 @@ window.UI = {
             }
           }
         } catch(e) { console.warn('Discover: GolfCourseAPI fallback failed:', e.message); }
+      }
 
       // ── 5c. Google Places Nearby Search — additional course discovery ────────
       if (window._googlePlacesKey) {
@@ -1688,31 +1689,28 @@ window.UI = {
             addr: [el.tags?.['addr:street'], el.tags?.['addr:city'], el.tags?.['addr:state']].filter(Boolean).join(', '),
           });
         }
-        // ── Step 6: GolfCourseAPI enrichment (only when Overpass worked)
-        if (txt1) {
-          const GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
-          const topCourses = courses.slice(0, 12);
-          await Promise.allSettled(topCourses.map(async (c) => {
-            try {
-              const r = await fetch(
-                `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(c.name.replace(/\s*\(\d+\)\s*$/, ''))}`,
-                { headers: {'Authorization': `Key ${GCAPI_KEY}`}, signal: AbortSignal.timeout(4000) }
-              );
-              if (!r.ok) return;
-              const d = await r.json();
-              const match = d.courses?.find(x => norm2(x.club_name||'').includes(norm2(c.name.split(' ').slice(0,2).join(' '))));
-              if (match) {
-                const tee = match.tees?.male?.[0] || match.tees?.female?.[0];
-                if (tee?.par_total)    c.par    = tee.par_total;
-                if (tee?.slope_rating) c.slope  = tee.slope_rating;
-                if (tee?.course_rating) c.rating = tee.course_rating;
-                if (!c.phone   && match.location?.phone)   c.phone   = match.location.phone;
-                if (!c.website && match.website)            c.website = match.website;
-              }
-            } catch(_) {}
-          }));
-        }
-      }
+        // ── Step 6: GolfCourseAPI enrichment (only when Overpass worked) ──
+        const _enrichKey = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
+        await Promise.allSettled(courses.slice(0,12).map(async (c) => {
+          try {
+            const r = await fetch(
+              `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(c.name.replace(/\s*\(\d+\)\s*$/, ''))}`,
+              { headers: {'Authorization': `Key ${_enrichKey}`}, signal: AbortSignal.timeout(4000) }
+            );
+            if (!r.ok) return;
+            const d = await r.json();
+            const match = d.courses?.find(x => norm2(x.club_name||'').includes(norm2(c.name.split(' ').slice(0,2).join(' '))));
+            if (match) {
+              const tee = match.tees?.male?.[0] || match.tees?.female?.[0];
+              if (tee?.par_total)     c.par    = tee.par_total;
+              if (tee?.slope_rating)  c.slope  = tee.slope_rating;
+              if (tee?.course_rating) c.rating = tee.course_rating;
+              if (!c.phone   && match.location?.phone)   c.phone   = match.location.phone;
+              if (!c.website && match.website)            c.website = match.website;
+            }
+          } catch(_) {}
+        }));
+      } // end if(txt1)
 
       // ── Step 8: Filter, sort, dedupe, persist ──────────────────────
       const radiusMi2 = parseFloat(document.getElementById('dist-filter')?.value || 100);
