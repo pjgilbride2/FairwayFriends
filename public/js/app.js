@@ -1716,23 +1716,6 @@ window.UI = {
       const radiusMi2 = parseFloat(document.getElementById('dist-filter')?.value || 100);
       courses = courses.filter(c => c.dist <= radiusMi2);
       courses.sort((a,b) => (a.dist||999)-(b.dist||999));
-      // Merge with known local courses
-      const KNOWN_COURSES=[
-        {name:'Heritage Harbor Golf & Country Club',lat:28.1372,lon:-82.5012},
-        {name:'TPC Tampa Bay',lat:28.1673,lon:-82.5123},
-        {name:'Northdale Golf & Tennis Club',lat:28.1018,lon:-82.5223},
-        {name:'Rogers Park Golf Course',lat:28.0341,lon:-82.4445},
-        {name:'Rocky Point Golf Course',lat:27.9897,lon:-82.5321},
-      ];
-      for (const kc of KNOWN_COURSES) {
-        const d2 = _haversine(lat,lon,kc.lat,kc.lon);
-        if (d2 > radiusMi2) continue;
-        const key2 = norm(kc.name);
-        if (seen.has(key2)) continue;
-        seen.add(key2);
-        courses.push({...kc, dist:d2, type:'Golf Course', holes:18});
-      }
-      courses.sort((a,b)=>(a.dist||999)-(b.dist||999));
 
       window._nearbyCourses = courses;
       window._lastFetchedMiles = radiusMi2;
