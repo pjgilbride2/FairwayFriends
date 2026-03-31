@@ -699,7 +699,7 @@ window.UI = {
           '<div id="group-member-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:10px;margin-bottom:8px"></div>' +
           '<input id="group-member-search" placeholder="Search followers by name…" oninput="safeUI(\'searchGroupMembers\',this.value)" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;margin-bottom:8px">' +
           '<div id="group-member-search-results" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>' +
-          '<button id="create-group-btn" disabled onclick="safeUI(\"createGroup\")" ' +
+          '<button id="create-group-btn" disabled onclick="safeUI(\'createGroup\')" ' +
           'style="width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:20px;' +
           'font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Create Group</button>';
         convList.parentNode.insertBefore(panel, convList);
@@ -1489,25 +1489,19 @@ window.UI = {
         'https://overpass.openstreetmap.ru/api/interpreter',
         'https://overpass.private.coffee/api/interpreter',
       ];
-
-      // Sequential mirror fallback with 429 backoff (not parallel race)
+      // Sequential mirror fallback — try each until one returns valid JSON
       let txt1=null;
       for(const mirror of mirrors){
         const ctrl=new AbortController();
         const t=setTimeout(()=>ctrl.abort(),14000);
         try{
-          const r=await fetch(mirror+'?data='+encodeURIComponent(q),{method:'GET',signal:ctrl.signal,headers:{'Accept':'application/json'}});
+          const r=await fetch(mirror+'?data='+encodeURIComponent(q),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
           clearTimeout(t);
           if(r.status===429){await new Promise(res=>setTimeout(res,2500));continue;}
           if(!r.ok)continue;
-          const ct=r.headers.get('content-type')||'';
           const txt=await r.text();
-          if(!txt.trim().startsWith('<')&&ct.includes('json')){txt1=txt;break;}
-        }catch{clearTimeout(t);}
-      }
-      const results=txt1?[{status:'fulfilled',value:txt1}]:[];
-      for(const r of results){
-        if(r.status==='fulfilled'&&r.value){txt1=r.value;break;}
+          if(txt&&!txt.trim().startsWith('<')){txt1=txt;break;}
+        }catch(e){clearTimeout(t);}
       }
 
       if(txt1){

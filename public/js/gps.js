@@ -6,12 +6,12 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=41';
+import { db } from './firebase-config.js?v=50';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=41';
+import { showToast } from './ui.js?v=50';
 
 // ── Overpass fetch with retry + mirror fallback ───────────────
 const OVERPASS_MIRRORS = [
@@ -80,42 +80,70 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   try {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Date.now() - parsed.ts < 86400000) return parsed.holes;
+      const p = JSON.parse(cached);
+      if (Date.now() - p.ts < 86400000) {
+        console.log('GPS: cache hit ' + courseName + ' (' + (p.source||'?') + ')');
+        return p.holes;
+      }
     }
   } catch(_) {}
 
   const lat = courseLat, lon = courseLon;
-  if (!lat || !lon) return null;
+  if (!lat || !lon) return _syntheticHoles(0, 0);
 
-  // ── API 1: OSM Overpass (primary — GolfCourseAPI removed, key=demo is 401) ──
-    const radius = 800; // meters — enough for any 18-hole layout
-  const query = `
-    [out:json][timeout:15];
-    (
-      way["golf"="hole"](around:${radius},${lat},${lon});
-      node["golf"="hole"](around:${radius},${lat},${lon});
-      way["golf"="green"](around:${radius},${lat},${lon});
-      node["golf"="pin"](around:${radius},${lat},${lon});
-      way["golf"="tee"](around:${radius},${lat},${lon});
-    );
-    out center;
-  `;
+  // ── API 1: golf-db.com free public API ─────────────────────────
+  try {
+    const gdUrl = 'https://golf-db.com/api/v1/courses?lat=' + lat + '&lon=' + lon +
+      '&radius=5000&name=' + encodeURIComponent(courseName);
+    const gdResp = await fetch(gdUrl, { signal: AbortSignal.timeout(5000) });
+    if (gdResp.ok) {
+      const gdData = await gdResp.json();
+      const nameQ = courseName.toLowerCase().split(' ')[0];
+      const course = (gdData.courses||[]).find(c =>
+        (c.name||'').toLowerCase().includes(nameQ)
+      ) || gdData.courses?.[0];
+      if (course && course.holes && course.holes.length >= 9) {
+        const holes = course.holes.map(function(h) { return {
+          h: h.number || h.hole,
+          par: h.par || 4,
+          lat: (h.green && h.green.lat) || h.lat || null,
+          lon: (h.green && (h.green.lng || h.green.lon)) || h.lon || null,
+          teeLat: (h.tee && h.tee.lat) || null,
+          teeLon: (h.tee && (h.tee.lng || h.tee.lon)) || null,
+          yards: h.yards || h.distance || null,
+        }; });
+        const mapped = holes.filter(function(h){return h.lat;}).length;
+        if (mapped >= 3) {
+          try { sessionStorage.setItem(cacheKey, JSON.stringify({holes:holes, ts:Date.now(), source:'golf-db'})); } catch(e){}
+          console.log('GPS: golf-db.com OK ' + mapped + '/18 holes for ' + courseName);
+          return holes;
+        }
+      }
+    }
+  } catch(e) { console.warn('GPS: golf-db.com failed:', e.message); }
+
+  // ── API 2: OSM Overpass ─────────────────────────────────────────
+  const radius = 800;
+  const osmQ = '[out:json][timeout:15];(' +
+    'way["golf"="hole"](around:' + radius + ',' + lat + ',' + lon + ');' +
+    'node["golf"="hole"](around:' + radius + ',' + lat + ',' + lon + ');' +
+    'way["golf"="green"](around:' + radius + ',' + lat + ',' + lon + ');' +
+    'node["golf"="pin"](around:' + radius + ',' + lat + ',' + lon + ');' +
+    'way["golf"="tee"](around:' + radius + ',' + lat + ',' + lon + ');' +
+    ');out center;';
 
   try {
-    const data = await _overpassFetch(query, 12000);
-    const elements = data.elements || [];
-
-    // Group by hole ref number
+    const osmData = await _overpassFetch(osmQ, 12000);
+    const elements = osmData.elements || [];
     const holeMap = {};
-    for (const el of elements) {
+    for (let i=0; i < elements.length; i++) {
+      const el = elements[i];
       const tags = el.tags || {};
       const ref = parseInt(tags.ref || tags['golf:hole'] || tags.hole || '0');
       if (ref < 1 || ref > 18) continue;
-      const eLat = el.lat || el.center?.lat;
-      const eLon = el.lon || el.center?.lon;
+      const eLat = el.lat || (el.center && el.center.lat);
+      const eLon = el.lon || (el.center && el.center.lon);
       if (!eLat || !eLon) continue;
-
       if (!holeMap[ref]) holeMap[ref] = {};
       const golf = tags.golf || '';
       if (golf === 'green' || golf === 'pin' || golf === 'hole') {
@@ -124,58 +152,33 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
         holeMap[ref].tee = { lat: eLat, lon: eLon };
       }
     }
-
-    // Build array for holes 1-18
+    const pars = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];
     const holes = [];
-    for (let h = 1; h <= 18; h++) {
+    for (let h=1; h<=18; h++) {
       const hd = holeMap[h];
       holes.push({
-        h,
-        lat: hd?.green?.lat || null,
-        lon: hd?.green?.lon || null,
-        teeLat: hd?.tee?.lat || null,
-        teeLon: hd?.tee?.lon || null,
+        h: h, par: pars[h-1],
+        lat: hd && hd.green ? hd.green.lat : null,
+        lon: hd && hd.green ? hd.green.lon : null,
+        teeLat: hd && hd.tee ? hd.tee.lat : null,
+        teeLon: hd && hd.tee ? hd.tee.lon : null,
       });
     }
+    const mappedOsm = holes.filter(function(h){return h.lat;}).length;
+    if (mappedOsm >= 3) {
+      try { sessionStorage.setItem(cacheKey, JSON.stringify({holes:holes, ts:Date.now(), source:'osm'})); } catch(e){}
+      console.log('GPS: OSM OK ' + mappedOsm + '/18 holes for ' + courseName);
+      return holes;
+    }
+    console.warn('GPS: OSM only ' + mappedOsm + ' holes — synthetic');
+  } catch(e) { console.warn('GPS: OSM failed:', e.message); }
 
-    // Cache result
-    try {
-      sessionStorage.setItem(cacheKey, JSON.stringify({ holes, ts: Date.now() }));
-    } catch(_) {}
-
-    return holes;
-  } catch(e) {
-    console.warn('GPS: OSM fetch failed', e.message);
-  }
-
-  // ── API 3: Synthetic layout (always works) ──────────────────
-  console.log(`GPS: Using synthetic layout for ${courseName} (${lat.toFixed(4)},${lon.toFixed(4)})`);  
+  // ── API 3: Synthetic (always works) ────────────────────────────
+  console.log('GPS: synthetic for ' + courseName);
   return _syntheticHoles(lat, lon);
 }
 
-// Generate approximate hole positions arranged in two 9s around a course center
-function _syntheticHoles(lat, lon) {
-  const holes = [];
-  // Front 9: clockwise arc, ~200m radius
-  // Back 9: counter-clockwise, ~180m radius
-  const R_EARTH = 6371000;
-  for (let h = 1; h <= 18; h++) {
-    const isFront = h <= 9;
-    const idx = isFront ? h-1 : h-10;
-    const total = 9;
-    const angle = (idx / total) * 2 * Math.PI + (isFront ? 0 : Math.PI);
-    const r = isFront ? 0.002 : 0.0018; // ~220m / ~200m in degrees
-    const gLat = lat + r * Math.cos(angle);
-    const gLon = lon + r * Math.sin(angle) / Math.cos(lat * Math.PI / 180);
-    // Tee is on opposite side of green from center
-    const tLat = lat + (r * 0.3) * Math.cos(angle + Math.PI);
-    const tLon = lon + (r * 0.3) * Math.sin(angle + Math.PI) / Math.cos(lat * Math.PI / 180);
-    holes.push({ h, lat: gLat, lon: gLon, teeLat: tLat, teeLon: tLon, par: [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4][h-1] });
-  }
-  return holes;
-}
 
-// ── Start GPS round tracking ───────────────────────────────────
 export async function startGpsRound(courseName, courseLat, courseLon, onUpdate) {
   if (_active) stopGpsRound();
   _active      = true;

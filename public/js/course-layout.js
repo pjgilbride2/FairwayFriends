@@ -4,8 +4,8 @@
 //  Shows live GPS dot, shot history, and hole stats.
 // ============================================================
 
-import { showToast, esc } from './ui.js?v=42';
-import { fetchCourseHoles, isActive as gpsIsActive, getCurrentHole, getShots } from './gps.js?v=42';
+import { showToast, esc } from './ui.js?v=50';
+import { fetchCourseHoles, isActive as gpsIsActive, getCurrentHole, getShots } from './gps.js?v=50';
 
 // ── Overpass fetch with retry + mirror fallback ───────────────
 const OVERPASS_MIRRORS = [

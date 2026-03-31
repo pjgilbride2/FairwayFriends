@@ -283,7 +283,7 @@ export async function downgradeSubscription() {
     if (window.myProfile) window.myProfile.plan = 'free';
     showToast('Downgraded to Free plan');
     // Refresh profile UI to reflect new plan
-    const { updateProfileUI } = await import('./profile.js?v=40');
+    const { updateProfileUI } = await import('./profile.js?v=50');
     updateProfileUI();
   } catch(e) {
     showToast('Could not update plan');
