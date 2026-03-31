@@ -4,8 +4,8 @@
 //  Shows live GPS dot, shot history, and hole stats.
 // ============================================================
 
-import { showToast, esc } from './ui.js?v=64';
-import { fetchCourseHoles, gpsIsActive, getCurrentHole, getShots } from './gps.js?v=64';
+import { showToast, esc } from './ui.js?v=65';
+import { fetchCourseHoles, gpsIsActive, getCurrentHole, getShots } from './gps.js?v=65';
 
 // ── Overpass fetch with retry + mirror fallback ───────────────
 const OVERPASS_MIRRORS = [
@@ -225,7 +225,7 @@ function _renderMap() {
 
   const holeCount = _holes.filter(h => h.lat || h.polygons?.length).length;
   const mappedText = holeCount > 0 ? `${holeCount}/18 holes mapped` : 'Overview mode';
-  const currentHole = gpsIsActive() ? getCurrentHole() : 1;
+  const currentHole = gpsIsActive ? getCurrentHole() : 1;
 
   screen.innerHTML = `
     <!-- Header -->
@@ -239,9 +239,9 @@ function _renderMap() {
           <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:1px">⛳ ${mappedText}</div>
         </div>
         <button onclick="safeUI('toggleCourseLayoutGPS')" id="layout-gps-btn"
-          style="background:${gpsIsActive()?'#22c55e':'rgba(255,255,255,.12)'};border:none;color:#fff;
+          style="background:${gpsIsActive?'#22c55e':'rgba(255,255,255,.12)'};border:none;color:#fff;
                  cursor:pointer;padding:7px 12px;border-radius:20px;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap">
-          ${gpsIsActive() ? '📡 Live' : '📡 GPS Off'}
+          ${gpsIsActive ? '📡 Live' : '📡 GPS Off'}
         </button>
       </div>
       <!-- Hole selector strip -->
@@ -351,7 +351,7 @@ function _buildSVGMap(activeHole) {
   }
 
   // Shot dots for current hole
-  const shots = gpsIsActive() ? getShots().filter(s => s.hole === activeHole) : [];
+  const shots = gpsIsActive ? getShots().filter(s => s.hole === activeHole) : [];
   shots.forEach((s, i) => {
     if (!s.lat || !s.lon) return;
     const sx = toX(s.lon), sy = toY(s.lat);
@@ -382,9 +382,9 @@ function _buildSVGMap(activeHole) {
 function _buildHoleCard(h) {
   const hd   = _holes.find(x => x.h === h) || { h, par: 4 };
   const par  = hd.par || 4;
-  const dist = gpsIsActive() && _userLat && hd.lat
+  const dist = gpsIsActive && _userLat && hd.lat
     ? _feetToPin(hd.lat, hd.lon) : null;
-  const shots = gpsIsActive() ? getShots().filter(s => s.hole === h) : [];
+  const shots = gpsIsActive ? getShots().filter(s => s.hole === h) : [];
 
   return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
     <div>
@@ -404,7 +404,7 @@ function _buildHoleCard(h) {
       Shot ${i+1}${s.distToPin?` · ${s.distToPin}ft`:''}
     </div>`).join('')}
   </div>` : `<div style="font-size:12px;color:rgba(255,255,255,.3)">
-    ${gpsIsActive() ? 'Tap 🏌️ Shot on the scorecard to log shots' : 'Start GPS tracking to log shots'}
+    ${gpsIsActive ? 'Tap 🏌️ Shot on the scorecard to log shots' : 'Start GPS tracking to log shots'}
   </div>`}`;
 }
 
@@ -469,7 +469,7 @@ function _updateLiveDot() {
   inner.classList.add('user-dot');
   svg.appendChild(outer); svg.appendChild(inner);
   // Update distance card
-  const h = _selectedHole || (gpsIsActive() ? getCurrentHole() : 1);
+  const h = _selectedHole || (gpsIsActive ? getCurrentHole() : 1);
   const detail = document.getElementById('hole-detail-card');
   if (detail) detail.innerHTML = _buildHoleCard(h);
 }
