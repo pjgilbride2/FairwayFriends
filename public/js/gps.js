@@ -6,12 +6,12 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=73';
+import { db } from './firebase-config.js?v=74';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=73';
+import { showToast } from './ui.js?v=74';
 
 // ── Overpass fetch with retry + mirror fallback ───────────────
 const OVERPASS_MIRRORS = [
@@ -119,6 +119,94 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   let gcapiCoords = null;   // {lat, lon} from GolfCourseAPI — precise course center
   let gcapiHoles  = null;   // [{h, par, handicap, yards}] from GolfCourseAPI scorecard
 
+  // ── Known course direct endpoints (free, bypasses name-search) ──────────────
+  // Add entries here for courses with known golfapi.io IDs
+  const KNOWN_COURSE_ENDPOINTS = [
+    {
+      names:    ['Heritage Harbor', 'heritage harbor golf', 'heritage harbor golf & country club'],
+      clubID:   '141520610397251566',
+      courseID: '012141520658891108829',
+      fallbackLat: 28.1372,
+      fallbackLon: -82.5012,
+    },
+  ];
+  const _normN = (s) => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const _knownMatch = KNOWN_COURSE_ENDPOINTS.find(k =>
+    k.names.some(n => _normN(courseName).includes(_normN(n)) || _normN(n).includes(_normN(courseName.split(' ').slice(0,2).join(' '))))
+  );
+  if (_knownMatch) {
+    const _knownCacheKey = 'gps_known_' + _knownMatch.courseID;
+    try {
+      const _kc = sessionStorage.getItem(_knownCacheKey);
+      if (_kc) {
+        const _kcp = JSON.parse(_kc);
+        if (Date.now() - _kcp.ts < 86400000) {
+          console.log(`GPS: cache hit for ${courseName} (known-endpoint)`);
+          return _kcp.holes;
+        }
+      }
+    } catch(_) {}
+    try {
+      console.log(`GPS: using known direct endpoints for ${courseName}`);
+      // Step A: Fetch club detail for precise lat/lon
+      const _kClubResp = await fetch(
+        `${GOLFAPI_BASE}/clubs/${_knownMatch.clubID}`,
+        { headers: { Authorization: `Bearer ${GOLFAPI_KEY}` }, signal: AbortSignal.timeout(8000) }
+      );
+      const _kClub = _kClubResp.ok ? await _kClubResp.json() : null;
+      gcapiCoords = _kClub?.latitude
+        ? { lat: parseFloat(_kClub.latitude), lon: parseFloat(_kClub.longitude) }
+        : { lat: _knownMatch.fallbackLat, lon: _knownMatch.fallbackLon };
+      // Step B: Fetch coordinates directly using known courseID
+      const _kCoordResp = await fetch(
+        `${GOLFAPI_BASE}/coordinates/${_knownMatch.courseID}`,
+        { headers: { Authorization: `Bearer ${GOLFAPI_KEY}` }, signal: AbortSignal.timeout(8000) }
+      );
+      if (_kCoordResp.ok) {
+        const _kCoordData = await _kCoordResp.json();
+        const _kList = _kCoordData.coordinates || [];
+        if (_kList.length > 0) {
+          const hMap = {};
+          for (const c of _kList) {
+            const hNum = parseInt(c.hole||'0');
+            if (hNum < 1 || hNum > 18) continue;
+            if (!hMap[hNum]) hMap[hNum] = {};
+            const hLat = parseFloat(c.latitude), hLon = parseFloat(c.longitude);
+            if (isNaN(hLat) || isNaN(hLon)) continue;
+            if (c.poi === 1  && c.location === 2) hMap[hNum].green = { lat: hLat, lon: hLon };
+            else if (c.poi === 1 && !hMap[hNum].greenFallback) hMap[hNum].greenFallback = { lat: hLat, lon: hLon };
+            if (c.poi === 11 && c.location === 2) hMap[hNum].tee = { lat: hLat, lon: hLon };
+            else if (c.poi === 12 && !hMap[hNum].teeFallback) hMap[hNum].teeFallback = { lat: hLat, lon: hLon };
+          }
+          for (const hd of Object.values(hMap)) {
+            if (!hd.green && hd.greenFallback) hd.green = hd.greenFallback;
+            if (!hd.tee   && hd.teeFallback)   hd.tee   = hd.teeFallback;
+          }
+          const DEFAULT_PARS = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];
+          const holes = [];
+          for (let h = 1; h <= 18; h++) {
+            const hd = hMap[h] || {};
+            holes.push({
+              h,
+              lat:    hd.green?.lat  || null,
+              lon:    hd.green?.lon  || null,
+              teeLat: hd.tee?.lat    || null,
+              teeLon: hd.tee?.lon    || null,
+              par:      DEFAULT_PARS[h-1],
+              handicap: null,
+              yards:    null,
+            });
+          }
+          const mapped = holes.filter(h => h.lat).length;
+          console.log(`GPS: known-endpoint ✓ ${mapped}/18 holes for ${courseName} (courseID:${_knownMatch.courseID})`);
+          try { sessionStorage.setItem(_knownCacheKey, JSON.stringify({holes,ts:Date.now(),source:'known-endpoint'})); } catch(_){}
+          if (mapped >= 3) return holes;
+        }
+      }
+    } catch(e) { console.warn('GPS: known-endpoint failed:', e.message); }
+    // Fall through to general search if known-endpoint fails
+  }
+
   // ── API 1: golfapi.io — hole GPS coordinates (green/tee lat/lon per hole) ──
   // Confirmed response shapes:
   //   /clubs?name=X  → { clubs: [{ clubID, clubName, city, state, courses:[{courseID,hasGPS}] }] }
@@ -126,8 +214,6 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   //   /clubs/{clubID} → { clubID, latitude, longitude, courses:[{courseID}], ... }
   //   /coordinates/{courseID} → { coordinates:[{hole,latitude,longitude,poi,location,sideFW}] }
   //     poi=1,location=2 = green center | poi=11,location=2 = tee center
-  const GOLFAPI_KEY  = 'e75f3420-aef6-4ab7-8c93-39270d7319cc';
-  const GOLFAPI_BASE = 'https://www.golfapi.io/api/v2.3';
 
   try {
     // Step 1: Search clubs by name (0.1 call cost)

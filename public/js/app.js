@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=73";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=73";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=73";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=73";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=73";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=73";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=73";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=73";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=73";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=73";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=73";
-import { buildOnboardScreen } from "./onboard.js?v=73";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=74";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=74";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=74";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=74";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=74";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=74";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=74";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=74";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=74";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=74";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=74";
+import { buildOnboardScreen } from "./onboard.js?v=74";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=73");
+      const { initials, avatarColor } = await import("./ui.js?v=74");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1527,7 +1527,90 @@ window.UI = {
         if(label)label.textContent='Loading more courses…';
       }
 
-      // ── 5. OSM Overpass — geo-search for courses within radius ──────
+      // ── 5. Primary geo-search — Google Places (preferred) or OSM Overpass ────
+      // Google Places Nearby Search uses real lat/lon coordinates for accuracy
+      // Overpass is the fallback when no Google Places key is set
+      let txt1 = null; // Overpass result (used by Step 7 if available)
+
+      if (window._googlePlacesKey) {
+        // ── 5a. Google Places Nearby Search — coordinate-based course discovery ──
+        try {
+          const _gpRadius = Math.min(50000, Math.round((parseFloat(document.getElementById('dist-filter')?.value||25)) * 1609.34));
+          let _gpPageToken = null;
+          let _gpPage = 0;
+          do {
+            const _gpUrl = _gpPageToken
+              ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${_gpPageToken}&key=${window._googlePlacesKey}`
+              : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${_gpRadius}&type=golf_course&key=${window._googlePlacesKey}`;
+            const _gpResp = await fetch(_gpUrl).catch(()=>null);
+            if (!_gpResp?.ok) break;
+            const _gpData = await _gpResp.json().catch(()=>null);
+            if (!_gpData) break;
+            for (const place of _gpData.results||[]) {
+              const pLat = place.geometry?.location?.lat;
+              const pLon = place.geometry?.location?.lng;
+              if (!pLat || !pLon) continue;
+              const name  = place.name || 'Golf Course';
+              const key   = norm(name);
+              if (seen.has(key)) continue;
+              seen.add(key);
+              const distMi = _haversine(lat, lon, pLat, pLon);
+              const radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
+              if (distMi > radiusMi) continue;
+              courses.push({
+                name,
+                dist:         distMi,
+                lat:          pLat,
+                lon:          pLon,
+                addr:         place.vicinity || '',
+                type:         'Golf Course',
+                holes:        null,
+                phone:        null,
+                website:      null,
+                rating:       place.rating   || null,
+                slope:        null,
+                par:          null,
+                googlePlaceId: place.place_id,
+              });
+            }
+            _gpPageToken = _gpData.next_page_token || null;
+            if (_gpPageToken) await new Promise(r=>setTimeout(r,2000)); // GP requires 2s between pages
+            _gpPage++;
+          } while (_gpPageToken && _gpPage < 3);
+
+          // Also search country_club type
+          const _gpResp2 = await fetch(
+            `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${_gpRadius}&type=country_club&key=${window._googlePlacesKey}`
+          ).catch(()=>null);
+          if (_gpResp2?.ok) {
+            const _gpData2 = await _gpResp2.json().catch(()=>null);
+            for (const place of _gpData2?.results||[]) {
+              const pLat = place.geometry?.location?.lat;
+              const pLon = place.geometry?.location?.lng;
+              if (!pLat || !pLon) continue;
+              const name = place.name || 'Golf Course';
+              const key  = norm(name);
+              if (seen.has(key)) continue;
+              seen.add(key);
+              const distMi = _haversine(lat, lon, pLat, pLon);
+              const radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
+              if (distMi > radiusMi) continue;
+              courses.push({
+                name, dist:distMi, lat:pLat, lon:pLon,
+                addr: place.vicinity||'', type:'Country Club',
+                holes:null, phone:null, website:null,
+                rating:place.rating||null, slope:null, par:null,
+                googlePlaceId:place.place_id,
+              });
+            }
+          }
+          if (courses.length > 0) {
+            console.log(`Discover: Google Places found ${courses.length} courses near ${lat.toFixed(3)},${lon.toFixed(3)}`);
+          }
+        } catch(e) { console.warn('Discover: Google Places failed:', e.message); }
+      } else {
+        // ── 5b. OSM Overpass fallback — geo-search for courses within radius ──
+
       const radius = Math.round((parseFloat(document.getElementById('dist-filter')?.value || '25') || 25) * 1609.34);
       const q='[out:json][timeout:25];('+
         'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
@@ -1561,6 +1644,7 @@ window.UI = {
         ]);
         txt1 = raceResult;
       } catch(e) { txt1=null; }
+      } // end else (no Google Places key)
 
       // ── 5b. GolfCourseAPI city fallback if Overpass failed ──────────────
       if (!txt1) {
@@ -1635,48 +1719,7 @@ window.UI = {
         } catch(e) { console.warn('Discover: GolfCourseAPI fallback failed:', e.message); }
       }
 
-      // ── 5c. Google Places Nearby Search — additional course discovery ────────
-      if (window._googlePlacesKey) {
-        try {
-          const _gpRadius = Math.min(50000, Math.round((parseFloat(document.getElementById('dist-filter')?.value||25)) * 1609.34));
-          const _gpTypes  = ['golf_course', 'country_club'];
-          for (const _gpType of _gpTypes) {
-            const _gpUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${_gpRadius}&type=${_gpType}&key=${window._googlePlacesKey}`;
-            const _gpResp = await fetch(_gpUrl).catch(()=>null);
-            if (!_gpResp?.ok) continue;
-            const _gpData = await _gpResp.json().catch(()=>null);
-            for (const place of _gpData?.results||[]) {
-              const pLat = place.geometry?.location?.lat;
-              const pLon = place.geometry?.location?.lng;
-              if (!pLat || !pLon) continue;
-              const name  = place.name || 'Golf Course';
-              const key   = norm(name);
-              if (seen.has(key)) continue;
-              seen.add(key);
-              const distMi = _haversine(lat, lon, pLat, pLon);
-              const radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
-              if (distMi > radiusMi) continue;
-              courses.push({
-                name,
-                dist:    distMi,
-                lat:     pLat,
-                lon:     pLon,
-                addr:    place.vicinity || '',
-                type:    _gpType === 'country_club' ? 'Country Club' : 'Golf Course',
-                holes:   null,
-                phone:   null,
-                website: null,
-                rating:  place.rating || null,
-                slope:   null,
-                par:     null,
-                googlePlaceId: place.place_id,
-              });
-            }
-          }
-          if (courses.length > 0) console.log(`Discover: Google Places added courses, total=${courses.length}`);
-        } catch(e) { console.warn('Discover: Google Places failed:', e.message); }
-      }
-
+      // (Google Places now runs as primary in step 5a above)
       // ── Step 7: txt1 Overpass processing ────────────────────────────
       if (txt1) {
         const parsed = (JSON.parse(txt1).elements || []);
