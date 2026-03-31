@@ -2,17 +2,17 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=41";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=41";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=41";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=41";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=41";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=41";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=41";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=41";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=41";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=41";
-import { buildOnboardScreen } from "./onboard.js?v=41";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=42";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=42";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=42";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=42";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=42";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=42";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=42";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=42";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=42";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=42";
+import { buildOnboardScreen } from "./onboard.js?v=42";
 
 
 // ── Haversine distance in miles ──
@@ -111,15 +111,26 @@ window.UI = {
       if (scCourseInp && !scCourseInp.dataset.acWired) {
         scCourseInp.dataset.acWired = '1';
         scCourseInp.setAttribute('autocomplete','off');
+        scCourseInp.style.background = '#ffffff';
+        scCourseInp.style.color = '#1a1a1a';
+        scCourseInp.style.border = '1.5px solid #d1d5db';
+        scCourseInp.style.borderRadius = '10px';
+        scCourseInp.style.padding = '10px 12px';
+        scCourseInp.style.fontFamily = 'inherit';
+        scCourseInp.style.fontSize = '14px';
+        scCourseInp.style.width = '100%';
+        scCourseInp.style.boxSizing = 'border-box';
+        scCourseInp.onfocus = () => { scCourseInp.style.border = '1.5px solid #16a34a'; scCourseInp.style.outline = 'none'; };
+        scCourseInp.onblur = () => { scCourseInp.style.border = '1.5px solid #d1d5db'; };
         const scAcId = 'sc-course-ac';
         let scAc = document.getElementById(scAcId);
         if (!scAc) {
           scAc = document.createElement('div');
           scAc.id = scAcId;
           scAc.style.cssText = [
-            'position:absolute','z-index:300','background:var(--bg)',
-            'border:1px solid var(--border)','border-radius:10px',
-            'box-shadow:0 6px 20px rgba(0,0,0,.15)','max-height:220px',
+            'position:absolute','z-index:300','background:#ffffff',
+            'border:1.5px solid var(--green)','border-radius:12px',
+            'box-shadow:0 8px 24px rgba(0,0,0,.18)','max-height:220px',
             'overflow-y:auto','width:100%','left:0','top:calc(100% + 4px)','display:none'
           ].join(';');
           const wrap = scCourseInp.parentNode;
@@ -145,10 +156,10 @@ window.UI = {
           scAc.innerHTML = matches.map(c => {
             const safeName = esc(c.name||'');
             const dist = c.dist ? ` <span style="font-size:11px;color:var(--muted)">${c.dist.toFixed(1)} mi</span>` : '';
-            return `<div style="padding:10px 14px;cursor:pointer;font-size:14px;color:var(--text);
-                border-bottom:0.5px solid var(--border)"
-              onmouseover="this.style.background='var(--surface)'"
-              onmouseout="this.style.background=''"
+            return `<div style="padding:11px 14px;cursor:pointer;font-size:14px;font-weight:500;color:#1a1a1a;
+                background:#ffffff;border-bottom:0.5px solid #e5e7eb"
+              onmouseover="this.style.background='#f0fdf4';this.style.color='#166534'"
+              onmouseout="this.style.background='#ffffff';this.style.color='#1a1a1a'"
               onmousedown="document.getElementById('sc-course-input').value='${safeName}';document.getElementById('${scAcId}').style.display='none';event.preventDefault()">
               ⛳ ${safeName}${dist}
             </div>`;
@@ -653,7 +664,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=41");
+      const { initials, avatarColor } = await import("./ui.js?v=42");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
