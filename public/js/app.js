@@ -7,6 +7,7 @@ import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, upload
 import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=42";
 import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=42";
 import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=42";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=42";
 import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=42";
 import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=42";
 import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=42";
@@ -32,7 +33,7 @@ window.UI = {
   goScreen(name) {
     // Sanitize — only allow known screen names
     const VALID_SCREENS = ["feed","players","search","scorecard","profile","edit-profile",
-      "vibes","messages","conversation","my-activity","auth","onboard","notifications","player-profile"];
+      "vibes","messages","conversation","my-activity","auth","onboard","notifications","player-profile","course-layout"];
     if(name && !VALID_SCREENS.includes(name)) { console.warn("Invalid screen:", name); return; }
     goScreen(name);
     if (name === "scorecard") {
@@ -94,6 +95,9 @@ window.UI = {
               <button onclick="safeUI('nextGpsHole')"
                 style="padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);
                   color:var(--text);font-size:13px;cursor:pointer;font-family:inherit">▶</button>
+              <button onclick="safeUI('openCourseLayoutScreen')"
+                style="padding:10px 12px;border-radius:12px;border:1.5px solid var(--green);background:var(--green-light);
+                  color:var(--green-dark);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">🗺️ Map</button>
             </div>
             <!-- Shot history strip -->
             <div id="gps-shots-strip"
@@ -336,7 +340,7 @@ window.UI = {
     if (name === "my-activity")  UI.loadFullActivity();
     if (name === "conversation") {} // handled by openConversation
     // Show/hide bottom nav based on screen type
-    const noBottomNav = ["auth","onboard","vibes","edit-profile","conversation","my-activity","player-profile"];
+    const noBottomNav = ["auth","onboard","vibes","edit-profile","conversation","my-activity","player-profile","course-layout"];
     const bottomNav   = document.getElementById("bottom-nav");
     if (bottomNav) {
       bottomNav.style.display = noBottomNav.includes(name) ? "none" : "flex";
@@ -1527,6 +1531,37 @@ window.UI = {
     const courseInput = document.getElementById("sc-course-input");
     const courseName  = courseInput ? courseInput.value.trim() || "Unknown course" : "Unknown course";
     await saveRound(courseName);
+  },
+
+  // ── Course Layout ─────────────────────────────────────────
+  async openCourseLayoutScreen() {
+    const courseName = document.getElementById('sc-course-input')?.value?.trim()
+                    || window.myProfile?.homeCourse || '';
+    let cLat = window._wxLat, cLon = window._wxLon;
+    const match = (window._nearbyCourses||[]).find(c=>c.name===courseName);
+    if (match?.lat) { cLat=match.lat; cLon=match.lon; }
+    if (!cLat) { showToast('Set your city in profile to use course layout'); return; }
+    await openCourseLayout(courseName, cLat, cLon);
+  },
+
+  closeCourseLayout() {
+    closeCourseLayout();
+    const origin = window._ppOriginScreen || 'scorecard';
+    safeUI('goScreen', origin);
+  },
+
+  selectLayoutHole(h) { selectLayoutHole(parseInt(h)); },
+
+  toggleCourseLayoutGPS() {
+    if (gpsIsActive()) {
+      stopGpsRound();
+      const btn = document.getElementById('layout-gps-btn');
+      if (btn) { btn.textContent = '📡 GPS Off'; btn.style.background = 'rgba(255,255,255,.12)'; }
+    } else {
+      safeUI('startGpsTracking');
+      const btn = document.getElementById('layout-gps-btn');
+      if (btn) { btn.textContent = '📡 Live'; btn.style.background = '#22c55e'; }
+    }
   },
 
   // ── GPS Tracking methods ──────────────────────────────────
