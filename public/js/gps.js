@@ -164,41 +164,133 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   } catch(e) { console.warn('GPS: GolfCourseAPI failed:', e.message); }
 
   // ── API 2: OSM Overpass — hole GPS coordinates ────────────────────────────
-  // Use GolfCourseAPI coords if available (more precise than user's location)
+  // Strategy:
+  //   1. golf=hole ways have ref tags (hole numbers) — use their centers as pin positions
+  //   2. golf=green polygons are more accurate but often lack ref tags — match by proximity
+  //   3. golf=tee polygons are near the start of each hole — match nearest tee per hole
+  //   4. Increase radius to 1200m to catch long par-5s that extend further
+
   const queryLat = gcapiCoords?.lat || lat;
   const queryLon = gcapiCoords?.lon || lon;
-  const radius   = 800;
+  const radius   = 1200; // increased: par-5s can span 500m+
 
   const query = `
-    [out:json][timeout:15];
+    [out:json][timeout:20];
     (
       way["golf"="hole"](around:${radius},${queryLat},${queryLon});
-      node["golf"="hole"](around:${radius},${queryLat},${queryLon});
       way["golf"="green"](around:${radius},${queryLat},${queryLon});
+      node["golf"="green"](around:${radius},${queryLat},${queryLon});
       node["golf"="pin"](around:${radius},${queryLat},${queryLon});
       way["golf"="tee"](around:${radius},${queryLat},${queryLon});
+      node["golf"="tee"](around:${radius},${queryLat},${queryLon});
     );
-    out center;
+    out center tags;
   `;
 
   try {
-    const osmData  = await _overpassFetch(query, 12000);
+    const osmData  = await _overpassFetch(query, 15000);
     const elements = osmData.elements || [];
 
-    const holeMap = {};
+    // ── Pass 1: Extract golf=hole ways (have ref, center = mid-fairway) ──────
+    // These are the most reliable because they always have hole numbers
+    const holeMap  = {};
+    const greenList= []; // all green polygons regardless of ref
+    const teeList  = []; // all tee polygons regardless of ref
+
     for (const el of elements) {
       const tags = el.tags || {};
-      const ref  = parseInt(tags.ref || tags['golf:hole'] || tags.hole || '0');
-      if (ref < 1 || ref > 18) continue;
+      const golf = tags.golf || '';
       const eLat = el.lat || el.center?.lat;
       const eLon = el.lon || el.center?.lon;
       if (!eLat || !eLon) continue;
-      if (!holeMap[ref]) holeMap[ref] = {};
-      const golf = tags.golf || '';
-      if (golf === 'green' || golf === 'pin' || golf === 'hole') {
-        holeMap[ref].green = { lat: eLat, lon: eLon };
+
+      if (golf === 'hole') {
+        // golf=hole ways are routing lines tee→green; center ≈ mid-fairway
+        // The END of the way is nearest the green — but center is good enough for GPS
+        const ref = parseInt(tags.ref || tags['golf:hole'] || '0');
+        if (ref >= 1 && ref <= 18) {
+          if (!holeMap[ref]) holeMap[ref] = {};
+          // Use as fallback green position (will be overridden by actual green below)
+          holeMap[ref].holeLine = { lat: eLat, lon: eLon };
+          holeMap[ref].ref = ref;
+        }
+      } else if (golf === 'green' || golf === 'pin') {
+        const ref = parseInt(tags.ref || tags['golf:hole'] || '0');
+        if (ref >= 1 && ref <= 18) {
+          // Green has a ref — direct match
+          if (!holeMap[ref]) holeMap[ref] = {};
+          holeMap[ref].green = { lat: eLat, lon: eLon };
+        } else {
+          // Green without ref — collect for proximity matching
+          greenList.push({ lat: eLat, lon: eLon });
+        }
       } else if (golf === 'tee') {
-        holeMap[ref].tee = { lat: eLat, lon: eLon };
+        const ref = parseInt(tags.ref || tags['golf:hole'] || '0');
+        if (ref >= 1 && ref <= 18) {
+          if (!holeMap[ref]) holeMap[ref] = {};
+          if (!holeMap[ref].tee) holeMap[ref].tee = { lat: eLat, lon: eLon };
+        } else {
+          teeList.push({ lat: eLat, lon: eLon });
+        }
+      }
+    }
+
+    // ── Pass 2: Match unref'd greens to holes by proximity ───────────────────
+    // Each golf=hole center is mid-fairway; the nearest unref'd green to the
+    // END of the hole (approximated by the hole center shifted toward the green)
+    // is the most likely match. Simple: find nearest unref'd green to each hole center.
+    if (greenList.length > 0) {
+      const used = new Set();
+      const hdist = (a, b) => {
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(a.lat-b.lat)*d2r, dLon=(a.lon-b.lon)*d2r;
+        const x=Math.sin(dLat/2)**2+Math.cos(b.lat*d2r)*Math.cos(a.lat*d2r)*Math.sin(dLon/2)**2;
+        return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))*5280; // feet
+      };
+      for (const [ref, hd] of Object.entries(holeMap)) {
+        if (hd.green) continue; // already has a green
+        const anchor = hd.holeLine || hd.tee;
+        if (!anchor) continue;
+        let best = null, bestDist = Infinity;
+        for (let i = 0; i < greenList.length; i++) {
+          if (used.has(i)) continue;
+          const d = hdist(greenList[i], anchor);
+          if (d < bestDist && d < 1200) { bestDist = d; best = i; }
+        }
+        if (best !== null) {
+          hd.green = greenList[best];
+          used.add(best);
+        }
+      }
+    }
+
+    // ── Pass 3: Match unref'd tees to holes by proximity ─────────────────────
+    if (teeList.length > 0) {
+      const used = new Set();
+      const hdist = (a, b) => {
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(a.lat-b.lat)*d2r, dLon=(a.lon-b.lon)*d2r;
+        const x=Math.sin(dLat/2)**2+Math.cos(b.lat*d2r)*Math.cos(a.lat*d2r)*Math.sin(dLon/2)**2;
+        return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))*5280;
+      };
+      for (const [ref, hd] of Object.entries(holeMap)) {
+        if (hd.tee) continue;
+        const anchor = hd.holeLine;
+        if (!anchor) continue;
+        let best = null, bestDist = Infinity;
+        for (let i = 0; i < teeList.length; i++) {
+          if (used.has(i)) continue;
+          const d = hdist(teeList[i], anchor);
+          if (d < bestDist && d < 800) { bestDist = d; best = i; }
+        }
+        if (best !== null) { hd.tee = teeList[best]; used.add(best); }
+      }
+    }
+
+    // ── Pass 4: Fallback — use hole-line center as green if nothing better ────
+    for (const [ref, hd] of Object.entries(holeMap)) {
+      if (!hd.green && hd.holeLine) {
+        hd.green = hd.holeLine; // mid-fairway is better than synthetic
       }
     }
 
