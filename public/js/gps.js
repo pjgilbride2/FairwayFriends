@@ -251,7 +251,7 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   } catch(e) { console.warn('GPS: golfapi.io failed:', e.message); }
 
   // ── API 2: GolfCourseAPI.com — scorecard + precise course location ─────────
-  const GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
+  GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
   try {
     const gcResp = await fetch(
       `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(courseName)}`,
@@ -261,11 +261,11 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
       const gcData = await gcResp.json();
       let best = null, bestDist = Infinity;
       for (const c of gcData.courses || []) {
-        const cLat = c.location?.latitude, cLon = c.location?.longitude;
+        cLat = c.location?.latitude, cLon = c.location?.longitude;
         if (!cLat || !cLon) continue;
-        const R=3958.8, d2r=Math.PI/180;
-        const dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
-        const a=Math.sin(dLat/2)**2+Math.cos(lat*d2r)*Math.cos(cLat*d2r)*Math.sin(dLon/2)**2;
+        R=3958.8, d2r=Math.PI/180;
+        dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
+        a=Math.sin(dLat/2)**2+Math.cos(lat*d2r)*Math.cos(cLat*d2r)*Math.sin(dLon/2)**2;
         const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
         if (dist < bestDist) { bestDist=dist; best=c; }
       }
@@ -350,8 +350,8 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
     if (greenList.length > 0) {
       const used = new Set();
       const hdist = (a, b) => {
-        const R=3958.8, d2r=Math.PI/180;
-        const dLat=(a.lat-b.lat)*d2r, dLon=(a.lon-b.lon)*d2r;
+        R=3958.8, d2r=Math.PI/180;
+        dLat=(a.lat-b.lat)*d2r, dLon=(a.lon-b.lon)*d2r;
         const x=Math.sin(dLat/2)**2+Math.cos(b.lat*d2r)*Math.cos(a.lat*d2r)*Math.sin(dLon/2)**2;
         return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))*5280;
       };
@@ -373,8 +373,8 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
     if (teeList.length > 0) {
       const used = new Set();
       const hdist = (a, b) => {
-        const R=3958.8, d2r=Math.PI/180;
-        const dLat=(a.lat-b.lat)*d2r, dLon=(a.lon-b.lon)*d2r;
+        R=3958.8, d2r=Math.PI/180;
+        dLat=(a.lat-b.lat)*d2r, dLon=(a.lon-b.lon)*d2r;
         const x=Math.sin(dLat/2)**2+Math.cos(b.lat*d2r)*Math.cos(a.lat*d2r)*Math.sin(dLon/2)**2;
         return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))*5280;
       };
@@ -397,11 +397,11 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
       if (!hd.green && hd.holeLine) hd.green = hd.holeLine;
     }
 
-    const DEFAULT_PARS = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];
-    const holes = [];
-    for (let h = 1; h <= 18; h++) {
-      const hd = holeMap[h] || {};
-      const gc = gcapiHoles?.[h-1] || {};
+    DEFAULT_PARS = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];
+    holes = [];
+    for (h = 1; h <= 18; h++) {
+      hd = holeMap[h] || {};
+      gc = gcapiHoles?.[h-1] || {};
       holes.push({
         h,
         lat:    hd.green?.lat  || null,
@@ -430,7 +430,7 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   const synth = _syntheticHoles(gcapiCoords?.lat || lat, gcapiCoords?.lon || lon);
   if (gcapiHoles) {
     synth.forEach((h,i) => {
-      const gc = gcapiHoles[i] || {};
+      gc = gcapiHoles[i] || {};
       h.par      = gc.par      || h.par;
       h.handicap = gc.handicap || null;
       h.yards    = gc.yards    || null;
@@ -443,17 +443,17 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
 
 // ── Generate approximate 18-hole layout around course center ─────────────────
 function _syntheticHoles(lat, lon) {
-  const holes = [];
-  for (let h = 1; h <= 18; h++) {
-    const isFront = h <= 9;
-    const idx     = isFront ? h-1 : h-10;
-    const angle   = (idx / 9) * 2 * Math.PI + (isFront ? 0 : Math.PI);
-    const r       = isFront ? 0.002 : 0.0018;
-    const cosLat  = Math.cos(lat * Math.PI / 180);
-    const gLat    = lat + r * Math.cos(angle);
-    const gLon    = lon + r * Math.sin(angle) / cosLat;
-    const tLat    = lat + (r * 0.3) * Math.cos(angle + Math.PI);
-    const tLon    = lon + (r * 0.3) * Math.sin(angle + Math.PI) / cosLat;
+  holes = [];
+  for (h = 1; h <= 18; h++) {
+    isFront = h <= 9;
+    idx     = isFront ? h-1 : h-10;
+    angle   = (idx / 9) * 2 * Math.PI + (isFront ? 0 : Math.PI);
+    r       = isFront ? 0.002 : 0.0018;
+    cosLat  = Math.cos(lat * Math.PI / 180);
+    gLat    = lat + r * Math.cos(angle);
+    gLon    = lon + r * Math.sin(angle) / cosLat;
+    tLat    = lat + (r * 0.3) * Math.cos(angle + Math.PI);
+    tLon    = lon + (r * 0.3) * Math.sin(angle + Math.PI) / cosLat;
     holes.push({
       h,
       lat:    gLat, lon:    gLon,
@@ -499,9 +499,9 @@ function _gpsOnPosition(pos) {
   const hole = _gpsHoles?.[_gpsCurHole - 1];
   let distToPin = null;
   if (hole?.lat) {
-    const R=3958.8*5280, d2r=Math.PI/180;
-    const dLat=(hole.lat-pLat)*d2r, dLon=(hole.lon-pLon)*d2r;
-    const a=Math.sin(dLat/2)**2+Math.cos(pLat*d2r)*Math.cos(hole.lat*d2r)*Math.sin(dLon/2)**2;
+    R=3958.8*5280, d2r=Math.PI/180;
+    dLat=(hole.lat-pLat)*d2r, dLon=(hole.lon-pLon)*d2r;
+    a=Math.sin(dLat/2)**2+Math.cos(pLat*d2r)*Math.cos(hole.lat*d2r)*Math.sin(dLon/2)**2;
     distToPin = Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
   }
   if (_gpsUpdateCb) _gpsUpdateCb({ hole: _gpsCurHole, holes: _gpsHoles, pos: {lat:pLat,lon:pLon}, distToPin });
