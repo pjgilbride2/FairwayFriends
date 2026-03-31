@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=42";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=42";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=42";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=42";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=42";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=42";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=42";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=42";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=42";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=42";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=42";
-import { buildOnboardScreen } from "./onboard.js?v=42";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=43";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=43";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=43";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=43";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=43";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=43";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=43";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=43";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=43";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=43";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=43";
+import { buildOnboardScreen } from "./onboard.js?v=43";
 
 
 // ── Haversine distance in miles ──
@@ -318,7 +318,16 @@ window.UI = {
         bar.innerHTML = `
           <label for="dist-filter" style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px">📍 Within</label>
           <select id="dist-filter"
-            onchange="safeUI('filterCourses',document.getElementById('course-search-input')?.value||'')"
+            onchange="(function(){
+                const newMi=parseFloat(document.getElementById('dist-filter')?.value||200);
+                const lastMi=window._lastFetchedMiles||0;
+                if(newMi>lastMi){
+                  window._nearbyCourses=null;window._coursesLoading=false;
+                  safeUI('loadNearbyCourses');
+                }else{
+                  safeUI('filterCourses',document.getElementById('course-search-input')?.value||'');
+                }
+              })()" 
             style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);
               background:var(--surface);color:var(--text);font-size:14px;font-weight:500;
               font-family:inherit;cursor:pointer;outline:none;appearance:none;
@@ -326,9 +335,12 @@ window.UI = {
               background-repeat:no-repeat;background-position:right 12px center;padding-right:32px">
             <option value="5">5 miles</option>
             <option value="10">10 miles</option>
-            <option value="25" selected>25 miles</option>
+            <option value="25">25 miles</option>
             <option value="50">50 miles</option>
-            <option value="999">Any distance</option>
+            <option value="75">75 miles</option>
+            <option value="100">100 miles</option>
+            <option value="150">150 miles</option>
+            <option value="200" selected>200 miles</option>
           </select>
         `;
         coursesList.parentNode.insertBefore(bar, coursesList);
@@ -668,7 +680,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=42");
+      const { initials, avatarColor } = await import("./ui.js?v=43");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1264,7 +1276,7 @@ window.UI = {
         const cd=sessionStorage.getItem(ck);
         if(cd){const p=JSON.parse(cd); if(p.ts&&Date.now()-p.ts<86400000&&p.data?.length>0){
           window._nearbyCourses=p.data; UI.filterCourses('');
-          if(label)label.textContent=p.data.length+' golf courses within 25 miles';
+          if(label)label.textContent=p.data.length+' golf courses found';
           window._coursesLoading=false; return;
         }}
       } catch(_) {}
@@ -1302,7 +1314,7 @@ window.UI = {
       }
 
       // ── 5. Overpass: short timeout mirrors in parallel ─────────────
-      const radius=40234;
+      const radius = Math.round((parseFloat(document.getElementById('dist-filter')?.value || '200') || 200) * 1609.34);
       const q='[out:json][timeout:20];('+
         'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
         'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
@@ -1396,8 +1408,8 @@ window.UI = {
 
       // ── 8. Cache 24hr and render ───────────────────────────────────
       try{sessionStorage.setItem(ck,JSON.stringify({ts:Date.now(),data:courses}));}catch(_){}
-      window._nearbyCourses=courses; UI.filterCourses('');
-      if(label)label.textContent=courses.length+' golf courses within 25 miles';
+      window._nearbyCourses=courses; window._lastFetchedMiles=parseFloat(document.getElementById('dist-filter')?.value||200); UI.filterCourses('');
+      if(label)label.textContent=courses.length+' golf courses found';
 
     }catch(e){
       console.error('courses error:',e.message);
@@ -1420,9 +1432,11 @@ window.UI = {
     const courses = window._nearbyCourses || [];
     const q = (query || '').toLowerCase().trim();
     const maxDist = parseFloat(document.getElementById('dist-filter')?.value || '999');
-    let filtered = q ? courses.filter(c => c.name.toLowerCase().includes(q)) : courses;
-    // Apply distance filter
-    filtered = filtered.filter(c => !c.dist || c.dist <= maxDist);
+    let filtered = q ? courses.filter(c => c.name.toLowerCase().includes(q)) : [...courses];
+    // Apply distance filter (maxDist from select, up to 200mi)
+    if (maxDist < 200) {
+      filtered = filtered.filter(c => !c.dist || c.dist <= maxDist);
+    }
     const container = document.getElementById('courses-list');
     if (!container) return;
     if (!filtered.length) {
