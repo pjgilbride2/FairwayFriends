@@ -3,14 +3,14 @@
 //  Handles: loading, saving, photo upload, UI rendering
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=62";
+import { db, storage } from "./firebase-config.js?v=63";
 import {
   doc, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=62";
+import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=63";
 
 export let myProfile = {};
 export let myVibes   = [];
@@ -283,7 +283,7 @@ export async function downgradeSubscription() {
     if (window.myProfile) window.myProfile.plan = 'free';
     showToast('Downgraded to Free plan');
     // Refresh profile UI to reflect new plan
-    const { updateProfileUI } = await import('./profile.js?v=50');
+    const { updateProfileUI } = await import('./profile.js?v=63');
     updateProfileUI();
   } catch(e) {
     showToast('Could not update plan');

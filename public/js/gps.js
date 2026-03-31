@@ -6,12 +6,12 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=50';
+import { db } from './firebase-config.js?v=63';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=50';
+import { showToast } from './ui.js?v=63';
 
 // ── Overpass fetch with retry + mirror fallback ───────────────
 const OVERPASS_MIRRORS = [
@@ -519,4 +519,13 @@ export function stopGpsRound() {
   if (_gpsAutoTimer) { clearTimeout(_gpsAutoTimer); _gpsAutoTimer = null; }
   gpsIsActive = false;
   return _gpsRound;
+}
+
+// ── Accessors for course-layout.js ───────────────────────────────────────────
+export function getCurrentHole() {
+  return _gpsCurHole || _currentHole || 1;
+}
+
+export function getShots() {
+  return _gpsRound?.shots || _shots || [];
 }
