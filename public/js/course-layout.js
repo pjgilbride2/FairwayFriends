@@ -29,7 +29,7 @@ async function _overpassFetch(query, timeoutMs=18000) {
           signal: AbortSignal.timeout(timeoutMs),
           headers:{'Accept':'application/json'}
         });
-        if (resp.status===429){ await new Promise(r=>setTimeout(r,3000+attempt*2000)); continue; }
+        if (resp.status===429){ await new Promise(r=>setTimeout(r,2000+attempt*1500)); break; } // try next mirror
         if (!resp.ok) continue;
         const ct = resp.headers.get('content-type')||'';
         if (!ct.includes('json')) continue;

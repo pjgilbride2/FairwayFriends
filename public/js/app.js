@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=47";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=47";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=47";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=47";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=47";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=47";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=47";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=47";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=47";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=47";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=47";
-import { buildOnboardScreen } from "./onboard.js?v=47";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=48";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=48";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=48";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=48";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=48";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=48";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=48";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=48";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=48";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=48";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=48";
+import { buildOnboardScreen } from "./onboard.js?v=48";
 
 
 // ── Haversine distance in miles ──
@@ -697,6 +697,7 @@ window.UI = {
           'background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;margin-bottom:10px">' +
           '<div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Add Members</div>' +
           '<div id="group-member-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:10px;margin-bottom:8px"></div>' +
+          '<input id="group-member-search" placeholder="Search followers by name…" oninput="safeUI(\'searchGroupMembers\',this.value)" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;margin-bottom:8px">' +
           '<div id="group-member-search-results" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>' +
           '<button id="create-group-btn" disabled onclick="safeUI(\"createGroup\")" ' +
           'style="width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:20px;' +
@@ -710,7 +711,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=47");
+      const { initials, avatarColor } = await import("./ui.js?v=48");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -945,25 +946,76 @@ window.UI = {
   },
 
   // ── Group messaging ──────────────────────────────────────
-  showNewDMSearch() {
-    // Scroll to / focus the existing search input in messages
-    const searchInp = document.getElementById('msg-search-input') || document.querySelector('#screen-messages input[type="search"], #screen-messages input[placeholder*="Search"]');
-    if (searchInp) {
-      searchInp.focus();
-      searchInp.scrollIntoView({ behavior:'smooth', block:'center' });
-    } else {
-      // Fallback — show the group member search so user can start a DM
-      const inp = document.getElementById('group-member-search');
-      if (inp) { safeUI('showNewGroupPanel'); }
-    }
+  async showNewDMSearch() {
+    // Build a DM picker modal
+    const existing = document.getElementById('dm-picker-modal');
+    if (existing) { existing.remove(); return; }
+    const following = await loadFollowing().catch(()=>[]);
+    const modal = document.createElement('div');
+    modal.id = 'dm-picker-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:flex;align-items:flex-end;justify-content:center';
+    modal.innerHTML = `
+      <div style="background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 16px 40px;max-height:70vh;overflow-y:auto">
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px">New Message</div>
+        <input id="dm-search-inp" placeholder="Search followers…" oninput="UI._filterDMSearch(this.value)"
+          style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);
+            background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;margin-bottom:12px">
+        <div id="dm-search-results">
+          ${following.length ? following.map(f=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;
+              background:var(--surface);margin-bottom:8px;cursor:pointer"
+              onclick="document.getElementById('dm-picker-modal').remove();UI.startConversation('${f.uid}','${esc(f.displayName||'Golfer')}')">
+              <div style="font-size:14px;font-weight:500;color:var(--text)">${esc(f.displayName||'Golfer')}</div>
+            </div>`).join('')
+            : '<div style="font-size:13px;color:var(--muted);padding:8px">No followers yet — connect with players first</div>'}
+        </div>
+        <button onclick="document.getElementById('dm-picker-modal').remove()"
+          style="margin-top:12px;width:100%;padding:12px;border-radius:12px;background:var(--surface);
+            border:1px solid var(--border);color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit">
+          Cancel
+        </button>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+    window._dmFollowing = following;
+    setTimeout(()=>document.getElementById('dm-search-inp')?.focus(), 100);
   },
 
-  showNewGroupPanel() {
+  _filterDMSearch(q) {
+    const following = window._dmFollowing || [];
+    const lower = q.toLowerCase().trim();
+    const filtered = lower ? following.filter(f=>(f.displayName||'').toLowerCase().includes(lower)) : following;
+    const el = document.getElementById('dm-search-results');
+    if (!el) return;
+    el.innerHTML = filtered.length ? filtered.map(f=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;
+        background:var(--surface);margin-bottom:8px;cursor:pointer"
+        onclick="document.getElementById('dm-picker-modal').remove();UI.startConversation('${f.uid}','${esc(f.displayName||'Golfer')}')">
+        <div style="font-size:14px;font-weight:500;color:var(--text)">${esc(f.displayName||'Golfer')}</div>
+      </div>`).join('')
+      : '<div style="font-size:13px;color:var(--muted);padding:8px">No matches</div>';
+  },
+
+  async showNewGroupPanel() {
     window._groupMembers = []; // reset selection
     const panel = document.getElementById("new-group-panel");
     const msgSearch = document.getElementById("msg-search-area");
-    if (panel) panel.style.display = panel.style.display==="none"?"":"none";
+    if (panel) panel.style.display = panel.style.display==="none"?"block":"none";
     if (msgSearch) msgSearch.style.display = panel?.style.display==="none"?"":"none";
+    if (panel && panel.style.display==="block") {
+      // Pre-load followers so member search works immediately
+      const chips = document.getElementById('group-member-chips');
+      const results = document.getElementById('group-member-search-results');
+      const searchInp = document.getElementById('group-member-search');
+      if (chips) chips.innerHTML = '';
+      if (searchInp) searchInp.value = '';
+      if (results) {
+        results.innerHTML = '<div style="padding:8px;font-size:13px;color:var(--muted)">Loading followers…</div>';
+        const following = await loadFollowing().catch(()=>[]);
+        window._groupFollowing = following;
+        this._renderGroupSearchResults(following, results);
+      }
+    }
     if (panel && panel.style.display !== "none") {
       // Load following for group selection
       loadFollowing().then(people => {
@@ -991,6 +1043,38 @@ window.UI = {
     }
     const btn = document.getElementById("create-group-btn");
     if (btn) btn.disabled = (window._groupMembers||[]).length < 1;
+  },
+
+  searchGroupMembers(q) {
+    const results = document.getElementById('group-member-search-results');
+    if (!results) return;
+    const following = window._groupFollowing || [];
+    const lower = (q||'').toLowerCase().trim();
+    const filtered = lower
+      ? following.filter(f => (f.displayName||'').toLowerCase().includes(lower))
+      : following;
+    this._renderGroupSearchResults(filtered, results);
+  },
+
+  _renderGroupSearchResults(list, container) {
+    if (!container) return;
+    const members = window._groupMembers || [];
+    if (!list.length) {
+      container.innerHTML = '<div style="padding:8px;font-size:13px;color:var(--muted)">No followers found — Connect with players first</div>';
+      return;
+    }
+    container.innerHTML = list.map(f => {
+      const isAdded = members.some(m => m.uid === f.uid);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;
+          border-radius:10px;background:var(--surface);margin-bottom:6px;cursor:pointer"
+          onclick="safeUI('toggleGroupMember','${f.uid}','${esc(f.displayName||'Golfer')}')">
+          <span style="font-size:14px;color:var(--text)">${esc(f.displayName||'Golfer')}</span>
+          <span style="font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600;
+            background:${isAdded?'var(--green)':'var(--surface)'};
+            color:${isAdded?'#fff':'var(--muted)'};border:1px solid ${isAdded?'var(--green)':'var(--border)'}"
+            >${isAdded?'✓ Added':'Add'}</span>
+        </div>`;
+    }).join('');
   },
 
   async createGroup() {
@@ -1497,10 +1581,20 @@ window.UI = {
     if (maxDist < 100) {
       filtered = filtered.filter(c => !c.dist || c.dist <= maxDist);
     }
+    // Update radius label to reflect filtered count
+    const label = document.getElementById('courses-radius-label');
+    if (label) {
+      const total = courses.length;
+      const mi = parseFloat(document.getElementById('dist-filter')?.value || '100');
+      const distText = mi >= 100 ? '100 mi' : `${mi} mi`;
+      label.textContent = filtered.length === total
+        ? `${total} courses within ${distText}`
+        : `${filtered.length} of ${total} courses within ${distText}`;
+    }
     const container = document.getElementById('courses-list');
     if (!container) return;
     if (!filtered.length) {
-      container.innerHTML = '<div class="empty-state">No courses match your search.</div>';
+      container.innerHTML = '<div class="empty-state">No courses found within that distance.</div>';
       return;
     }
     container.innerHTML = filtered.map(c => {
@@ -1553,6 +1647,12 @@ window.UI = {
           <div style="font-size:22px;margin-left:8px">${icon}</div>
         </div>
         <div class="course-actions">
+          <button onclick="safeUI('launchGpsForCourse','${esc(c.name)}','${c.lat||''}','${c.lon||''}')"
+            style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:20px;
+              background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;
+              cursor:pointer;font-family:inherit;white-space:nowrap">
+            ▶ Play GPS
+          </button>
           <a href="${bookUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bookLabel}</a>
           <a href="${mapsUrl}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
           ${!c.website && !isPrivate ? `<a href="${teeoffSearch}" target="_blank" rel="noopener" class="course-btn">🔍 TeeOff</a>` : ''}
@@ -1608,6 +1708,26 @@ window.UI = {
   },
 
   // ── Course Layout ─────────────────────────────────────────
+  async launchGpsForCourse(courseName, latStr, lonStr) {
+    const lat = parseFloat(latStr) || window._wxLat;
+    const lon = parseFloat(lonStr) || window._wxLon;
+    if (!lat) { showToast('Set your location in profile to use GPS'); return; }
+    // Set the scorecard course input to this course
+    const scInp = document.getElementById('sc-course-input');
+    if (scInp) scInp.value = courseName;
+    // Navigate to scorecard, open GPS, start tracking
+    safeUI('goScreen','scorecard');
+    await new Promise(r=>setTimeout(r,1200));
+    // Expand GPS panel
+    const body = document.getElementById('gps-body');
+    if (body && body.style.display==='none') document.getElementById('gps-header')?.click();
+    await new Promise(r=>setTimeout(r,300));
+    // Pre-set course on window so startGpsTracking picks it up
+    window._gpsLaunchCourse = { name: courseName, lat, lon };
+    safeUI('startGpsTracking');
+    showToast(`▶ GPS started for ${courseName}`);
+  },
+
   async openCourseLayoutScreen() {
     const courseName = document.getElementById('sc-course-input')?.value?.trim()
                     || window.myProfile?.homeCourse || '';
