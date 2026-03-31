@@ -441,29 +441,6 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   return synth;
 }
 
-// ── Generate approximate 18-hole layout around course center ─────────────────
-function _syntheticHoles(lat, lon) {
-  holes = [];
-  for (h = 1; h <= 18; h++) {
-    isFront = h <= 9;
-    idx     = isFront ? h-1 : h-10;
-    angle   = (idx / 9) * 2 * Math.PI + (isFront ? 0 : Math.PI);
-    r       = isFront ? 0.002 : 0.0018;
-    cosLat  = Math.cos(lat * Math.PI / 180);
-    gLat    = lat + r * Math.cos(angle);
-    gLon    = lon + r * Math.sin(angle) / cosLat;
-    tLat    = lat + (r * 0.3) * Math.cos(angle + Math.PI);
-    tLon    = lon + (r * 0.3) * Math.sin(angle + Math.PI) / cosLat;
-    holes.push({
-      h,
-      lat:    gLat, lon:    gLon,
-      teeLat: tLat, teeLon: tLon,
-      par: [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4][h-1],
-    });
-  }
-  return holes;
-}
-
 // ── GPS Round Tracking ────────────────────────────────────────────────────────
 let _gpsWatchId    = null;
 let _gpsRound      = null;

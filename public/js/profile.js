@@ -3,14 +3,14 @@
 //  Handles: loading, saving, photo upload, UI rendering
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=61";
+import { db, storage } from "./firebase-config.js?v=62";
 import {
   doc, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=61";
+import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=62";
 
 export let myProfile = {};
 export let myVibes   = [];
