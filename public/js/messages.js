@@ -2,13 +2,13 @@
 //  FAIRWAY FRIEND — Messaging (DM + Group Chats)
 // ============================================================
 
-import { db } from "./firebase-config.js?v=52";
+import { db } from "./firebase-config.js?v=53";
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc,
   query, where, orderBy, limit, onSnapshot,
   serverTimestamp, arrayUnion, arrayRemove,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=52";
+import { initials, avatarColor, esc, relativeTime, showToast } from "./ui.js?v=53";
 
 let _unsubMessages = null;
 let _unsubConvList = null;
@@ -160,7 +160,13 @@ export function renderConversationsList(convs, containerId) {
       <div class="player-avatar ${aColor}" ${avatarClick} style="width:44px;height:44px;font-size:${isGroup?'20':'15'}px;flex-shrink:0">${ini}</div>
       <div class="conv-info">
         <div class="conv-name" ${dmUid?`onclick="event.stopPropagation();safeUI('openPlayerProfile','${dmUid}')" style="cursor:pointer"`:''}>
-          ${displayName}${isGroup?` <span style="font-size:10px;color:var(--muted);font-weight:400">(${(c.participants||[]).length} members)</span>`:''}
+          ${displayName}${isGroup ? (() => {
+              const others = Object.entries(c.participantNames||{}).filter(([u,n])=>u!==window._currentUser?.uid&&n).map(([,n])=>n);
+              const shown = others.slice(0,3);
+              const extra = others.length - shown.length;
+              const line = shown.join(', ')+(extra>0?' +'+extra+' more':'');
+              return line ? `<span style="font-size:11px;color:var(--muted);font-weight:400;display:block;margin-top:1px">👤 ${line}</span>` : `<span style="font-size:11px;color:var(--muted)">(${(c.participants||[]).length} members)</span>`;
+            })() : ''}
         </div>
         <div class="conv-last">${esc(c.lastMessage || "Tap to chat")}</div>
       </div>

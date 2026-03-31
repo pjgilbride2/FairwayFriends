@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=52";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=52";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=52";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=52";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=52";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=52";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=52";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=52";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=52";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=52";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=52";
-import { buildOnboardScreen } from "./onboard.js?v=52";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=53";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=53";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=53";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=53";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=53";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=53";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=53";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=53";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=53";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=53";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=53";
+import { buildOnboardScreen } from "./onboard.js?v=53";
 
 
 // ── Haversine distance in miles ──
@@ -711,7 +711,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=52");
+      const { initials, avatarColor } = await import("./ui.js?v=53");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -786,7 +786,16 @@ window.UI = {
     if (sub) {
       if (isGroup) {
         const snap = await (async()=>{ try{ const {getDoc,doc,getFirestore}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"); const {getApp}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"); const d=await getDoc(doc(getFirestore(getApp()),"conversations",convId)); return d.data(); }catch{return null;} })();
-        sub.textContent = snap ? `${(snap.participants||[]).length} members` : "Group";
+        if (snap) {
+          const me = window._currentUser?.uid;
+          const names = Object.entries(snap.participantNames||{})
+            .filter(([uid]) => uid !== me)
+            .map(([,name]) => name)
+            .filter(Boolean);
+          const shown = names.slice(0,4);
+          const extra = names.length - shown.length;
+          sub.textContent = '👤 ' + shown.join(', ') + (extra > 0 ? ' +'+extra+' more' : '');
+        } else { sub.textContent = 'Group'; }
         sub.style.display = "";
       } else { sub.style.display = "none"; }
     }
@@ -840,7 +849,7 @@ window.UI = {
         <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Current plan: <strong>${curPlan==='pro'?'⭐ Pro':curPlan==='team'?'👥 Team':'Free'}</strong></div>
         <div style="display:flex;flex-direction:column;gap:12px">
           <div style="padding:16px;border-radius:14px;border:2px solid ${curPlan==='pro'?'var(--green)':'var(--border)'};background:var(--surface)">
-            <div style="font-size:15px;font-weight:700">⭐ Pro — $9.99/mo</div>
+            <div style="font-size:15px;font-weight:700">⭐ Pro — $4.99/mo</div>
             <div style="font-size:13px;color:var(--muted);margin-top:4px">Unlimited messages · Advanced stats · Priority matching</div>
             ${curPlan!=='pro'?`<button onclick="safeUI('upgradeToPro')"
               style="margin-top:12px;width:100%;padding:11px;border-radius:10px;background:var(--green);color:#fff;
