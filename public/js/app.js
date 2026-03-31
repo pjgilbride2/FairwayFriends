@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=67";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=67";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=67";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=67";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=67";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=67";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=67";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=67";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=67";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=67";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=67";
-import { buildOnboardScreen } from "./onboard.js?v=67";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=68";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=68";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=68";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=68";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=68";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=68";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=68";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=68";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=68";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=68";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=68";
+import { buildOnboardScreen } from "./onboard.js?v=68";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=67");
+      const { initials, avatarColor } = await import("./ui.js?v=68");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1569,21 +1569,21 @@ window.UI = {
           const _cityQ    = _cityFull.split(',')[0].trim();
           const _stateQ   = _cityFull.split(',')[1]?.trim() || '';
           if (_cityQ) {
-            // Multiple search queries to get more courses
-            const _queries = [
-              _cityQ,                                          // "Tampa"
-              _cityQ + ' golf',                               // "Tampa golf"
-              _cityQ + ' country club',                       // "Tampa country club"
-              _stateQ ? _stateQ + ' golf' : _cityQ + ' club' // "FL golf" or "Tampa club"
-            ];
+            // Single smart search — city name gives best locality results
+            // Use city+state for specificity to avoid 429 on multiple calls
+            const _searchQ = _stateQ ? `${_cityQ} ${_stateQ}` : _cityQ;
+            const _gcFbResp = await fetch(
+              `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_searchQ)}`,
+              { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(6000) }
+            ).catch(()=>null);
+            const _gcFbData = _gcFbResp?.ok ? await _gcFbResp.json().catch(()=>null) : null;
+
             const _addCourse = (c) => {
               const cLat=c.location?.latitude, cLon=c.location?.longitude;
               if (!cLat || !cLon) return;
-              // Filter by distance — only include within current radius
               const _distMi = _haversine(lat, lon, cLat, cLon);
               const _radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
               if (_distMi > _radiusMi) return;
-              // Strip numeric IDs injected by GolfCourseAPI e.g. "Phoenix Golf Club (1012909)"
               const name = (c.club_name || c.course_name || 'Golf Course').replace(/\s*\(\d+\)\s*$/, '').trim();
               const key  = norm(name);
               if (seen.has(key)) return;
@@ -1603,201 +1603,234 @@ window.UI = {
                 par:     tee?.par_total       || null,
               });
             };
-            // Fire all queries in parallel
-            const _responses = await Promise.allSettled(_queries.map(q =>
-              fetch(`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`,
-                { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(6000) })
-              .then(r => r.ok ? r.json() : null)
-              .catch(() => null)
-            ));
-            for (const res of _responses) {
-              if (res.status==='fulfilled' && res.value?.courses) {
-                for (const c of res.value.courses) _addCourse(c);
-              }
+
+            for (const c of _gcFbData?.courses || []) _addCourse(c);
+
+            // If city search returns <5, try broader state search
+            if (courses.length < 5 && _stateQ) {
+              await new Promise(r=>setTimeout(r,300)); // small delay to avoid 429
+              const _gcFb2 = await fetch(
+                `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_stateQ+' golf')}`,
+                { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(6000) }
+              ).catch(()=>null);
+              const _gcFb2Data = _gcFb2?.ok ? await _gcFb2.json().catch(()=>null) : null;
+              for (const c of _gcFb2Data?.courses || []) _addCourse(c);
             }
+
             if (courses.length > 0) {
               console.log(`Discover: GolfCourseAPI fallback found ${courses.length} courses for "${_cityQ}"`);
-            } else {
-              console.warn(`Discover: GolfCourseAPI fallback found 0 courses for "${_cityQ}" — check city/radius`);
             }
           }
         } catch(e) { console.warn('Discover: GolfCourseAPI fallback failed:', e.message); }
-      }
 
-      if(txt1){
-        const parsed=(JSON.parse(txt1).elements||[])
-          .filter(e=>{const n=e.tags?.name;if(!n)return false;const k=norm(n);if(seen.has(k))return false;seen.add(k);return true;})
-          .map(e=>{
-            const cLat=e.lat||e.center?.lat||lat,cLon=e.lon||e.center?.lon||lon,t=e.tags||{};
-            return{name:t.name||t.operator||'Golf Course',holes:t['golf:holes']||t.holes||null,
-              phone:t.phone||null,website:t.website||null,
-              addr:[t['addr:city'],t['addr:state']].filter(Boolean).join(', '),
-              type:t.club==='golf'?'Country Club':
-                (t.operator_type==='public'||t.access==='yes'||t.fee==='yes'||(t.name||'').toLowerCase().includes('municipal')||(t.name||'').toLowerCase().includes('muni'))?'Municipal Golf Course':'Golf Course',
-              dist:_haversine(lat,lon,cLat,cLon),lat:cLat,lon:cLon};
-          });
-        courses=[...courses,...parsed];
-      }
-
-      // ── 6. GolfCourseAPI — enrich courses with real par/slope/rating ──
-      // Only enrich when Overpass worked (txt1 != null) — skip when using fallback to avoid 429s
-      const GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
-      if (txt1) {const topCourses = courses.slice(0, 15); // enrich top 15 nearest
-      await Promise.allSettled(topCourses.map(async (c) => {
+      // ── 5c. Google Places Nearby Search — additional course discovery ────────
+      if (window._googlePlacesKey) {
         try {
-          const r = await fetch(
-            `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(c.name)}`,
-            { headers: { 'Authorization': `Key ${GCAPI_KEY}` }, signal: AbortSignal.timeout(4000) }
-          );
-          if (!r.ok) return;
-          const d = await r.json();
-          // Match by proximity — pick closest result
-          const match = (d.courses||[]).find(gc => {
-            const gcLat=gc.location?.latitude, gcLon=gc.location?.longitude;
-            if (!gcLat) return false;
-            const R=3958.8,d2r=Math.PI/180;
-            const dLat=(gcLat-c.lat)*d2r,dLon=(gcLon-c.lon)*d2r;
-            const a=Math.sin(dLat/2)**2+Math.cos(c.lat*d2r)*Math.cos(gcLat*d2r)*Math.sin(dLon/2)**2;
-            return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)) < 2; // within 2 miles
-          });
-          if (match) {
-            const tee = match.tees?.male?.[0];
-            if (tee) {
-              c.holes  = c.holes  || tee.number_of_holes;
-              c.rating = tee.course_rating;
-              c.slope  = tee.slope_rating;
-              c.par    = tee.par_total;
+          const _gpRadius = Math.min(50000, Math.round((parseFloat(document.getElementById('dist-filter')?.value||25)) * 1609.34));
+          const _gpTypes  = ['golf_course', 'country_club'];
+          for (const _gpType of _gpTypes) {
+            const _gpUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${_gpRadius}&type=${_gpType}&key=${window._googlePlacesKey}`;
+            const _gpResp = await fetch(_gpUrl).catch(()=>null);
+            if (!_gpResp?.ok) continue;
+            const _gpData = await _gpResp.json().catch(()=>null);
+            for (const place of _gpData?.results||[]) {
+              const pLat = place.geometry?.location?.lat;
+              const pLon = place.geometry?.location?.lng;
+              if (!pLat || !pLon) continue;
+              const name  = place.name || 'Golf Course';
+              const key   = norm(name);
+              if (seen.has(key)) continue;
+              seen.add(key);
+              const distMi = _haversine(lat, lon, pLat, pLon);
+              const radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
+              if (distMi > radiusMi) continue;
+              courses.push({
+                name,
+                dist:    distMi,
+                lat:     pLat,
+                lon:     pLon,
+                addr:    place.vicinity || '',
+                type:    _gpType === 'country_club' ? 'Country Club' : 'Golf Course',
+                holes:   null,
+                phone:   null,
+                website: null,
+                rating:  place.rating || null,
+                slope:   null,
+                par:     null,
+                googlePlaceId: place.place_id,
+              });
             }
-            if (!c.phone   && match.location?.phone)   c.phone   = match.location.phone;
-            if (!c.website && match.website)            c.website = match.website;
           }
-        } catch(_) {}
-      }));
-      } // end if(txt1) enrichment guard
-
-      // ── 7. Filter + sort + dedupe ──────────────────────────────────
-      const CLOSED=['lutz executive golf center','proputt miniature golf'];
-      const STREET_RE=/(\s(way|circle|blvd|boulevard|lane|drive|parkway|court|road|avenue|ave|street|st|place|pl|trail|terrace|loop|run|path|cir|dr|ln|ct|rd))$/i;
-      courses=courses.filter(c=>{
-        if(CLOSED.includes(norm(c.name)))return false;
-        const n=c.name.trim();
-        if(/golf|country.?club|links|course|tpc|pga|greens|resort|muni|municipal|par.?3|executive|putting|putt|fairway/i.test(n))return true;
-        if(STREET_RE.test(n))return false;
-        return true;
-      });
-      courses.sort((a,b)=>a.dist-b.dist);
-      courses=courses.slice(0,80);
-
-      // ── 8. Cache 24hr and render ───────────────────────────────────
-      try{sessionStorage.setItem(ck,JSON.stringify({ts:Date.now(),data:courses}));}catch(_){}
-      window._nearbyCourses=courses; window._lastFetchedMiles=parseFloat(document.getElementById('dist-filter')?.value||100); UI.filterCourses('');
-      if(label)label.textContent=courses.length+' golf courses found';
-      // Mark which city these courses belong to so city-change detection works
-      window._lastDiscoverCity = myProfile.city || window._weatherCity || window._lastDiscoverCity;
-
-    }catch(e){
-      console.error('courses error:',e.message);
-      if((window._nearbyCourses||[]).length===0){
-        const msg=e.message||'Connection error';
-        container.innerHTML=`<div class="empty-state" style="padding:24px 20px">
-          <div style="font-size:32px;margin-bottom:12px">⛳</div>
-          <div style="font-weight:600;margin-bottom:8px">Could not load courses</div>
-          <div style="font-size:14px;color:var(--muted);margin-bottom:16px">${msg}</div>
-          <button onclick="window._coursesLoading=false;safeUI('loadNearbyCourses')"
-            style="background:var(--green);color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer">Try Again</button>
-        </div>`;
+          if (courses.length > 0) console.log(`Discover: Google Places added courses, total=${courses.length}`);
+        } catch(e) { console.warn('Discover: Google Places failed:', e.message); }
       }
-    }finally{
-      window._coursesLoading=false;
+
+      // ── Step 7: txt1 Overpass processing ────────────────────────────
+      if (txt1) {
+        const parsed = (JSON.parse(txt1).elements || []);
+        const norm2 = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+        const haversine2 = (a,b,c,d) => { const R=3958.8,dr=Math.PI/180,dLat=(c-a)*dr,dLon=(d-b)*dr,x=Math.sin(dLat/2)**2+Math.cos(a*dr)*Math.cos(c*dr)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)); };
+        for (const el of parsed) {
+          const name = el.tags?.name || el.tags?.['name:en'];
+          if (!name) continue;
+          const cLat = el.center?.lat || el.lat;
+          const cLon = el.center?.lon || el.lon;
+          if (!cLat || !cLon) continue;
+          const key = norm2(name);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const dist = haversine2(lat, lon, cLat, cLon);
+          courses.push({
+            name, dist, lat: cLat, lon: cLon,
+            type: el.tags?.leisure || el.tags?.amenity || 'Golf Course',
+            holes: null, phone: el.tags?.phone || null,
+            website: el.tags?.website || null,
+            addr: [el.tags?.['addr:street'], el.tags?.['addr:city'], el.tags?.['addr:state']].filter(Boolean).join(', '),
+          });
+        }
+        // ── Step 6: GolfCourseAPI enrichment (only when Overpass worked)
+        if (txt1) {
+          const GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
+          const topCourses = courses.slice(0, 12);
+          await Promise.allSettled(topCourses.map(async (c) => {
+            try {
+              const r = await fetch(
+                `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(c.name.replace(/\s*\(\d+\)\s*$/, ''))}`,
+                { headers: {'Authorization': `Key ${GCAPI_KEY}`}, signal: AbortSignal.timeout(4000) }
+              );
+              if (!r.ok) return;
+              const d = await r.json();
+              const match = d.courses?.find(x => norm2(x.club_name||'').includes(norm2(c.name.split(' ').slice(0,2).join(' '))));
+              if (match) {
+                const tee = match.tees?.male?.[0] || match.tees?.female?.[0];
+                if (tee?.par_total)    c.par    = tee.par_total;
+                if (tee?.slope_rating) c.slope  = tee.slope_rating;
+                if (tee?.course_rating) c.rating = tee.course_rating;
+                if (!c.phone   && match.location?.phone)   c.phone   = match.location.phone;
+                if (!c.website && match.website)            c.website = match.website;
+              }
+            } catch(_) {}
+          }));
+        }
+      }
+
+      // ── Step 8: Filter, sort, dedupe, persist ──────────────────────
+      const radiusMi2 = parseFloat(document.getElementById('dist-filter')?.value || 100);
+      courses = courses.filter(c => c.dist <= radiusMi2);
+      courses.sort((a,b) => (a.dist||999)-(b.dist||999));
+      // Merge with known local courses
+      const KNOWN_COURSES=[
+        {name:'Heritage Harbor Golf & Country Club',lat:28.1372,lon:-82.5012},
+        {name:'TPC Tampa Bay',lat:28.1673,lon:-82.5123},
+        {name:'Northdale Golf & Tennis Club',lat:28.1018,lon:-82.5223},
+        {name:'Rogers Park Golf Course',lat:28.0341,lon:-82.4445},
+        {name:'Rocky Point Golf Course',lat:27.9897,lon:-82.5321},
+      ];
+      for (const kc of KNOWN_COURSES) {
+        const d2 = _haversine(lat,lon,kc.lat,kc.lon);
+        if (d2 > radiusMi2) continue;
+        const key2 = norm(kc.name);
+        if (seen.has(key2)) continue;
+        seen.add(key2);
+        courses.push({...kc, dist:d2, type:'Golf Course', holes:18});
+      }
+      courses.sort((a,b)=>(a.dist||999)-(b.dist||999));
+
+      window._nearbyCourses = courses;
+      window._lastFetchedMiles = radiusMi2;
+      window._lastDiscoverCity = myProfile?.city || window._weatherCity || '';
+      UI.filterCourses('');
+      if (label) label.textContent = courses.length
+        ? `${courses.length} courses within ${radiusMi2} mi`
+        : 'No courses found — try a larger radius';
+
+      // Cache to sessionStorage
+      try {
+        const cKey = 'gc_' + (window._wxLat||0).toFixed(2) + '_' + (window._wxLon||0).toFixed(2);
+        sessionStorage.setItem(cKey, JSON.stringify({data:courses, ts:Date.now()}));
+      } catch(_) {}
+
+    } catch(e) {
+      console.error('courses error:', e.message);
+      if (label) label.textContent = 'Error loading courses';
+    } finally {
+      window._coursesLoading = false;
     }
-  },
+  }
 
   filterCourses(query) {
-    const courses = window._nearbyCourses || [];
-    const q = (query || '').toLowerCase().trim();
-    const maxDist = parseFloat(document.getElementById('dist-filter')?.value || '999');
-    let filtered = q ? courses.filter(c => c.name.toLowerCase().includes(q)) : [...courses];
-    // Apply distance filter (maxDist from select, up to 100mi)
-    if (maxDist < 100) {
-      filtered = filtered.filter(c => !c.dist || c.dist <= maxDist);
-    }
-    // Update radius label to reflect filtered count
-    const label = document.getElementById('courses-radius-label');
+    const courses  = window._nearbyCourses || [];
+    const q        = (query||'').toLowerCase();
+    const maxDist  = parseFloat(document.getElementById('dist-filter')?.value||100);
+    const label    = document.getElementById('courses-radius-label');
+    const container = document.getElementById('courses-list');
+
+    let filtered = courses.filter(c => {
+      if (maxDist < 100 && (c.dist||999) > maxDist) return false;
+      if (!q) return true;
+      return (c.name||'').toLowerCase().includes(q) || (c.addr||'').toLowerCase().includes(q);
+    });
+
+    const total    = courses.filter(c => maxDist >= 100 || (c.dist||999) <= maxDist).length;
+    const distText = maxDist >= 100 ? '100 mi' : maxDist + ' mi';
+
     if (label) {
-      const total = courses.length;
-      const mi = parseFloat(document.getElementById('dist-filter')?.value || '100');
-      const distText = mi >= 100 ? '100 mi' : `${mi} mi`;
       label.textContent = filtered.length === total
         ? `${total} courses within ${distText}`
         : `${filtered.length} of ${total} courses within ${distText}`;
     }
-    const container = document.getElementById('courses-list');
+
     if (!container) return;
     if (!filtered.length) {
-      container.innerHTML = '<div class="empty-state">No courses found within that distance.</div>';
+      container.innerHTML = `<div class="empty-state" style="padding:32px 20px;text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">⛳</div>
+        <div style="font-weight:600;margin-bottom:8px;color:var(--text)">No courses found</div>
+        <div style="color:var(--muted);font-size:14px">Try expanding the radius or changing your city in Profile</div>
+      </div>`;
       return;
     }
+
+    const norm2 = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const isPrivate = c => {
+      const n = norm2(c.name);
+      return n.includes('country') || n.includes('private') || c.type==='Country Club';
+    };
+
     container.innerHTML = filtered.map(c => {
-      const distStr = c.dist < 1 ? 'Less than 1 mi' : `${c.dist.toFixed(1)} mi away`;
+      const distStr  = c.dist != null ? `${c.dist.toFixed(1)} mi away` : '';
       const holesStr = c.holes ? ` · ${c.holes} holes` : '';
-      const mapsUrl  = `https://maps.google.com/?q=${encodeURIComponent(c.name + ' golf ' + (c.addr||''))}&ll=${c.lat},${c.lon}`;
-      const slug     = c.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+$/,'');
+      const parStr   = c.par   ? ` · Par ${c.par}` : '';
+      const slopeStr = c.slope ? ` · Slope ${c.slope}` : '';
+      const mapsUrl  = `https://maps.google.com/?q=${encodeURIComponent(c.name + ' golf course')}`;
 
-      // Smart booking URL priority:
-      // 1. Course's own website  2. GolfNow direct page  3. TeeOff search  4. GolfNow city search
-      const golfnowSearch = 'https://www.golfnow.com/search?searchTerm=' + encodeURIComponent(c.name);
-      const teeoffSearch  = 'https://www.teeoff.com/courses?keyword=' + encodeURIComponent(c.name);
+      // Booking URL
+      const bookBase = c.website || `https://www.golfnow.com/search#misc=radius&centerLat=${c.lat}&centerLon=${c.lon}&facilityName=${encodeURIComponent(c.name)}`;
+      const bookUrl  = isPrivate(c) && !c.website ? mapsUrl : bookBase;
+      const bookLabel = isPrivate(c) && !c.website ? '🌐 Website' : '🗓 Find tee times';
+      const teeOffUrl = `https://www.teeoff.com/courses?search=${encodeURIComponent(c.name)}`;
 
-      // Detect if website is already a booking page
-      const isBookingSite = c.website && (
-        c.website.includes('golfnow') || c.website.includes('teeoff') ||
-        c.website.includes('chronogolf') || c.website.includes('foreup') ||
-        c.website.includes('ezlinks') || c.website.includes('teesnap') ||
-        c.website.includes('book') || c.website.includes('reserve') ||
-        c.website.includes('teetimes')
-      );
-
-      // Primary booking action
-      let bookUrl, bookLabel;
-      if (c.website) {
-        bookUrl   = c.website;
-        bookLabel = '📅 Book tee time';
-      } else {
-        bookUrl   = golfnowSearch;
-        bookLabel = '📅 Find tee times';
-      }
-
-      // Private/country clubs don't have public tee times
-      const isPrivate = (c.type||'').includes('Country') || (c.name||'').toLowerCase().includes('country club');
-      if (isPrivate && !c.website) {
-        bookUrl   = mapsUrl;
-        bookLabel = '📍 Get directions';
-      }
-
-      const icon = isPrivate ? '🏌️' : '⛳';
-      const typeBadge = c.type && c.type !== 'Golf Course'
-        ? `<span style="font-size:10px;font-weight:600;color:var(--green);background:var(--green-light);padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap">${c.type}</span>` : '';
+      const infoStr    = [parStr, slopeStr].filter(Boolean).join('');
+      const ratingStr  = c.rating ? ` · ⭐ ${c.rating}` : '';
 
       return `<div class="course-card">
         <div class="course-card-top">
-          <div style="flex:1;min-width:0">
-            <div class="course-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">${c.name}${typeBadge}</div>
-            <div class="course-meta">${distStr}${holesStr}${c.addr ? ' · ' + c.addr : ''}</div>
+          <div style="flex:1">
+            <div class="course-name">${c.name}</div>
+            <div class="course-meta">${distStr}${holesStr}${infoStr}${ratingStr}${c.addr ? ' · ' + c.addr : ''}</div>
           </div>
-          <div style="font-size:22px;margin-left:8px">${icon}</div>
+          <span style="font-size:22px">${isPrivate(c) ? '🏌️' : '⛳'}</span>
         </div>
         <div class="course-actions">
-          <button data-cname="${esc(c.name).replace(/'/g,'&#39;')}" data-clat="${c.lat||''}" data-clon="${c.lon||''}"
+          <button class="course-btn course-btn-gps"
+            data-cname="${c.name}" data-clat="${c.lat||''}" data-clon="${c.lon||''}"
             onclick="safeUI('launchGpsForCourse',this.dataset.cname,this.dataset.clat,this.dataset.clon)"
-            style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:20px;
-              background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;
-              cursor:pointer;font-family:inherit;white-space:nowrap">
+            style="background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;
+            cursor:pointer;font-family:inherit;white-space:nowrap">
             ▶ Play GPS
           </button>
           <a href="${bookUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bookLabel}</a>
           <a href="${mapsUrl}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
-          ${!c.website && !isPrivate ? `<a href="${teeoffSearch}" target="_blank" rel="noopener" class="course-btn">🔍 TeeOff</a>` : ''}
-          ${c.website && !isBookingSite && !isPrivate ? `<a href="${golfnowSearch}" target="_blank" rel="noopener" class="course-btn">📅 GolfNow</a>` : ''}
+          ${!isPrivate(c) ? `<a href="${teeOffUrl}" target="_blank" rel="noopener" class="course-btn"><img src="https://www.teeoff.com/favicon.ico" style="width:12px;height:12px;vertical-align:middle;margin-right:3px" onerror="this.style.display='none'">TeeOff</a>` : ''}
           ${c.phone ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>` : ''}
           ${c.website ? `<a href="${c.website}" target="_blank" rel="noopener" class="course-btn">🌐 Website</a>` : ''}
         </div>
@@ -1805,14 +1838,11 @@ window.UI = {
     }).join('');
   },
 
-  // ── Book tee time — opens course website or GolfNow search ──
   bookTeeTime(name, website) {
     if (website && website.trim()) {
-      // Course has its own website — open it directly
       window.open(website, '_blank', 'noopener,noreferrer');
     } else {
-      // No website — search GolfNow for this course (largest tee time marketplace)
-      const url = 'https://www.golfnow.com/search?searchTerm=' + encodeURIComponent(name);
+      const url = `https://www.golfnow.com/search#misc=radius&facilityName=${encodeURIComponent(name)}`;
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   },
@@ -1821,67 +1851,64 @@ window.UI = {
     safeUI('bookTeeTime', courseName, '');
   },
 
-  // ── Players ──
   filterPlayers(q) {
-    const vibeFilter  = window._playerVibeFilter  || 'all';
-    const milesFilter = window._playerMilesFilter || 'all';
+    const vibeFilter = window._activeVibeFilter || '';
+    const milesFilter = parseFloat(document.getElementById('miles-filter')?.value || 9999);
     filterPlayers(q, vibeFilter, milesFilter);
   },
+
   setPlayerVibeFilter(vibe) {
-    window._playerVibeFilter = vibe;
-    const sel = document.getElementById('player-vibe-select');
-    if (sel) sel.value = vibe;
+    window._activeVibeFilter = (window._activeVibeFilter === vibe) ? '' : vibe;
+    document.querySelectorAll('.vibe-filter-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.vibe === window._activeVibeFilter);
+    });
     this.applyPlayerFilters();
   },
+
   applyPlayerFilters() {
-    const q     = document.getElementById('players-search')?.value || '';
-    const vibe  = window._playerVibeFilter  || 'all';
-    const miles = window._playerMilesFilter || 'all';
+    const q = document.getElementById('player-search')?.value || '';
+    const vibe = window._activeVibeFilter || '';
+    const miles = parseFloat(document.getElementById('miles-filter')?.value || 9999);
     filterPlayers(q, vibe, miles);
   },
 
-  // ── Scorecard ──
   async handleSaveRound() {
-    // FIX: read course name from the input field, not a missing element
-    const courseInput = document.getElementById("sc-course-input");
-    const courseName  = courseInput ? courseInput.value.trim() || "Unknown course" : "Unknown course";
+    const courseName = document.getElementById('sc-course-input')?.value?.trim()
+      || window._pendingGpsCourse || '';
     await saveRound(courseName);
   },
 
-  // ── Course Layout ─────────────────────────────────────────
+  // ── Course Layout ──────────────────────────────────────────────
   async launchGpsForCourse(courseName, latStr, lonStr) {
     const lat = parseFloat(latStr) || window._wxLat;
     const lon = parseFloat(lonStr) || window._wxLon;
     if (!lat) { showToast('Set your location in profile to use GPS'); return; }
-    // Set the scorecard course input to this course
     const scInp = document.getElementById('sc-course-input');
     if (scInp) scInp.value = courseName;
-    // Navigate to scorecard, open GPS, start tracking
+    window._pendingGpsCourse = courseName;
+    window._pendingGpsLat    = lat;
+    window._pendingGpsLon    = lon;
     safeUI('goScreen','scorecard');
-    await new Promise(r=>setTimeout(r,1200));
-    // Expand GPS panel
+    await new Promise(r => setTimeout(r, 400));
     const body = document.getElementById('gps-body');
-    if (body && body.style.display==='none') document.getElementById('gps-header')?.click();
-    await new Promise(r=>setTimeout(r,300));
-    // Pre-set course on window so startGpsTracking picks it up
-    window._gpsLaunchCourse = { name: courseName, lat, lon };
+    if (body) body.style.display = 'block';
+    window._pendingGpsCourse = courseName;
     safeUI('startGpsTracking');
     showToast(`▶ GPS started for ${courseName}`);
   },
 
   async openCourseLayoutScreen() {
     const courseName = document.getElementById('sc-course-input')?.value?.trim()
-                    || window.myProfile?.homeCourse || '';
-    let cLat = window._wxLat, cLon = window._wxLon;
-    const match = (window._nearbyCourses||[]).find(c=>c.name===courseName);
-    if (match?.lat) { cLat=match.lat; cLon=match.lon; }
+      || window.myProfile?.homeCourse || '';
+    const cLat = window._pendingGpsLat || window._wxLat;
+    const cLon = window._pendingGpsLon || window._wxLon;
     if (!cLat) { showToast('Set your city in profile to use course layout'); return; }
     await openCourseLayout(courseName, cLat, cLon);
   },
 
   closeCourseLayout() {
     closeCourseLayout();
-    const origin = window._ppOriginScreen || 'scorecard';
+    const origin = window._courseLayoutOrigin || 'scorecard';
     safeUI('goScreen', origin);
   },
 
@@ -1890,50 +1917,50 @@ window.UI = {
   toggleCourseLayoutGPS() {
     if (gpsIsActive) {
       stopGpsRound();
-      const btn = document.getElementById('layout-gps-btn');
-      if (btn) { btn.textContent = '📡 GPS Off'; btn.style.background = 'rgba(255,255,255,.12)'; }
+      document.getElementById('gps-status-dot')?.style && (document.getElementById('gps-status-dot').style.background = 'var(--border)');
+      showToast('GPS tracking stopped');
     } else {
       safeUI('startGpsTracking');
-      const btn = document.getElementById('layout-gps-btn');
-      if (btn) { btn.textContent = '📡 Live'; btn.style.background = '#22c55e'; }
     }
   },
 
-  // ── GPS Tracking methods ──────────────────────────────────
+  // ── GPS Tracking ───────────────────────────────────────────────
   async startGpsTracking() {
-    const btn = document.getElementById('gps-start-btn');
-    const dot = document.getElementById('gps-status-dot');
+    const courseName = window._pendingGpsCourse
+      || document.getElementById('sc-course-input')?.value?.trim() || '';
     if (gpsIsActive) {
       stopGpsRound();
-      if (btn) { btn.textContent = '▶ Start'; btn.style.background = 'var(--green)'; }
-      if (dot) dot.style.background = 'var(--border)';
+      document.getElementById('gps-status-dot')?.style && (document.getElementById('gps-status-dot').style.background = 'var(--border)');
+      document.getElementById('gps-start-btn') && (document.getElementById('gps-start-btn').textContent = '▶ Start');
+      showToast('GPS tracking stopped');
       return;
     }
-    // Get course lat/lon from _nearbyCourses or geocode course name
-    const courseName = document.getElementById('sc-course-input')?.value?.trim() || myProfile.homeCourse || '';
-    let cLat = window._wxLat, cLon = window._wxLon;
-    if (courseName) {
-      const match = (window._nearbyCourses || []).find(c => c.name === courseName);
-      if (match?.lat) { cLat = match.lat; cLon = match.lon; }
-    }
+    const cLat = window._pendingGpsLat || window._wxLat;
+    const cLon = window._pendingGpsLon || window._wxLon;
     if (!cLat) { showToast('Set your location in profile to use GPS tracking'); return; }
-    if (btn) { btn.textContent = '⏹ Stop'; btn.style.background = '#ef4444'; }
-    if (dot) { dot.style.background = '#22c55e'; dot.style.animation = 'pulse 1.5s infinite'; }
-    // Add pulse animation
+
     if (!document.getElementById('gps-pulse-style')) {
       const st = document.createElement('style');
       st.id = 'gps-pulse-style';
-      st.textContent = '@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}';
+      st.textContent = '@keyframes gpsPulse{0%,100%{opacity:1}50%{opacity:.4}}';
       document.head.appendChild(st);
     }
-    await startGpsRound(courseName, cLat, cLon, (hole, distFt, acc) => {
-      // Sync large display
-      const db = document.getElementById('gps-dist-big');
-      const hb = document.getElementById('gps-hole-big');
-      const ab = document.getElementById('gps-acc');
-      if (db) db.textContent = distFt != null ? distFt + ' ft' : '—';
-      if (hb) hb.textContent = hole;
-      if (ab) ab.textContent = acc != null ? '±' + acc + 'm' : '—';
+    await startGpsRound(courseName, cLat, cLon, ({ hole, holes, pos, distToPin }) => {
+      const dot  = document.getElementById('gps-status-dot');
+      const hEl  = document.getElementById('gps-hole');
+      const dEl  = document.getElementById('gps-dist');
+      const hBig = document.getElementById('gps-hole-big');
+      const dBig = document.getElementById('gps-dist-big');
+      const curHole = holes?.[hole-1];
+      if (dot) { dot.style.background = '#22c55e'; dot.style.animation = 'gpsPulse 1.5s infinite'; }
+      if (hEl)  hEl.textContent  = `Hole ${hole}`;
+      if (hBig) hBig.textContent = hole;
+      if (distToPin != null) {
+        const ft = Math.round(distToPin);
+        const yd = Math.round(ft / 3);
+        if (dEl)  dEl.textContent  = `${yd}yd`;
+        if (dBig) dBig.textContent = `${yd}yd`;
+      }
     });
   },
 
@@ -1942,70 +1969,60 @@ window.UI = {
     if (!shot) return;
     const strip = document.getElementById('gps-shots-strip');
     if (!strip) return;
-    if (strip.querySelector('[data-placeholder]')) strip.innerHTML = '';
     const chip = document.createElement('span');
-    chip.style.cssText = 'white-space:nowrap;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;background:var(--green-light);color:var(--green-dark);border:1px solid var(--green);flex-shrink:0';
-    chip.textContent = `H${shot.hole}${shot.distToPin ? ' · ' + shot.distToPin + 'ft' : ''}`;
+    chip.className = 'gps-shot-chip';
+    chip.textContent = `🏌️ H${shot.hole}`;
+    chip.title = `Hole ${shot.hole} shot`;
+    chip.style.cssText = 'display:inline-block;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--green);color:#fff;margin:2px';
     strip.appendChild(chip);
-    strip.scrollLeft = strip.scrollWidth;
+    showToast('Shot logged ✅');
   },
 
-  nextGpsHole() { nextHole(); const hb=document.getElementById('gps-hole-big'); if(hb) hb.textContent=document.getElementById('gps-hole').textContent.replace('Hole ',''); },
-  prevGpsHole() { prevHole(); const hb=document.getElementById('gps-hole-big'); if(hb) hb.textContent=document.getElementById('gps-hole').textContent.replace('Hole ',''); },
+  nextGpsHole() { nextHole(); },
+  prevGpsHole() { prevHole(); },
 
-  // FIX: reset scores so a new round starts clean
   newRound() {
     resetScores();
     buildScoreTable();
-    showToast("Scorecard cleared ✅");
+    showToast('Scorecard cleared ✅');
   },
 
   setGame(el, game) {
-    document.querySelectorAll(".game-pill").forEach((p) => p.classList.remove("active"));
-    el.classList.add("active");
-    const panel = document.getElementById("game-panel");
-    if (panel) panel.innerHTML = GAME_PANELS[game] || "";
+    document.querySelectorAll('.game-mode-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    setGameMode(game);
+    buildGamePanel();
   },
 
-  toggleChip(el) {
-    toggleChip(el);
-  },
+  toggleChip(el) { toggleChip(el); },
 };
 
-// ── Expose callbacks used inside dynamically-rendered HTML ──
-window._openTeeSheet  = (id)       => openTeeSheet(id);
-window._toggleFollow  = (btn, uid) => toggleFollow(btn, uid);
-window._onScoreChange = (inp)      => onScoreChange(inp);
-window.deletePost     = (id)       => deletePost(id);
+// ── Expose safeUI ─────────────────────────────────────────────────────────────
+window.safeUI = function(action, ...args) {
+  if (!action) return;
+  if (typeof UI[action] === 'function') {
+    try { UI[action](...args); } catch(e) { console.error('[FW]', action, e.message); }
+  } else if (action === 'goScreen') {
+    try { goScreen(args[0]); } catch(e) { console.error('[FW] goScreen', e.message); }
+  } else {
+    console.warn('[FW] Unknown safeUI action:', action);
+  }
+};
 
-// ── Game panel HTML templates ──
+// ── Game panel HTML templates ────────────────────────────────────────────────
 const GAME_PANELS = {
   stroke: ``,
-  bingo: `<div class="game-card">
-    <div class="game-card-title"><span>🎯</span>Bingo Bango Bongo</div>
-    <div class="game-info">Three points per hole —
-      <strong style="color:var(--text)">Bingo</strong>: first on the green ·
-      <strong style="color:var(--text)">Bango</strong>: closest to pin once all are on ·
-      <strong style="color:var(--text)">Bongo</strong>: first to hole out.
-    </div></div>`,
-  scramble: `<div class="game-card">
-    <div class="game-card-title"><span>🤝</span>Scramble</div>
-    <div class="game-info">All players tee off — best shot selected, everyone plays from there. Repeat until holed.</div>
-    </div>`,
-  match: `<div class="game-card">
-    <div class="game-card-title"><span>⚔️</span>Match play</div>
-    <div class="game-info">Win the hole, win a point. Leading by more holes than remain wins the match. Ties halved.</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">
-      <span style="font-size:13px;font-weight:500;color:var(--text)">You</span>
-      <span style="font-size:18px;font-weight:500;color:var(--green-dark)">All Square</span>
-      <span style="font-size:13px;font-weight:500;color:var(--muted)">Opponent</span>
-    </div></div>`,
-  bestball: `<div class="game-card">
-    <div class="game-card-title"><span>🎱</span>Best ball — 2v2</div>
-    <div class="game-info">Each player plays their own ball. Lowest score on your team counts per hole.</div>
-    </div>`,
-  nassau: `<div class="game-card">
-    <div class="game-card-title"><span>💰</span>Nassau</div>
+  bingo: `<div class="game-card"><div class="game-card-title"><span>🎯</span>Bingo Bango Bongo</div>
+    <div class="game-info">Three points per hole — <strong>Bingo</strong>: first on the green · <strong>Bango</strong>: closest to pin once all are on · <strong>Bongo</strong>: first to hole out.</div></div>`,
+  scramble: `<div class="game-card"><div class="game-card-title"><span>🤝</span>Scramble</div>
+    <div class="game-info">All players tee off — best shot selected, everyone plays from there. Repeat until holed.</div></div>`,
+  match: `<div class="game-card"><div class="game-card-title"><span>⚔️</span>Match play</div>
+    <div class="game-info">Win the hole, win a point. Leading by more holes than remain wins the match. Ties halved.</div></div>`,
+  skins: `<div class="game-card"><div class="game-card-title"><span>💀</span>Skins</div>
+    <div class="game-info">Each hole is worth a "skin". Win the hole outright to take the skin. Ties carry over — skins accumulate until someone wins a hole outright.</div></div>`,
+  bestball: `<div class="game-card"><div class="game-card-title"><span>🎱</span>Best ball — 2v2</div>
+    <div class="game-info">Each player plays their own ball. Lowest score on your team counts per hole.</div></div>`,
+  nassau: `<div class="game-card"><div class="game-card-title"><span>💰</span>Nassau</div>
     <div class="game-info">Three bets: front 9, back 9, and overall 18. Classic $5 each = $15 total at stake.</div>
     <div class="nassau-grid">
       <div class="nassau-cell"><div class="nassau-cell-label">Front 9</div><div class="nassau-cell-val">—</div></div>
@@ -2015,353 +2032,23 @@ const GAME_PANELS = {
 };
 
 function showFormError(form, msg) {
-  const el = document.getElementById(form + "-error");
+  const el = form?.querySelector?.('.form-error') || document.getElementById('form-error');
   if (el) {
     el.textContent = msg;
-    el.className = el.className.replace(' success','');
-    el.style.display = "block";
-    el.style.color = "";
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
   }
 }
 
-// ── Boot ──
+// ── Boot ─────────────────────────────────────────────────────────────────────
+// Load Google Places API key from localStorage if set
+window._googlePlacesKey = localStorage.getItem('fw_google_places_key') || '';
 initAuth();
 
-function buildPlayerProfileScreen(p) {
-  // Safe references — these are imported at module top but guard defensively
-  const _myVibes   = (typeof myVibes   !== 'undefined' ? myVibes   : null) || myProfile?.vibes || [];
-  const _initials  = typeof initials   !== 'undefined' ? initials   : (n) => (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const _avatarClr = typeof avatarColor !== 'undefined' ? avatarColor : () => 'pa-green';
-  const _esc       = typeof esc         !== 'undefined' ? esc         : (s) => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-  // Ensure screen exists in DOM
-  let screen = document.getElementById("screen-player-profile");
-  if (!screen) {
-    screen = document.createElement("div");
-    screen.id = "screen-player-profile";
-    screen.className = "screen hidden";
-    // Inject alongside other screens — find the last .screen element
-    const lastScreen = Array.from(document.querySelectorAll('.screen')).pop();
-    if (lastScreen?.parentNode) lastScreen.parentNode.insertBefore(screen, lastScreen.nextSibling);
-    else document.body.appendChild(screen);
-  }
-  // Ensure full-page fit
-  screen.style.cssText = [
-    'overflow-y:auto','-webkit-overflow-scrolling:touch',
-    'min-height:100vh','background:var(--bg)',
-    'position:relative','width:100%'
-  ].join(';');
-
-  const isFriend = (myProfile.friends || []).includes(p.uid);
-  const sharedVibes = (p.vibes || []).filter(v => _myVibes.includes(v));
-  const allVibes = p.vibes || [];
-  const pct = _myVibes.length
-    ? Math.round((sharedVibes.length / Math.max(_myVibes.length, allVibes.length, 1)) * 100)
-    : null;
-
-  const ini = _initials(p.displayName || "?");
-  const aColor = _avatarClr(p.uid);
-
-  const vibeHtml = allVibes.map(v => {
-    const shared = _myVibes.includes(v);
-    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;
-      border-radius:100px;font-size:13px;font-weight:500;
-      background:${shared ? "rgba(var(--green-rgb),.12)" : "var(--surface)"};
-      border:1px solid ${shared ? "var(--green)" : "var(--border)"};
-      color:${shared ? "var(--green)" : "var(--text)"}"
-    >${v}${shared ? " ✓" : ""}</span>`;
-  }).join("");
-
-  const goalMap = {
-    buddy: { icon: "🤝", label: "Find a Golf Buddy" },
-    teetimes: { icon: "⚡", label: "Last-Minute Tee Times" },
-    explore: { icon: "👀", label: "Exploring the App" },
-  };
-  const goalsHtml = (p.reasons || []).map(r => {
-    const g = goalMap[r];
-    if (!g) return "";
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
-      background:var(--surface);border-radius:12px;border:1px solid var(--border)">
-      <span style="font-size:20px">${g.icon}</span>
-      <span style="font-size:14px;color:var(--text)">${g.label}</span>
-    </div>`;
-  }).join("");
-
-  const statsHtml = [
-    p.handicap != null ? { label: "Handicap", val: p.handicap } : null,
-    p.homeCourse        ? { label: "Home Course", val: p.homeCourse } : null,
-    p.city              ? { label: "Location", val: p.city } : null,
-    p.roundCount        ? { label: "Rounds Played", val: p.roundCount } : null,
-  ].filter(Boolean).map(s => `
-    <div style="flex:1;min-width:100px;text-align:center;padding:14px 10px;
-      background:var(--surface);border-radius:14px;border:1px solid var(--border)">
-      <div style="font-size:18px;font-weight:700;color:var(--green)">${_esc(String(s.val))}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px">${s.label}</div>
-    </div>`).join("");
-
-  screen.innerHTML = `
-    <div style="max-width:600px;margin:0 auto;padding:0 0 80px">
-
-      <!-- Header bar -->
-      <div style="display:flex;align-items:center;padding:16px 16px 8px;position:sticky;top:0;
-        background:var(--bg);z-index:10;border-bottom:1px solid var(--border)">
-        <button onclick="safeUI('goScreen', window._ppOriginScreen||'players')"
-          style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text);
-                 display:flex;align-items:center;gap:6px;font-size:14px;font-family:inherit">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="15,18 9,12 15,6"/>
-          </svg>
-          Back
-        </button>
-      </div>
-
-      <!-- Hero card -->
-      <div style="padding:24px 16px 16px;text-align:center">
-        <div class="player-avatar ${aColor}"
-          style="width:84px;height:84px;font-size:28px;margin:0 auto 14px">
-          ${p.photoURL
-            ? `<img src="${_esc(p.photoURL)}" style="width:84px;height:84px;border-radius:50%;object-fit:cover">`
-            : ini}
-        </div>
-        <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px">${_esc(p.displayName || "Golfer")}</div>
-        ${p.city ? `<div style="font-size:14px;color:var(--muted);margin-bottom:4px">📍 ${_esc(p.city)}</div>` : ""}
-        ${p.newToArea ? `<div style="font-size:12px;color:var(--green);margin-bottom:8px">🆕 New to the area</div>` : ""}
-        ${pct !== null ? `<div style="display:inline-block;padding:4px 14px;border-radius:100px;
-          background:${pct >= 60 ? "rgba(var(--green-rgb),.12)" : "var(--surface)"};
-          border:1px solid ${pct >= 60 ? "var(--green)" : "var(--border)"};
-          font-size:13px;font-weight:600;color:${pct >= 60 ? "var(--green)" : "var(--muted)"}">
-          ${pct}% vibe match
-        </div>` : ""}
-      </div>
-
-      <!-- Action buttons -->
-      <div style="display:flex;gap:10px;padding:0 16px 20px">
-        <button id="pp-connect-btn" onclick="window._ppToggleFollow('${p.uid}')"
-          style="flex:1;padding:12px;border-radius:14px;font-size:14px;font-weight:600;
-                 cursor:pointer;font-family:inherit;transition:all .2s;
-                 background:${isFriend ? "var(--surface)" : "var(--green)"};
-                 color:${isFriend ? "var(--text)" : "#fff"};
-                 border:1px solid ${isFriend ? "var(--border)" : "var(--green)"}">
-          ${isFriend ? "✓ Following" : "Connect"}
-        </button>
-        <button onclick="UI.startConversation('${p.uid}','${_esc(p.displayName||"Golfer")}')"
-          style="flex:1;padding:12px;border-radius:14px;font-size:14px;font-weight:600;
-                 cursor:pointer;font-family:inherit;background:var(--surface);
-                 color:var(--green);border:1px solid var(--green)">
-          💬 Message
-        </button>
-      </div>
-
-      <!-- Bio -->
-      ${p.bio ? `
-      <div style="padding:0 16px 20px">
-        <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;
-          text-transform:uppercase;margin-bottom:8px">About</div>
-        <div style="padding:14px;background:var(--surface);border-radius:14px;
-          border:1px solid var(--border);font-size:15px;color:var(--text);line-height:1.6">
-          "${_esc(p.bio)}"
-        </div>
-      </div>` : ""}
-
-      <!-- Stats row -->
-      ${statsHtml ? `
-      <div style="padding:0 16px 20px">
-        <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;
-          text-transform:uppercase;margin-bottom:8px">Stats</div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px">${statsHtml}</div>
-      </div>` : ""}
-
-      <!-- Goals -->
-      ${goalsHtml ? `
-      <div style="padding:0 16px 20px">
-        <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;
-          text-transform:uppercase;margin-bottom:8px">On Fairway Friend to</div>
-        <div style="display:flex;flex-direction:column;gap:8px">${goalsHtml}</div>
-      </div>` : ""}
-
-      <!-- Vibes -->
-      ${allVibes.length ? `
-      <div style="padding:0 16px 20px">
-        <div style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;
-          text-transform:uppercase;margin-bottom:8px">
-          Vibes ${sharedVibes.length ? `<span style="color:var(--green);font-weight:600">(${sharedVibes.length} shared)</span>` : ""}
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">${vibeHtml}</div>
-      </div>` : ""}
-
-    </div>`;
-
-  // Follow toggle for the profile page
-  window._ppToggleFollow = async (targetUid) => {
-    const btn = document.getElementById("pp-connect-btn");
-    if (!btn) return;
-    const { getDoc: gd, doc: dc, getFirestore: gf, updateDoc: ud, arrayUnion: au, arrayRemove: ar }
-      = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const { getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-    const db2 = gf(getApp());
-    const me  = window._currentUser?.uid;
-    if (!me) return;
-    const isFriend = (myProfile.friends || []).includes(targetUid);
-    await ud(dc(db2, "users", me), { friends: isFriend ? ar(targetUid) : au(targetUid) });
-    if (isFriend) {
-      myProfile.friends = (myProfile.friends || []).filter(f => f !== targetUid);
-      btn.textContent = "Connect";
-      btn.style.background = "var(--green)";
-      btn.style.color = "#fff";
-      btn.style.border = "1px solid var(--green)";
-    } else {
-      myProfile.friends = [...(myProfile.friends || []), targetUid];
-      btn.textContent = "✓ Following";
-      btn.style.background = "var(--surface)";
-      btn.style.color = "var(--text)";
-      btn.style.border = "1px solid var(--border)";
-    }
-  };
-}
-
-// ── Closest-3 courses tee times on home ─────────────────────────
-window._teeSectionFilter = 'all';
-async function loadDiscoverTeeTimes() {
-  const el = document.getElementById('disc-tee-nearby-list');
-  if (!el) return;
-  const courses = window._nearbyCourses || [];
-  if (!courses.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No nearby courses found yet — try loading the Courses tab first</div>';
-    return;
-  }
-  const closest = courses.slice().sort((a,b)=>a.dist-b.dist).slice(0,3);
-  const now = new Date();
-  const filterHour = window._teeSectionFilter === 'all' ? null : parseInt(window._teeSectionFilter);
-  const today = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-
-  function getTeeSlots(c) {
-    const slots = [];
-    for (let h=7; h<=17; h++) {
-      for (let m=0; m<60; m+=8) {
-        if (h < now.getHours()+1) continue;
-        if (filterHour !== null && h !== filterHour) continue;
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const dh   = h > 12 ? h-12 : h === 0 ? 12 : h;
-        slots.push({ time: `${dh}:${String(m).padStart(2,'0')} ${ampm}`, h });
-      }
-    }
-    return slots.slice(0,5);
-  }
-
-  el.innerHTML = closest.map(c => {
-    const safeName  = c.name.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-    const bookBase  = c.website || `https://www.golfnow.com/search?searchTerm=${encodeURIComponent(c.name)}`;
-    const isPrivate = (c.type||'').includes('Country') || c.name.toLowerCase().includes('country club');
-    const slots     = isPrivate ? [] : getTeeSlots(c);
-
-    const slotsHtml = slots.length
-      ? slots.map(s => {
-          const url = c.website || `https://www.golfnow.com/search?searchTerm=${encodeURIComponent(c.name)}`;
-          return `<a href="${url}" target="_blank" rel="noopener"
-            style="padding:7px 12px;border-radius:10px;background:var(--green-light);color:var(--green-dark);
-              font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--green);white-space:nowrap">
-            ${s.time}
-          </a>`;
-        }).join('')
-      : `<span style="font-size:12px;color:var(--muted);font-style:italic">Members/Private</span>`;
-
-    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${safeName}</div>
-          <div style="font-size:11px;color:var(--muted)">${c.dist<1?'<1':c.dist.toFixed(1)} mi · ${today}</div>
-        </div>
-        <a href="${bookBase}" target="_blank" rel="noopener"
-          style="font-size:11px;color:var(--green);text-decoration:none;font-weight:500;white-space:nowrap">
-          All times →
-        </a>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${slotsHtml}</div>
-    </div>`;
-  }).join('');
-}
-window.loadDiscoverTeeTimes = loadDiscoverTeeTimes;
-
-async function loadHomeTeeTimesSection() {
-  const el = document.getElementById('home-tee-section');
-  if (!el) return;
-  const courses = window._nearbyCourses || [];
-  if (!courses.length) {
-    el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Load Discover tab first to see nearby courses</div>';
-    return;
-  }
-  const closest = courses.slice().sort((a,b)=>a.dist-b.dist).slice(0,3);
-  const now = new Date();
-  const filterHour = window._teeSectionFilter === 'all' ? null : parseInt(window._teeSectionFilter);
-
-  // Generate realistic tee time slots (every 8 min from 7am to 5pm)
-  function getTeeSlots(courseName, date) {
-    const slots = [];
-    for (let h=7; h<=17; h++) {
-      for (let m=0; m<60; m+=8) {
-        const slotHour = h + (now.getHours() + 1 - 7 > 0 ? 0 : 0);
-        if (h < now.getHours()+1) continue; // skip past times
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const displayH = h > 12 ? h-12 : h;
-        const timeStr = `${displayH}:${m.toString().padStart(2,'0')} ${ampm}`;
-        if (filterHour !== null && h !== filterHour) continue;
-        slots.push({ time: timeStr, hour: h, min: m });
-      }
-    }
-    return slots.slice(0,4); // show max 4 per course
-  }
-
-  const today = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-  const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-
-  el.innerHTML = closest.map(c => {
-    const bookBase = c.website || `https://www.golfnow.com/search?searchTerm=${encodeURIComponent(c.name)}`;
-    const isPrivate = (c.type||'').includes('Country') || c.name.toLowerCase().includes('country club');
-    const slots = isPrivate ? [] : getTeeSlots(c.name, today);
-    const slotsHtml = slots.length
-      ? slots.map(s => {
-          const bookUrl = c.website
-            ? c.website
-            : `https://www.golfnow.com/search?searchTerm=${encodeURIComponent(c.name)}&date=${encodeURIComponent(today)}&time=${encodeURIComponent(s.time)}`;
-          return `<a href="${bookUrl}" target="_blank" rel="noopener"
-            style="display:inline-block;padding:7px 11px;border-radius:10px;
-              background:var(--green-light);color:var(--green-dark);
-              font-size:12px;font-weight:600;text-decoration:none;
-              border:1px solid var(--green);white-space:nowrap;flex-shrink:0">
-            ${s.time}
-          </a>`;
-        }).join('')
-      : `<span style="font-size:12px;color:var(--muted)">Member/Private — ${c.website?'<a href="'+c.website+'" target="_blank" rel="noopener" style="color:var(--green)">Visit website</a>':'No public tee times'}</span>`;
-
-    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border)">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
-        <div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${esc(c.name)}</div>
-          <div style="font-size:11px;color:var(--muted)">${c.dist<1?'<1':c.dist.toFixed(1)} mi · ${today}</div>
-        </div>
-        ${!isPrivate ? `<a href="${bookBase}" target="_blank" rel="noopener"
-          style="font-size:11px;color:var(--green);text-decoration:none;font-weight:500">
-          All times →
-        </a>` : ''}
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${slotsHtml}</div>
-    </div>`;
-  }).join('');
-}
-window.loadHomeTeeTimesSection = loadHomeTeeTimesSection;
-
-window.goScreen = goScreen;
-
-// Global unhandled promise rejection handler — prevents silent failures
+// ── Global error handler ──────────────────────────────────────────────────────
 window.addEventListener('unhandledrejection', (e) => {
-  const msg = e.reason?.message || String(e.reason);
-  // Don't surface quota/network errors to users
+  const msg = e.reason?.message || String(e.reason) || '';
   if (msg.includes('QuotaExceeded') || msg.includes('network') || msg.includes('WebChannel')) return;
   console.error('[FW]', msg);
-  // Show user-friendly toast for critical errors only
   if (msg.includes('permission-denied')) showToast('Permission denied — try signing out and back in');
 });
-window._initFeed = () => { initFeed(); initNearbyPlayers(); };
-window.buildOnboardScreen = buildOnboardScreen;
-
-// Test suite is loaded as a plain <script> tag in index.html
