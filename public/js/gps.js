@@ -75,74 +75,123 @@ function _dist(lat1,lon1,lat2,lon2) {
 }
 
 // ── Fetch hole coordinates from OpenStreetMap ──────────────────
+// Generate approximate 18-hole layout around course center
+function _syntheticHoles(lat, lon) {
+  const holes = [];
+  for (let h = 1; h <= 18; h++) {
+    const isFront = h <= 9;
+    const idx     = isFront ? h-1 : h-10;
+    const angle   = (idx / 9) * 2 * Math.PI + (isFront ? 0 : Math.PI);
+    const r       = isFront ? 0.002 : 0.0018; // ~220m / ~200m in degrees
+    const cosLat  = Math.cos(lat * Math.PI / 180);
+    const gLat    = lat + r * Math.cos(angle);
+    const gLon    = lon + r * Math.sin(angle) / cosLat;
+    const tLat    = lat + (r * 0.3) * Math.cos(angle + Math.PI);
+    const tLon    = lon + (r * 0.3) * Math.sin(angle + Math.PI) / cosLat;
+    holes.push({
+      h,
+      lat:    gLat, lon:    gLon,
+      teeLat: tLat, teeLon: tLon,
+      par: [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4][h-1],
+    });
+  }
+  return holes;
+}
+
 export async function fetchCourseHoles(courseName, courseLat, courseLon) {
-  const cacheKey = 'holes_' + courseName.toLowerCase().replace(/[^a-z0-9]/g,'_');
+  const GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
+  const cacheKey  = 'holes_' + courseName.toLowerCase().replace(/[^a-z0-9]/g,'_');
+
+  // Check 24h cache
   try {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       const p = JSON.parse(cached);
       if (Date.now() - p.ts < 86400000) {
-        console.log('GPS: cache hit ' + courseName + ' (' + (p.source||'?') + ')');
+        console.log(`GPS: cache hit for ${courseName} (${p.source})`);
         return p.holes;
       }
     }
   } catch(_) {}
 
   const lat = courseLat, lon = courseLon;
-  if (!lat || !lon) return _syntheticHoles(0, 0);
+  if (!lat || !lon) return _syntheticHoles(lat||0, lon||0);
 
-  // ── API 1: golf-db.com free public API ─────────────────────────
+  // ── API 1: GolfCourseAPI.com — scorecard + course location ───────────────
+  // Provides par/yardage/handicap/slope/rating per tee. No hole GPS coords.
+  // We use it to: (a) get the precise course lat/lon for OSM queries,
+  //               (b) enrich hole data with real par/handicap/yardage.
+  let gcapiHoles  = null;  // par/handicap from GolfCourseAPI
+  let gcapiCoords = null;  // precise course lat/lon
+
   try {
-    const gdUrl = 'https://golf-db.com/api/v1/courses?lat=' + lat + '&lon=' + lon +
-      '&radius=5000&name=' + encodeURIComponent(courseName);
-    const gdResp = await fetch(gdUrl, { signal: AbortSignal.timeout(5000) });
-    if (gdResp.ok) {
-      const gdData = await gdResp.json();
-      const nameQ = courseName.toLowerCase().split(' ')[0];
-      const course = (gdData.courses||[]).find(c =>
-        (c.name||'').toLowerCase().includes(nameQ)
-      ) || gdData.courses?.[0];
-      if (course && course.holes && course.holes.length >= 9) {
-        const holes = course.holes.map(function(h) { return {
-          h: h.number || h.hole,
-          par: h.par || 4,
-          lat: (h.green && h.green.lat) || h.lat || null,
-          lon: (h.green && (h.green.lng || h.green.lon)) || h.lon || null,
-          teeLat: (h.tee && h.tee.lat) || null,
-          teeLon: (h.tee && (h.tee.lng || h.tee.lon)) || null,
-          yards: h.yards || h.distance || null,
-        }; });
-        const mapped = holes.filter(function(h){return h.lat;}).length;
-        if (mapped >= 3) {
-          try { sessionStorage.setItem(cacheKey, JSON.stringify({holes:holes, ts:Date.now(), source:'golf-db'})); } catch(e){}
-          console.log('GPS: golf-db.com OK ' + mapped + '/18 holes for ' + courseName);
-          return holes;
+    const gcResp = await fetch(
+      `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(courseName)}`,
+      { headers: { 'Authorization': `Key ${GCAPI_KEY}` }, signal: AbortSignal.timeout(6000) }
+    );
+    if (gcResp.ok) {
+      const gcData = await gcResp.json();
+      // Pick closest course to provided coords
+      let best = null, bestDist = Infinity;
+      for (const c of gcData.courses || []) {
+        const cLat = c.location?.latitude, cLon = c.location?.longitude;
+        if (!cLat || !cLon) continue;
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
+        const a=Math.sin(dLat/2)**2+Math.cos(lat*d2r)*Math.cos(cLat*d2r)*Math.sin(dLon/2)**2;
+        const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+        if (dist < bestDist) { bestDist=dist; best=c; }
+      }
+      if (best && bestDist < 30) {
+        // Use precise course coordinates for OSM query
+        gcapiCoords = { lat: best.location.latitude, lon: best.location.longitude };
+        // Extract par + handicap from male tees (prefer black/championship tee)
+        const tees = best.tees?.male || best.tees?.female || [];
+        const tee  = tees.find(t => /black|champ|pro|tpc/i.test(t.tee_name||'')) || tees[0];
+        if (tee?.holes?.length >= 9) {
+          gcapiHoles = tee.holes.map((h,i) => ({
+            h: i+1,
+            par: h.par || 4,
+            handicap: h.handicap || null,
+            yards: h.yardage || null,
+          }));
+          console.log(`GPS: GolfCourseAPI ✓ scorecard for ${courseName} (${bestDist.toFixed(1)}mi, tee: ${tee.tee_name})`);
         }
+      } else if (best) {
+        console.warn(`GPS: GolfCourseAPI course too far (${bestDist.toFixed(0)}mi)`);
       }
     }
-  } catch(e) { console.warn('GPS: golf-db.com failed:', e.message); }
+  } catch(e) { console.warn('GPS: GolfCourseAPI failed:', e.message); }
 
-  // ── API 2: OSM Overpass ─────────────────────────────────────────
-  const radius = 800;
-  const osmQ = '[out:json][timeout:15];(' +
-    'way["golf"="hole"](around:' + radius + ',' + lat + ',' + lon + ');' +
-    'node["golf"="hole"](around:' + radius + ',' + lat + ',' + lon + ');' +
-    'way["golf"="green"](around:' + radius + ',' + lat + ',' + lon + ');' +
-    'node["golf"="pin"](around:' + radius + ',' + lat + ',' + lon + ');' +
-    'way["golf"="tee"](around:' + radius + ',' + lat + ',' + lon + ');' +
-    ');out center;';
+  // ── API 2: OSM Overpass — hole GPS coordinates ────────────────────────────
+  // Use GolfCourseAPI coords if available (more precise than user's location)
+  const queryLat = gcapiCoords?.lat || lat;
+  const queryLon = gcapiCoords?.lon || lon;
+  const radius   = 800;
+
+  const query = `
+    [out:json][timeout:15];
+    (
+      way["golf"="hole"](around:${radius},${queryLat},${queryLon});
+      node["golf"="hole"](around:${radius},${queryLat},${queryLon});
+      way["golf"="green"](around:${radius},${queryLat},${queryLon});
+      node["golf"="pin"](around:${radius},${queryLat},${queryLon});
+      way["golf"="tee"](around:${radius},${queryLat},${queryLon});
+    );
+    out center;
+  `;
 
   try {
-    const osmData = await _overpassFetch(osmQ, 12000);
+    const osmData  = await _overpassFetch(query, 12000);
     const elements = osmData.elements || [];
+
     const holeMap = {};
-    for (let i=0; i < elements.length; i++) {
-      const el = elements[i];
+    for (const el of elements) {
       const tags = el.tags || {};
-      const ref = parseInt(tags.ref || tags['golf:hole'] || tags.hole || '0');
+      const ref  = parseInt(tags.ref || tags['golf:hole'] || tags.hole || '0');
       if (ref < 1 || ref > 18) continue;
-      const eLat = el.lat || (el.center && el.center.lat);
-      const eLon = el.lon || (el.center && el.center.lon);
+      const eLat = el.lat || el.center?.lat;
+      const eLon = el.lon || el.center?.lon;
       if (!eLat || !eLon) continue;
       if (!holeMap[ref]) holeMap[ref] = {};
       const golf = tags.golf || '';
@@ -152,30 +201,50 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
         holeMap[ref].tee = { lat: eLat, lon: eLon };
       }
     }
-    const pars = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];
+
+    const DEFAULT_PARS = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];
     const holes = [];
-    for (let h=1; h<=18; h++) {
-      const hd = holeMap[h];
+    for (let h = 1; h <= 18; h++) {
+      const hd  = holeMap[h]  || {};
+      const gc  = gcapiHoles?.[h-1] || {};
       holes.push({
-        h: h, par: pars[h-1],
-        lat: hd && hd.green ? hd.green.lat : null,
-        lon: hd && hd.green ? hd.green.lon : null,
-        teeLat: hd && hd.tee ? hd.tee.lat : null,
-        teeLon: hd && hd.tee ? hd.tee.lon : null,
+        h,
+        lat:    hd.green?.lat  || null,
+        lon:    hd.green?.lon  || null,
+        teeLat: hd.tee?.lat    || null,
+        teeLon: hd.tee?.lon    || null,
+        par:      gc.par      || DEFAULT_PARS[h-1],
+        handicap: gc.handicap || null,
+        yards:    gc.yards    || null,
       });
     }
-    const mappedOsm = holes.filter(function(h){return h.lat;}).length;
-    if (mappedOsm >= 3) {
-      try { sessionStorage.setItem(cacheKey, JSON.stringify({holes:holes, ts:Date.now(), source:'osm'})); } catch(e){}
-      console.log('GPS: OSM OK ' + mappedOsm + '/18 holes for ' + courseName);
+
+    const mappedCount = holes.filter(h=>h.lat).length;
+    if (mappedCount >= 3) {
+      try { sessionStorage.setItem(cacheKey, JSON.stringify({holes, ts:Date.now(), source:'osm+gcapi'})); } catch(_){}
+      console.log(`GPS: OSM ✓ ${mappedCount}/18 holes mapped for ${courseName}`);
       return holes;
     }
-    console.warn('GPS: OSM only ' + mappedOsm + ' holes — synthetic');
-  } catch(e) { console.warn('GPS: OSM failed:', e.message); }
+    console.warn(`GPS: OSM only found ${mappedCount} holes — using synthetic`);
+  } catch(e) {
+    console.warn('GPS: OSM failed:', e.message);
+  }
 
-  // ── API 3: Synthetic (always works) ────────────────────────────
-  console.log('GPS: synthetic for ' + courseName);
-  return _syntheticHoles(lat, lon);
+  // ── API 3: Synthetic fallback — always works ──────────────────────────────
+  console.log(`GPS: synthetic layout for ${courseName}`);
+  const synth = _syntheticHoles(gcapiCoords?.lat || lat, gcapiCoords?.lon || lon);
+  // Merge GolfCourseAPI scorecard data into synthetic holes
+  if (gcapiHoles) {
+    synth.forEach((h,i) => {
+      const gc = gcapiHoles[i] || {};
+      h.par      = gc.par      || h.par;
+      h.handicap = gc.handicap || null;
+      h.yards    = gc.yards    || null;
+    });
+    console.log(`GPS: synthetic with real scorecard data from GolfCourseAPI`);
+  }
+  try { sessionStorage.setItem(cacheKey, JSON.stringify({holes:synth, ts:Date.now(), source:'synthetic'})); } catch(_){}
+  return synth;
 }
 
 
