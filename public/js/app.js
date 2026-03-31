@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=65";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=65";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=65";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=65";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=65";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=65";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=65";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=65";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=65";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=65";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=65";
-import { buildOnboardScreen } from "./onboard.js?v=65";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=66";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=66";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=66";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=66";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=66";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=66";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=66";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=66";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=66";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=66";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=66";
+import { buildOnboardScreen } from "./onboard.js?v=66";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=65");
+      const { initials, avatarColor } = await import("./ui.js?v=66");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1538,22 +1538,29 @@ window.UI = {
       const mirrors=[
         'https://overpass-api.de/api/interpreter',
         'https://overpass.private.coffee/api/interpreter',
-        'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
       ];
-      // Sequential mirror fallback — try each until one returns valid JSON
+      // Race all mirrors with a hard 8s total timeout — non-blocking
       let txt1=null;
-      for(const mirror of mirrors){
-        const ctrl=new AbortController();
-        const t=setTimeout(()=>ctrl.abort(),5000);
-        try{
-          const r=await fetch(mirror+'?data='+encodeURIComponent(q),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
-          clearTimeout(t);
-          if(r.status===429){await new Promise(res=>setTimeout(res,2500));continue;}
-          if(!r.ok)continue;
-          const txt=await r.text();
-          if(txt&&!txt.trim().startsWith('<')){txt1=txt;break;}
-        }catch(e){clearTimeout(t);}
-      }
+      try {
+        const tryMirror = async (mirror) => {
+          const ctrl=new AbortController();
+          const t=setTimeout(()=>ctrl.abort(),6000);
+          try{
+            const r=await fetch(mirror+'?data='+encodeURIComponent(q),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
+            clearTimeout(t);
+            if(!r.ok||r.status===429) return null;
+            const txt=await r.text();
+            return (txt&&!txt.trim().startsWith('<'))?txt:null;
+          }catch(e){clearTimeout(t);return null;}
+        };
+        // Race: first successful result wins, total cap 8s
+        const raceResult = await Promise.race([
+          Promise.any(mirrors.map(m=>tryMirror(m).then(t=>t||Promise.reject()))).catch(()=>null),
+          new Promise(res=>setTimeout(()=>res(null),8000)),
+        ]);
+        txt1 = raceResult;
+      } catch(e) { txt1=null; }
 
       // ── 5b. GolfCourseAPI city fallback if Overpass failed ──────────────
       if (!txt1) {
