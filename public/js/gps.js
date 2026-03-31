@@ -6,18 +6,18 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=63';
+import { db } from './firebase-config.js?v=64';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=63';
+import { showToast } from './ui.js?v=64';
 
 // ── Overpass fetch with retry + mirror fallback ───────────────
 const OVERPASS_MIRRORS = [
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
 ];
 async function _overpassFetch(query, timeoutMs=15000) {
   // Check cache first

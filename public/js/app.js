@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=63";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=63";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=63";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=63";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=63";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=63";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=63";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=63";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=63";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=63";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=63";
-import { buildOnboardScreen } from "./onboard.js?v=63";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=64";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=64";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=64";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=64";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=64";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=64";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=64";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=64";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=64";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=64";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=64";
+import { buildOnboardScreen } from "./onboard.js?v=64";
 
 
 // ── Haversine distance in miles ──
@@ -363,10 +363,10 @@ window.UI = {
               background-repeat:no-repeat;background-position:right 12px center;padding-right:32px">
             <option value="5">5 miles</option>
             <option value="10">10 miles</option>
-            <option value="25">25 miles</option>
+            <option value="25" selected>25 miles</option>
             <option value="50">50 miles</option>
             <option value="75">75 miles</option>
-            <option value="100" selected>100 miles (max)</option>
+            <option value="100">100 miles (max)</option>
           </select>
         `;
         coursesList.parentNode.insertBefore(bar, coursesList);
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=63");
+      const { initials, avatarColor } = await import("./ui.js?v=64");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1528,29 +1528,23 @@ window.UI = {
       }
 
       // ── 5. OSM Overpass — geo-search for courses within radius ──────
-      const radius = Math.round((parseFloat(document.getElementById('dist-filter')?.value || '100') || 100) * 1609.34);
-      const q='[out:json][timeout:30];('+
+      const radius = Math.round((parseFloat(document.getElementById('dist-filter')?.value || '25') || 25) * 1609.34);
+      const q='[out:json][timeout:25];('+
         'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
         'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
-        'node["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
         'way["amenity"="golf_course"]["name"](around:'+radius+','+lat+','+lon+');'+
-        'node["amenity"="golf_course"]["name"](around:'+radius+','+lat+','+lon+');'+
-        'way["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
-        'way["leisure"="sports_centre"]["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
-        'way["landuse"="recreation_ground"]["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
         ');out center tags;';
 
       const mirrors=[
         'https://overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter',
-        'https://overpass.openstreetmap.ru/api/interpreter',
         'https://overpass.private.coffee/api/interpreter',
+        'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
       ];
       // Sequential mirror fallback — try each until one returns valid JSON
       let txt1=null;
       for(const mirror of mirrors){
         const ctrl=new AbortController();
-        const t=setTimeout(()=>ctrl.abort(),14000);
+        const t=setTimeout(()=>ctrl.abort(),5000);
         try{
           const r=await fetch(mirror+'?data='+encodeURIComponent(q),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
           clearTimeout(t);
@@ -1559,6 +1553,48 @@ window.UI = {
           const txt=await r.text();
           if(txt&&!txt.trim().startsWith('<')){txt1=txt;break;}
         }catch(e){clearTimeout(t);}
+      }
+
+      // ── 5b. GolfCourseAPI city fallback if Overpass failed ──────────────
+      if (!txt1) {
+        try {
+          // When Overpass is down, search GolfCourseAPI by city name
+          const _cityQ = (myProfile.city || window._weatherCity || '').split(',')[0].trim();
+          if (_cityQ) {
+            const _gcFb = await fetch(
+              `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_cityQ+' golf')}`,
+              { headers: { 'Authorization': 'Key Q4EAEMMFI54TY4HEA62GEOH3BI' }, signal: AbortSignal.timeout(6000) }
+            );
+            if (_gcFb.ok) {
+              const _gcData = await _gcFb.json();
+              for (const c of _gcData.courses || []) {
+                const cLat=c.location?.latitude, cLon=c.location?.longitude;
+                if (!cLat || !cLon) continue;
+                const name = c.club_name || c.course_name || 'Golf Course';
+                const key = norm(name);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const tee = c.tees?.male?.[0];
+                courses.push({
+                  name,
+                  holes:  tee?.number_of_holes || null,
+                  phone:  c.location?.phone    || null,
+                  website:c.website            || null,
+                  addr:   [c.location?.city, c.location?.state].filter(Boolean).join(', '),
+                  type:   'Golf Course',
+                  dist:   _haversine(lat, lon, cLat, cLon),
+                  lat: cLat, lon: cLon,
+                  rating: tee?.course_rating   || null,
+                  slope:  tee?.slope_rating    || null,
+                  par:    tee?.par_total       || null,
+                });
+              }
+              if (courses.length > 0) {
+                console.log(`Discover: GolfCourseAPI fallback found ${courses.length} courses for "${_cityQ}"`);
+              }
+            }
+          }
+        } catch(e) { console.warn('Discover: GolfCourseAPI fallback failed:', e.message); }
       }
 
       if(txt1){
