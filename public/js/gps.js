@@ -6,12 +6,12 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=66';
+import { db } from './firebase-config.js?v=67';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=66';
+import { showToast } from './ui.js?v=67';
 
 // ── Overpass fetch with retry + mirror fallback ───────────────
 const OVERPASS_MIRRORS = [
@@ -116,6 +116,8 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
 
   const lat = courseLat, lon = courseLon;
   if (!lat || !lon) return _syntheticHoles(lat||0, lon||0);
+  let gcapiCoords = null;   // {lat, lon} from GolfCourseAPI — precise course center
+  let gcapiHoles  = null;   // [{h, par, handicap, yards}] from GolfCourseAPI scorecard
 
   // ── API 1: golfapi.io — hole GPS coordinates (green/tee lat/lon per hole) ──
   // Confirmed response shapes:
@@ -251,7 +253,7 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   } catch(e) { console.warn('GPS: golfapi.io failed:', e.message); }
 
   // ── API 2: GolfCourseAPI.com — scorecard + precise course location ─────────
-  GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
+  // GCAPI_KEY already declared above
   try {
     const gcResp = await fetch(
       `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(courseName)}`,
@@ -261,10 +263,10 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
       const gcData = await gcResp.json();
       let best = null, bestDist = Infinity;
       for (const c of gcData.courses || []) {
-        cLat = c.location?.latitude, cLon = c.location?.longitude;
+        const cLat = c.location?.latitude, cLon = c.location?.longitude;
         if (!cLat || !cLon) continue;
-        R=3958.8, d2r=Math.PI/180;
-        dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
         a=Math.sin(dLat/2)**2+Math.cos(lat*d2r)*Math.cos(cLat*d2r)*Math.sin(dLon/2)**2;
         const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
         if (dist < bestDist) { bestDist=dist; best=c; }

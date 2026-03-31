@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=66";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=66";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=66";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=66";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=66";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=66";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=66";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=66";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=66";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=66";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=66";
-import { buildOnboardScreen } from "./onboard.js?v=66";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=67";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=67";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=67";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=67";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=67";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=67";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=67";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=67";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=67";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=67";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=67";
+import { buildOnboardScreen } from "./onboard.js?v=67";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=66");
+      const { initials, avatarColor } = await import("./ui.js?v=67");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1565,40 +1565,59 @@ window.UI = {
       // ── 5b. GolfCourseAPI city fallback if Overpass failed ──────────────
       if (!txt1) {
         try {
-          // When Overpass is down, search GolfCourseAPI by city name
-          const _cityQ = (myProfile.city || window._weatherCity || '').split(',')[0].trim();
+          const _cityFull = (myProfile.city || window._weatherCity || '');
+          const _cityQ    = _cityFull.split(',')[0].trim();
+          const _stateQ   = _cityFull.split(',')[1]?.trim() || '';
           if (_cityQ) {
-            const _gcFb = await fetch(
-              `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_cityQ+' golf')}`,
-              { headers: { 'Authorization': 'Key Q4EAEMMFI54TY4HEA62GEOH3BI' }, signal: AbortSignal.timeout(6000) }
-            );
-            if (_gcFb.ok) {
-              const _gcData = await _gcFb.json();
-              for (const c of _gcData.courses || []) {
-                const cLat=c.location?.latitude, cLon=c.location?.longitude;
-                if (!cLat || !cLon) continue;
-                const name = c.club_name || c.course_name || 'Golf Course';
-                const key = norm(name);
-                if (seen.has(key)) continue;
-                seen.add(key);
-                const tee = c.tees?.male?.[0];
-                courses.push({
-                  name,
-                  holes:  tee?.number_of_holes || null,
-                  phone:  c.location?.phone    || null,
-                  website:c.website            || null,
-                  addr:   [c.location?.city, c.location?.state].filter(Boolean).join(', '),
-                  type:   'Golf Course',
-                  dist:   _haversine(lat, lon, cLat, cLon),
-                  lat: cLat, lon: cLon,
-                  rating: tee?.course_rating   || null,
-                  slope:  tee?.slope_rating    || null,
-                  par:    tee?.par_total       || null,
-                });
+            // Multiple search queries to get more courses
+            const _queries = [
+              _cityQ,                                          // "Tampa"
+              _cityQ + ' golf',                               // "Tampa golf"
+              _cityQ + ' country club',                       // "Tampa country club"
+              _stateQ ? _stateQ + ' golf' : _cityQ + ' club' // "FL golf" or "Tampa club"
+            ];
+            const _addCourse = (c) => {
+              const cLat=c.location?.latitude, cLon=c.location?.longitude;
+              if (!cLat || !cLon) return;
+              // Filter by distance — only include within current radius
+              const _distMi = _haversine(lat, lon, cLat, cLon);
+              const _radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
+              if (_distMi > _radiusMi) return;
+              const name = c.club_name || c.course_name || 'Golf Course';
+              const key  = norm(name);
+              if (seen.has(key)) return;
+              seen.add(key);
+              const tee  = c.tees?.male?.[0] || c.tees?.female?.[0];
+              courses.push({
+                name,
+                holes:   tee?.number_of_holes || 18,
+                phone:   c.location?.phone    || null,
+                website: c.website            || null,
+                addr:    [c.location?.address, c.location?.city, c.location?.state].filter(Boolean).join(', '),
+                type:    'Golf Course',
+                dist:    _distMi,
+                lat: cLat, lon: cLon,
+                rating:  tee?.course_rating   || null,
+                slope:   tee?.slope_rating    || null,
+                par:     tee?.par_total       || null,
+              });
+            };
+            // Fire all queries in parallel
+            const _responses = await Promise.allSettled(_queries.map(q =>
+              fetch(`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`,
+                { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(6000) })
+              .then(r => r.ok ? r.json() : null)
+              .catch(() => null)
+            ));
+            for (const res of _responses) {
+              if (res.status==='fulfilled' && res.value?.courses) {
+                for (const c of res.value.courses) _addCourse(c);
               }
-              if (courses.length > 0) {
-                console.log(`Discover: GolfCourseAPI fallback found ${courses.length} courses for "${_cityQ}"`);
-              }
+            }
+            if (courses.length > 0) {
+              console.log(`Discover: GolfCourseAPI fallback found ${courses.length} courses for "${_cityQ}"`);
+            } else {
+              console.warn(`Discover: GolfCourseAPI fallback found 0 courses for "${_cityQ}" — check city/radius`);
             }
           }
         } catch(e) { console.warn('Discover: GolfCourseAPI fallback failed:', e.message); }
