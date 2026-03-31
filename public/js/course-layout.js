@@ -7,6 +7,41 @@
 import { showToast, esc } from './ui.js?v=42';
 import { fetchCourseHoles, isActive as gpsIsActive, getCurrentHole, getShots } from './gps.js?v=42';
 
+// ── Overpass fetch with retry + mirror fallback ───────────────
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+async function _overpassFetch(query, timeoutMs=18000) {
+  const cacheKey = 'op_' + btoa(unescape(encodeURIComponent(query.trim().slice(0,100)))).replace(/[^a-z0-9]/gi,'').slice(0,40);
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) { const p=JSON.parse(cached); if(Date.now()-p.ts<3600000) return p.data; }
+  } catch(_) {}
+
+  let lastErr;
+  for (const mirror of OVERPASS_MIRRORS) {
+    for (let attempt=0; attempt<2; attempt++) {
+      try {
+        if (attempt>0) await new Promise(r=>setTimeout(r,1500*attempt));
+        const resp = await fetch(mirror+'?data='+encodeURIComponent(query),{
+          signal: AbortSignal.timeout(timeoutMs),
+          headers:{'Accept':'application/json'}
+        });
+        if (resp.status===429){ await new Promise(r=>setTimeout(r,3000+attempt*2000)); continue; }
+        if (!resp.ok) continue;
+        const ct = resp.headers.get('content-type')||'';
+        if (!ct.includes('json')) continue;
+        const data = await resp.json();
+        try{sessionStorage.setItem(cacheKey,JSON.stringify({data,ts:Date.now()}));}catch(_){}
+        return data;
+      } catch(e){lastErr=e;}
+    }
+  }
+  throw lastErr||new Error('All Overpass mirrors failed');
+}
+
 // ── State ─────────────────────────────────────────────────────
 let _courseName = '';
 let _holes      = [];   // [{h, lat, lon, teeLat, teeLon, fairwayPoly:[]}]
@@ -107,11 +142,7 @@ async function _loadOSMData(lat, lon) {
   `;
 
   try {
-    const resp = await fetch(
-      'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query),
-      { signal: AbortSignal.timeout(18000) }
-    );
-    const data = await resp.json();
+    const data = await _overpassFetch(query, 18000);
     _osm = data.elements || [];
 
     // Build node lookup for polygon rendering

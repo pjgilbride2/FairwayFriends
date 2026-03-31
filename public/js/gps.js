@@ -13,6 +13,48 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { showToast } from './ui.js?v=41';
 
+// ── Overpass fetch with retry + mirror fallback ───────────────
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+async function _overpassFetch(query, timeoutMs=15000) {
+  // Check cache first
+  const cacheKey = 'op_' + btoa(query.trim().slice(0,100)).replace(/[^a-z0-9]/gi,'').slice(0,40);
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const p = JSON.parse(cached);
+      if (Date.now() - p.ts < 3600000) return p.data; // 1h cache
+    }
+  } catch(_) {}
+
+  let lastErr;
+  for (const mirror of OVERPASS_MIRRORS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
+        const resp = await fetch(mirror + '?data=' + encodeURIComponent(query), {
+          signal: AbortSignal.timeout(timeoutMs),
+          headers: { 'Accept': 'application/json' }
+        });
+        if (resp.status === 429) {
+          await new Promise(r => setTimeout(r, 3000 + attempt * 2000));
+          continue;
+        }
+        if (!resp.ok) continue;
+        const ct = resp.headers.get('content-type') || '';
+        if (!ct.includes('json')) continue; // Got HTML error page
+        const data = await resp.json();
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({data, ts: Date.now()})); } catch(_) {}
+        return data;
+      } catch(e) { lastErr = e; }
+    }
+  }
+  throw lastErr || new Error('All Overpass mirrors failed');
+}
+
 // ── State ─────────────────────────────────────────────────────
 let _watchId       = null;     // geolocation watchPosition ID
 let _roundDocId    = null;     // Firestore round tracking doc
@@ -62,11 +104,7 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   `;
 
   try {
-    const resp = await fetch(
-      'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query),
-      { signal: AbortSignal.timeout(12000) }
-    );
-    const data = await resp.json();
+    const data = await _overpassFetch(query, 12000);
     const elements = data.elements || [];
 
     // Group by hole ref number
