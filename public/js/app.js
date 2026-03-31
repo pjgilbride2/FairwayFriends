@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=53";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=53";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=53";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=53";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=53";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=53";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=53";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=53";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=53";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=53";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=53";
-import { buildOnboardScreen } from "./onboard.js?v=53";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=54";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=54";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=54";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=54";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=54";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=54";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=54";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=54";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=54";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=54";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=54";
+import { buildOnboardScreen } from "./onboard.js?v=54";
 
 
 // ── Haversine distance in miles ──
@@ -711,7 +711,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=53");
+      const { initials, avatarColor } = await import("./ui.js?v=54");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1473,9 +1473,8 @@ window.UI = {
         if(label)label.textContent='Loading more courses…';
       }
 
-      // ── 5. Overpass: short timeout mirrors in parallel ─────────────
+      // ── 5. OSM Overpass — geo-search for courses within radius ──────
       const radius = Math.round((parseFloat(document.getElementById('dist-filter')?.value || '100') || 100) * 1609.34);
-      // Multi-API query: OSM Overpass (primary) + Nominatim (secondary)
       const q='[out:json][timeout:30];('+
         'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
         'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
@@ -1486,11 +1485,6 @@ window.UI = {
         'way["leisure"="sports_centre"]["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
         'way["landuse"="recreation_ground"]["sport"="golf"]["name"](around:'+radius+','+lat+','+lon+');'+
         ');out center tags;';
-      // Nominatim secondary query (different result set, fills gaps)
-      const nominatimUrl = 'https://nominatim.openstreetmap.org/search?'+
-        'q=golf+course&format=json&limit=50&addressdetails=0&extratags=1'+
-        '&viewbox='+(lon-radius/111000)+','+(lat+radius/111000)+','+(lon+radius/111000)+','+(lat-radius/111000)+
-        '&bounded=1';
 
       const mirrors=[
         'https://overpass-api.de/api/interpreter',
@@ -1528,31 +1522,40 @@ window.UI = {
         courses=[...courses,...parsed];
       }
 
-      // ── 6. Nominatim fallback if Overpass got nothing ──────────────
-      // Always run Nominatim to supplement OSM (fills gaps, different tagging)
-      {
-        try{
-          const radiusDeg = (parseFloat(document.getElementById('dist-filter')?.value||'25')*1.15)/69.0; const bbox = Math.min(radiusDeg, 1.45);
-          // Search multiple golf terms to catch municipals tagged differently
-          const nomTerms=['golf course','municipal golf','city golf','public golf','golf club'];
-          const allNom=[];
-          for(const term of nomTerms){
-            try{
-              const url='https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(term)+'&format=json&limit=25&addressdetails=1'+
-                '&viewbox='+(lon-bbox)+','+(lat+bbox)+','+(lon+bbox)+','+(lat-bbox)+'&bounded=1';
-              const nd=await (await fetch(url,{headers:{'Accept-Language':'en'}})).json();
-              allNom.push(...nd);
-              await new Promise(r=>setTimeout(r,300)); // respect rate limit
-            }catch(_){}
-          }
-          allNom.forEach(p=>{
-            const n=p.display_name?.split(',')[0]||'';if(!n)return;
-            const k=norm(n);if(seen.has(k))return;seen.add(k);
-            const cLat=parseFloat(p.lat),cLon=parseFloat(p.lon);
-            courses.push({name:n,holes:null,phone:null,website:null,addr:'',type:'Golf Course',dist:_haversine(lat,lon,cLat,cLon),lat:cLat,lon:cLon});
+      // ── 6. GolfCourseAPI — enrich courses with real par/slope/rating ──
+      // Search by name for each OSM course to fill in scorecard details
+      const GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
+      const topCourses = courses.slice(0, 15); // enrich top 15 nearest
+      await Promise.allSettled(topCourses.map(async (c) => {
+        try {
+          const r = await fetch(
+            `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(c.name)}`,
+            { headers: { 'Authorization': `Key ${GCAPI_KEY}` }, signal: AbortSignal.timeout(4000) }
+          );
+          if (!r.ok) return;
+          const d = await r.json();
+          // Match by proximity — pick closest result
+          const match = (d.courses||[]).find(gc => {
+            const gcLat=gc.location?.latitude, gcLon=gc.location?.longitude;
+            if (!gcLat) return false;
+            const R=3958.8,d2r=Math.PI/180;
+            const dLat=(gcLat-c.lat)*d2r,dLon=(gcLon-c.lon)*d2r;
+            const a=Math.sin(dLat/2)**2+Math.cos(c.lat*d2r)*Math.cos(gcLat*d2r)*Math.sin(dLon/2)**2;
+            return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)) < 2; // within 2 miles
           });
-        }catch(_){}
-      }
+          if (match) {
+            const tee = match.tees?.male?.[0];
+            if (tee) {
+              c.holes  = c.holes  || tee.number_of_holes;
+              c.rating = tee.course_rating;
+              c.slope  = tee.slope_rating;
+              c.par    = tee.par_total;
+            }
+            if (!c.phone   && match.location?.phone)   c.phone   = match.location.phone;
+            if (!c.website && match.website)            c.website = match.website;
+          }
+        } catch(_) {}
+      }));
 
       // ── 7. Filter + sort + dedupe ──────────────────────────────────
       const CLOSED=['lutz executive golf center','proputt miniature golf'];
