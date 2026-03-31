@@ -250,4 +250,296 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
     }
   } catch(e) { console.warn('GPS: golfapi.io failed:', e.message); }
 
+  // ── API 2: GolfCourseAPI.com — scorecard + precise course location ─────────
+  const GCAPI_KEY = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
+  try {
+    const gcResp = await fetch(
+      `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(courseName)}`,
+      { headers: { 'Authorization': `Key ${GCAPI_KEY}` }, signal: AbortSignal.timeout(6000) }
+    );
+    if (gcResp.ok) {
+      const gcData = await gcResp.json();
+      let best = null, bestDist = Infinity;
+      for (const c of gcData.courses || []) {
+        const cLat = c.location?.latitude, cLon = c.location?.longitude;
+        if (!cLat || !cLon) continue;
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
+        const a=Math.sin(dLat/2)**2+Math.cos(lat*d2r)*Math.cos(cLat*d2r)*Math.sin(dLon/2)**2;
+        const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+        if (dist < bestDist) { bestDist=dist; best=c; }
+      }
+      if (best && bestDist < 30) {
+        gcapiCoords = { lat: best.location.latitude, lon: best.location.longitude };
+        const tees = best.tees?.male || best.tees?.female || [];
+        const tee  = tees.find(t => /black|champ|pro|tpc/i.test(t.tee_name||'')) || tees[0];
+        if (tee?.holes?.length >= 9) {
+          gcapiHoles = tee.holes.map((h,i) => ({
+            h: i+1,
+            par:      h.par      || 4,
+            handicap: h.handicap || null,
+            yards:    h.yardage  || null,
+          }));
+          console.log(`GPS: GolfCourseAPI ✓ scorecard for ${courseName} (${bestDist.toFixed(1)}mi, tee: ${tee.tee_name})`);
+        }
+      } else if (best) {
+        console.warn(`GPS: GolfCourseAPI course too far (${bestDist.toFixed(0)}mi)`);
+      }
+    }
+  } catch(e) { console.warn('GPS: GolfCourseAPI failed:', e.message); }
 
+  // ── API 3: OSM Overpass — hole GPS coordinates (4-pass matching) ──────────
+  const queryLat = gcapiCoords?.lat || lat;
+  const queryLon = gcapiCoords?.lon || lon;
+  const radius   = 1200;
+
+  const osmQuery = `
+    [out:json][timeout:20];
+    (
+      way["golf"="hole"](around:${radius},${queryLat},${queryLon});
+      way["golf"="green"](around:${radius},${queryLat},${queryLon});
+      node["golf"="green"](around:${radius},${queryLat},${queryLon});
+      node["golf"="pin"](around:${radius},${queryLat},${queryLon});
+      way["golf"="tee"](around:${radius},${queryLat},${queryLon});
+      node["golf"="tee"](around:${radius},${queryLat},${queryLon});
+    );
+    out center tags;
+  `;
+
+  try {
+    const osmData  = await _overpassFetch(osmQuery, 15000);
+    const elements = osmData.elements || [];
+
+    const holeMap  = {};
+    const greenList = [];
+    const teeList   = [];
+
+    for (const el of elements) {
+      const tags = el.tags || {};
+      const golf = tags.golf || '';
+      const eLat = el.lat || el.center?.lat;
+      const eLon = el.lon || el.center?.lon;
+      if (!eLat || !eLon) continue;
+
+      if (golf === 'hole') {
+        const ref = parseInt(tags.ref || tags['golf:hole'] || '0');
+        if (ref >= 1 && ref <= 18) {
+          if (!holeMap[ref]) holeMap[ref] = {};
+          holeMap[ref].holeLine = { lat: eLat, lon: eLon };
+        }
+      } else if (golf === 'green' || golf === 'pin') {
+        const ref = parseInt(tags.ref || tags['golf:hole'] || '0');
+        if (ref >= 1 && ref <= 18) {
+          if (!holeMap[ref]) holeMap[ref] = {};
+          holeMap[ref].green = { lat: eLat, lon: eLon };
+        } else {
+          greenList.push({ lat: eLat, lon: eLon });
+        }
+      } else if (golf === 'tee') {
+        const ref = parseInt(tags.ref || tags['golf:hole'] || '0');
+        if (ref >= 1 && ref <= 18) {
+          if (!holeMap[ref]) holeMap[ref] = {};
+          if (!holeMap[ref].tee) holeMap[ref].tee = { lat: eLat, lon: eLon };
+        } else {
+          teeList.push({ lat: eLat, lon: eLon });
+        }
+      }
+    }
+
+    // Pass 2: proximity-match unref'd greens
+    if (greenList.length > 0) {
+      const used = new Set();
+      const hdist = (a, b) => {
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(a.lat-b.lat)*d2r, dLon=(a.lon-b.lon)*d2r;
+        const x=Math.sin(dLat/2)**2+Math.cos(b.lat*d2r)*Math.cos(a.lat*d2r)*Math.sin(dLon/2)**2;
+        return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))*5280;
+      };
+      for (const [ref, hd] of Object.entries(holeMap)) {
+        if (hd.green) continue;
+        const anchor = hd.holeLine || hd.tee;
+        if (!anchor) continue;
+        let best = null, bestDist = Infinity;
+        for (let i = 0; i < greenList.length; i++) {
+          if (used.has(i)) continue;
+          const d = hdist(greenList[i], anchor);
+          if (d < bestDist && d < 1200) { bestDist = d; best = i; }
+        }
+        if (best !== null) { hd.green = greenList[best]; used.add(best); }
+      }
+    }
+
+    // Pass 3: proximity-match unref'd tees
+    if (teeList.length > 0) {
+      const used = new Set();
+      const hdist = (a, b) => {
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(a.lat-b.lat)*d2r, dLon=(a.lon-b.lon)*d2r;
+        const x=Math.sin(dLat/2)**2+Math.cos(b.lat*d2r)*Math.cos(a.lat*d2r)*Math.sin(dLon/2)**2;
+        return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))*5280;
+      };
+      for (const [ref, hd] of Object.entries(holeMap)) {
+        if (hd.tee) continue;
+        const anchor = hd.holeLine;
+        if (!anchor) continue;
+        let best = null, bestDist = Infinity;
+        for (let i = 0; i < teeList.length; i++) {
+          if (used.has(i)) continue;
+          const d = hdist(teeList[i], anchor);
+          if (d < bestDist && d < 800) { bestDist = d; best = i; }
+        }
+        if (best !== null) { hd.tee = teeList[best]; used.add(best); }
+      }
+    }
+
+    // Pass 4: use hole-line center as green if nothing better
+    for (const hd of Object.values(holeMap)) {
+      if (!hd.green && hd.holeLine) hd.green = hd.holeLine;
+    }
+
+    const DEFAULT_PARS = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];
+    const holes = [];
+    for (let h = 1; h <= 18; h++) {
+      const hd = holeMap[h] || {};
+      const gc = gcapiHoles?.[h-1] || {};
+      holes.push({
+        h,
+        lat:    hd.green?.lat  || null,
+        lon:    hd.green?.lon  || null,
+        teeLat: hd.tee?.lat    || null,
+        teeLon: hd.tee?.lon    || null,
+        par:      gc.par      || DEFAULT_PARS[h-1],
+        handicap: gc.handicap || null,
+        yards:    gc.yards    || null,
+      });
+    }
+
+    const mappedCount = holes.filter(h=>h.lat).length;
+    if (mappedCount >= 3) {
+      try { sessionStorage.setItem(cacheKey, JSON.stringify({holes, ts:Date.now(), source:'osm+gcapi'})); } catch(_){}
+      console.log(`GPS: OSM ✓ ${mappedCount}/18 holes for ${courseName}`);
+      return holes;
+    }
+    console.warn(`GPS: OSM only found ${mappedCount} holes — using synthetic`);
+  } catch(e) {
+    console.warn('GPS: OSM failed:', e.message);
+  }
+
+  // ── API 4: Synthetic fallback ──────────────────────────────────────────────
+  console.log(`GPS: synthetic layout for ${courseName}`);
+  const synth = _syntheticHoles(gcapiCoords?.lat || lat, gcapiCoords?.lon || lon);
+  if (gcapiHoles) {
+    synth.forEach((h,i) => {
+      const gc = gcapiHoles[i] || {};
+      h.par      = gc.par      || h.par;
+      h.handicap = gc.handicap || null;
+      h.yards    = gc.yards    || null;
+    });
+    console.log(`GPS: synthetic with real scorecard data from GolfCourseAPI`);
+  }
+  try { sessionStorage.setItem(cacheKey, JSON.stringify({holes:synth, ts:Date.now(), source:'synthetic'})); } catch(_){}
+  return synth;
+}
+
+// ── Generate approximate 18-hole layout around course center ─────────────────
+function _syntheticHoles(lat, lon) {
+  const holes = [];
+  for (let h = 1; h <= 18; h++) {
+    const isFront = h <= 9;
+    const idx     = isFront ? h-1 : h-10;
+    const angle   = (idx / 9) * 2 * Math.PI + (isFront ? 0 : Math.PI);
+    const r       = isFront ? 0.002 : 0.0018;
+    const cosLat  = Math.cos(lat * Math.PI / 180);
+    const gLat    = lat + r * Math.cos(angle);
+    const gLon    = lon + r * Math.sin(angle) / cosLat;
+    const tLat    = lat + (r * 0.3) * Math.cos(angle + Math.PI);
+    const tLon    = lon + (r * 0.3) * Math.sin(angle + Math.PI) / cosLat;
+    holes.push({
+      h,
+      lat:    gLat, lon:    gLon,
+      teeLat: tLat, teeLon: tLon,
+      par: [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4][h-1],
+    });
+  }
+  return holes;
+}
+
+// ── GPS Round Tracking ────────────────────────────────────────────────────────
+let _gpsWatchId    = null;
+let _gpsRound      = null;
+let _gpsUpdateCb   = null;
+let _gpsHoles      = null;
+let _gpsCurHole    = 1;
+let _gpsAutoTimer  = null;
+export let gpsIsActive = false;
+
+export async function startGpsRound(courseName, courseLat, courseLon, onUpdate) {
+  if (_gpsWatchId !== null) stopGpsRound();
+  _gpsUpdateCb = onUpdate;
+  _gpsCurHole  = 1;
+  _gpsHoles    = await fetchCourseHoles(courseName, courseLat, courseLon);
+  _gpsRound    = { courseName, startedAt: Date.now(), shots: [], holes: [] };
+  gpsIsActive  = true;
+
+  if (!navigator.geolocation) {
+    console.warn('GPS: Geolocation not supported');
+    if (onUpdate) onUpdate({ hole: _gpsCurHole, holes: _gpsHoles, pos: null, distToPin: null });
+    return;
+  }
+
+  _gpsWatchId = navigator.geolocation.watchPosition(
+    pos => _gpsOnPosition(pos),
+    err => console.warn('GPS error:', err.message),
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+  );
+}
+
+function _gpsOnPosition(pos) {
+  const { latitude: pLat, longitude: pLon } = pos.coords;
+  const hole = _gpsHoles?.[_gpsCurHole - 1];
+  let distToPin = null;
+  if (hole?.lat) {
+    const R=3958.8*5280, d2r=Math.PI/180;
+    const dLat=(hole.lat-pLat)*d2r, dLon=(hole.lon-pLon)*d2r;
+    const a=Math.sin(dLat/2)**2+Math.cos(pLat*d2r)*Math.cos(hole.lat*d2r)*Math.sin(dLon/2)**2;
+    distToPin = Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+  }
+  if (_gpsUpdateCb) _gpsUpdateCb({ hole: _gpsCurHole, holes: _gpsHoles, pos: {lat:pLat,lon:pLon}, distToPin });
+
+  // Auto-advance: within 20ft of green for 8s
+  if (distToPin !== null && distToPin < 20 && _gpsCurHole < 18) {
+    if (!_gpsAutoTimer) {
+      _gpsAutoTimer = setTimeout(() => {
+        _gpsCurHole++;
+        _gpsAutoTimer = null;
+        if (_gpsUpdateCb) _gpsUpdateCb({ hole: _gpsCurHole, holes: _gpsHoles, pos: {lat:pLat,lon:pLon}, distToPin: null });
+      }, 8000);
+    }
+  } else {
+    if (_gpsAutoTimer) { clearTimeout(_gpsAutoTimer); _gpsAutoTimer = null; }
+  }
+}
+
+export function logShot() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    const shot = { hole: _gpsCurHole, lat: pos.coords.latitude, lon: pos.coords.longitude, ts: Date.now() };
+    _gpsRound?.shots.push(shot);
+    if (_gpsUpdateCb) _gpsUpdateCb({ hole: _gpsCurHole, holes: _gpsHoles, pos: {lat:shot.lat,lon:shot.lon}, shot });
+  });
+}
+
+export function nextHole() {
+  if (_gpsCurHole < 18) { _gpsCurHole++; if (_gpsUpdateCb) _gpsUpdateCb({ hole: _gpsCurHole, holes: _gpsHoles }); }
+}
+
+export function prevHole() {
+  if (_gpsCurHole > 1) { _gpsCurHole--; if (_gpsUpdateCb) _gpsUpdateCb({ hole: _gpsCurHole, holes: _gpsHoles }); }
+}
+
+export function stopGpsRound() {
+  if (_gpsWatchId !== null) { navigator.geolocation.clearWatch(_gpsWatchId); _gpsWatchId = null; }
+  if (_gpsAutoTimer) { clearTimeout(_gpsAutoTimer); _gpsAutoTimer = null; }
+  gpsIsActive = false;
+  return _gpsRound;
+}
