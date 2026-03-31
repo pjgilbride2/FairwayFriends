@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=49";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=49";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=49";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=49";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=49";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=49";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=49";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=49";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=49";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=49";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=49";
-import { buildOnboardScreen } from "./onboard.js?v=49";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=50";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=50";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=50";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=50";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=50";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=50";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=50";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=50";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=50";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=50";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=50";
+import { buildOnboardScreen } from "./onboard.js?v=50";
 
 
 // ── Haversine distance in miles ──
@@ -711,7 +711,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=49");
+      const { initials, avatarColor } = await import("./ui.js?v=50");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1492,21 +1492,22 @@ window.UI = {
 
       // Race all mirrors — first success wins, 8s hard timeout per mirror
       let txt1=null;
-      const tryMirror=async(url)=>{
+      // Sequential mirror fallback with 429 backoff (not parallel race)
+      let txt1=null;
+      for(const mirror of mirrors){
         const ctrl=new AbortController();
-        const t=setTimeout(()=>ctrl.abort(),12000);
+        const t=setTimeout(()=>ctrl.abort(),14000);
         try{
-          const getUrl=url+'?data='+encodeURIComponent(q);
-          const r=await fetch(getUrl,{method:'GET',signal:ctrl.signal});
+          const r=await fetch(mirror+'?data='+encodeURIComponent(q),{method:'GET',signal:ctrl.signal,headers:{'Accept':'application/json'}});
           clearTimeout(t);
-          if(!r.ok)return null;
+          if(r.status===429){await new Promise(res=>setTimeout(res,2500));continue;}
+          if(!r.ok)continue;
+          const ct=r.headers.get('content-type')||'';
           const txt=await r.text();
-          return txt.trim().startsWith('<')?null:txt;
-        }catch{clearTimeout(t);return null;}
-      };
-
-      // Race all mirrors simultaneously
-      const results=await Promise.allSettled(mirrors.map(m=>tryMirror(m)));
+          if(!txt.trim().startsWith('<')&&ct.includes('json')){txt1=txt;break;}
+        }catch{clearTimeout(t);}
+      }
+      const results=txt1?[{status:'fulfilled',value:txt1}]:[];
       for(const r of results){
         if(r.status==='fulfilled'&&r.value){txt1=r.value;break;}
       }
@@ -1662,7 +1663,8 @@ window.UI = {
           <div style="font-size:22px;margin-left:8px">${icon}</div>
         </div>
         <div class="course-actions">
-          <button onclick="safeUI('launchGpsForCourse','${esc(c.name)}','${c.lat||''}','${c.lon||''}')"
+          <button data-cname="${esc(c.name).replace(/'/g,'&#39;')}" data-clat="${c.lat||''}" data-clon="${c.lon||''}"
+            onclick="safeUI('launchGpsForCourse',this.dataset.cname,this.dataset.clat,this.dataset.clon)"
             style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:20px;
               background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;
               cursor:pointer;font-family:inherit;white-space:nowrap">
