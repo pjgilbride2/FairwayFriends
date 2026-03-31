@@ -117,7 +117,119 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   const lat = courseLat, lon = courseLon;
   if (!lat || !lon) return _syntheticHoles(lat||0, lon||0);
 
-  // ── API 1: GolfCourseAPI.com — scorecard + course location ───────────────
+  // ── API 1: golfapi.io — hole GPS coordinates (green/tee lat/lon per hole) ──
+  // This is the ONLY free API that provides actual per-hole GPS coordinates.
+  // Flow: search clubs by name → get course ID → fetch /coordinates/{courseId}
+  const GOLFAPI_KEY  = 'e75f3420-aef6-4ab7-8c93-39270d7319cc';
+  const GOLFAPI_BASE = 'https://www.golfapi.io/api/v2.3';
+
+  try {
+    // Step 1: Search for the club by name (costs 0.1 calls)
+    const searchUrl = `${GOLFAPI_BASE}/clubs?name=${encodeURIComponent(courseName)}`;
+    const sResp = await fetch(searchUrl, {
+      headers: { 'Authorization': `Bearer ${GOLFAPI_KEY}`, 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (sResp.ok) {
+      const sData = await sResp.json();
+      const clubs = sData.clubs || sData.results || sData.data || [];
+
+      // Pick closest club to provided coords
+      let bestClub = null, bestDist = Infinity;
+      for (const club of clubs) {
+        const cLat = parseFloat(club.latitude  || club.lat  || club.location?.latitude);
+        const cLon = parseFloat(club.longitude || club.lon  || club.location?.longitude);
+        if (isNaN(cLat) || isNaN(cLon)) continue;
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
+        const a=Math.sin(dLat/2)**2+Math.cos(lat*d2r)*Math.cos(cLat*d2r)*Math.sin(dLon/2)**2;
+        const d=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+        if (d < bestDist) { bestDist=d; bestClub=club; }
+      }
+
+      if (bestClub && bestDist < 30) {
+        // Step 2: Get course list from club (costs 1 call)
+        const clubId   = bestClub.id || bestClub.clubId || bestClub.club_id;
+        const clubResp = await fetch(`${GOLFAPI_BASE}/clubs/${clubId}`, {
+          headers: { 'Authorization': `Bearer ${GOLFAPI_KEY}`, 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(8000)
+        });
+        if (clubResp.ok) {
+          const clubData  = await clubResp.json();
+          const courses   = clubData.club?.courses || clubData.courses || [];
+          const courseObj = courses[0]; // first/main course
+          const courseId  = courseObj?.id || courseObj?.courseId || courseObj?.course_id;
+
+          if (courseId) {
+            // Step 3: Fetch hole coordinates (costs 1 call — the key endpoint)
+            const coordResp = await fetch(`${GOLFAPI_BASE}/coordinates/${courseId}`, {
+              headers: { 'Authorization': `Bearer ${GOLFAPI_KEY}`, 'Accept': 'application/json' },
+              signal: AbortSignal.timeout(8000)
+            });
+            if (coordResp.ok) {
+              const coordData = await coordResp.json();
+              // Response shape: { coordinates: [ { hole: 1, type: 'green'|'tee'|'front'|'center'|'back', lat, lon }, ... ] }
+              // or: { holes: [ { number: 1, green: {lat,lon}, tee: {lat,lon} }, ... ] }
+              const coordList = coordData.coordinates || coordData.holes || coordData.data || [];
+
+              if (coordList.length > 0) {
+                const hMap = {};
+                for (const c of coordList) {
+                  // Handle both flat format {hole,type,lat,lon} and nested {number,green,tee}
+                  const hNum = parseInt(c.hole || c.number || c.holeNumber || '0');
+                  if (hNum < 1 || hNum > 18) continue;
+                  if (!hMap[hNum]) hMap[hNum] = {};
+
+                  if (c.lat && c.lon) {
+                    // Flat format
+                    const type = (c.type || c.pointType || '').toLowerCase();
+                    if (type.includes('center') || type.includes('green') || type === 'pin') {
+                      hMap[hNum].green = { lat: parseFloat(c.lat), lon: parseFloat(c.lon || c.lng) };
+                    } else if (type.includes('tee') || type.includes('back') && !hMap[hNum].green) {
+                      hMap[hNum].tee = { lat: parseFloat(c.lat), lon: parseFloat(c.lon || c.lng) };
+                    }
+                  } else {
+                    // Nested format
+                    if (c.green?.lat) hMap[hNum].green = { lat: parseFloat(c.green.lat), lon: parseFloat(c.green.lon || c.green.lng) };
+                    if (c.tee?.lat)   hMap[hNum].tee   = { lat: parseFloat(c.tee.lat),   lon: parseFloat(c.tee.lon   || c.tee.lng) };
+                  }
+                }
+
+                const DEFAULT_PARS = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];
+                const holes = [];
+                for (let h = 1; h <= 18; h++) {
+                  const hd = hMap[h] || {};
+                  const gc = gcapiHoles?.[h-1] || {};
+                  holes.push({
+                    h,
+                    lat:    hd.green?.lat  || null,
+                    lon:    hd.green?.lon  || null,
+                    teeLat: hd.tee?.lat    || null,
+                    teeLon: hd.tee?.lon    || null,
+                    par:      gc.par      || DEFAULT_PARS[h-1],
+                    handicap: gc.handicap || null,
+                    yards:    gc.yards    || null,
+                  });
+                }
+
+                const mapped = holes.filter(h=>h.lat).length;
+                if (mapped >= 3) {
+                  try { sessionStorage.setItem(cacheKey, JSON.stringify({holes, ts:Date.now(), source:'golfapi.io'})); } catch(_){}
+                  console.log(`GPS: golfapi.io ✓ ${mapped}/18 holes for ${courseName} (${bestDist.toFixed(1)}mi)`);
+                  return holes;
+                }
+                console.warn(`GPS: golfapi.io returned only ${mapped} coordinates — trying OSM`);
+              }
+            }
+          }
+        }
+      } else if (clubs.length) {
+        console.warn(`GPS: golfapi.io nearest club is ${bestDist.toFixed(0)}mi away — skipping`);
+      }
+    }
+  } catch(e) { console.warn('GPS: golfapi.io failed:', e.message); }
+
+    // ── API 1: GolfCourseAPI.com — scorecard + course location ───────────────
   // Provides par/yardage/handicap/slope/rating per tee. No hole GPS coords.
   // We use it to: (a) get the precise course lat/lon for OSM queries,
   //               (b) enrich hole data with real par/handicap/yardage.

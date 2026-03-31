@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=54";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=54";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=54";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=54";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=54";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=54";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=54";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=54";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=54";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=54";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=54";
-import { buildOnboardScreen } from "./onboard.js?v=54";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=55";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=55";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=55";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=55";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=55";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=55";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=55";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=55";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=55";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=55";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=55";
+import { buildOnboardScreen } from "./onboard.js?v=55";
 
 
 // ── Haversine distance in miles ──
@@ -271,6 +271,15 @@ window.UI = {
       // Tee times moved to Discover tab only
     }
     if (name === "search") {
+      // If profile city changed since last discover load, force re-geocode
+      const _profileCity = myProfile.city || '';
+      if (_profileCity && _profileCity !== window._lastDiscoverCity) {
+        window._lastDiscoverCity = _profileCity;
+        window._wxLat = null; window._wxLon = null; // force re-geocode
+        try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc2_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+        window._nearbyCourses = null;
+        window._coursesLoading = false;
+      }
       updateProfileUI();
       const currentCity = window._weatherCity || '';
       if (window._lastCourseCity && window._lastCourseCity !== currentCity) {
@@ -570,6 +579,11 @@ window.UI = {
       await saveProfileData({ bio, city, homeCourse, handicap, lat: profLat, lon: profLon });
       showToast("Profile saved! ✅");
       window._weatherCity = city;
+      // Sync new location to wx globals so Discover uses it immediately
+      if (profLat) { window._wxLat = profLat; window._wxLon = profLon; }
+      // Clear Discover cache so it reloads with new location
+      try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc2_')||k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+      window._nearbyCourses = null; window._coursesLoading = false; window._lastDiscoverCity = city;
       // Clear ALL cached location data so new city takes effect immediately
       window._userLat = null;
       window._userLon = null;
@@ -711,7 +725,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=54");
+      const { initials, avatarColor } = await import("./ui.js?v=55");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1409,12 +1423,14 @@ window.UI = {
       let lat = window._wxLat, lon = window._wxLon;
       const city = window._weatherCity || myProfile.city || '';
       if (!lat && city) {
-        const cn  = city.split(',')[0].trim();
-        const gck = 'geo_' + cn.toLowerCase().replace(/ /g, '_');
+        // Use full city+state for geocoding (e.g. "Scottsdale, AZ" not just "Scottsdale")
+        const cn  = city.trim(); // keep full string e.g. "Scottsdale, AZ"
+        const gck = 'geo_' + cn.toLowerCase().replace(/[^a-z0-9]/g, '_');
         let geo = null;
         try { const c=sessionStorage.getItem(gck); if(c){const p=JSON.parse(c); if(p.ts&&Date.now()-p.ts<86400000) geo=p;} } catch(_){}
         if (!geo) {
           try {
+            // Use full city string for geocoding so "Scottsdale, AZ" finds Arizona not another Scottsdale
             const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(cn)+'&count=1&language=en&format=json')).json();
             if (gd.results?.length) { geo={lat:gd.results[0].latitude,lon:gd.results[0].longitude,ts:Date.now()}; sessionStorage.setItem(gck,JSON.stringify(geo)); }
           } catch(_) {}
