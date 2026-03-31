@@ -173,26 +173,49 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
               const coordList = coordData.coordinates || coordData.holes || coordData.data || [];
 
               if (coordList.length > 0) {
+                // golfapi.io schema (confirmed via live endpoint):
+                // { hole, latitude, longitude, poi, location, sideFW }
+                //   poi=1, location=2  → green CENTER (exactly 1 per hole, most accurate)
+                //   poi=1, location=1  → green BACK
+                //   poi=1, location=3  → green FRONT
+                //   poi=11, location=2 → tee CENTER (exactly 1 per hole)
+                //   poi=12, location=2 → back tee marker
+                //   poi=2,3            → green surrounds / apron points
+                //   poi=4,5,6,9        → hazards / other POIs
                 const hMap = {};
                 for (const c of coordList) {
-                  // Handle both flat format {hole,type,lat,lon} and nested {number,green,tee}
                   const hNum = parseInt(c.hole || c.number || c.holeNumber || '0');
                   if (hNum < 1 || hNum > 18) continue;
                   if (!hMap[hNum]) hMap[hNum] = {};
 
-                  if (c.lat && c.lon) {
-                    // Flat format
-                    const type = (c.type || c.pointType || '').toLowerCase();
-                    if (type.includes('center') || type.includes('green') || type === 'pin') {
-                      hMap[hNum].green = { lat: parseFloat(c.lat), lon: parseFloat(c.lon || c.lng) };
-                    } else if (type.includes('tee') || type.includes('back') && !hMap[hNum].green) {
-                      hMap[hNum].tee = { lat: parseFloat(c.lat), lon: parseFloat(c.lon || c.lng) };
-                    }
-                  } else {
-                    // Nested format
-                    if (c.green?.lat) hMap[hNum].green = { lat: parseFloat(c.green.lat), lon: parseFloat(c.green.lon || c.green.lng) };
-                    if (c.tee?.lat)   hMap[hNum].tee   = { lat: parseFloat(c.tee.lat),   lon: parseFloat(c.tee.lon   || c.tee.lng) };
+                  const cLat = parseFloat(c.latitude  || c.lat);
+                  const cLon = parseFloat(c.longitude || c.lon || c.lng);
+                  if (isNaN(cLat) || isNaN(cLon)) continue;
+
+                  const poi = c.poi;
+                  const loc = c.location;
+
+                  // Green center: poi=1, location=2 (the single definitive green center)
+                  if (poi === 1 && loc === 2) {
+                    hMap[hNum].green = { lat: cLat, lon: cLon };
                   }
+                  // Green back/front as fallback if no center
+                  else if (poi === 1 && (loc === 1 || loc === 3) && !hMap[hNum].greenCenter) {
+                    hMap[hNum].greenFallback = { lat: cLat, lon: cLon };
+                  }
+                  // Tee center: poi=11, location=2 — the main tee position
+                  else if (poi === 11 && loc === 2) {
+                    hMap[hNum].tee = { lat: cLat, lon: cLon };
+                  }
+                  // Back tee as fallback
+                  else if (poi === 12 && loc === 2 && !hMap[hNum].tee) {
+                    hMap[hNum].teeFallback = { lat: cLat, lon: cLon };
+                  }
+                }
+                // Apply fallbacks
+                for (const hd of Object.values(hMap)) {
+                  if (!hd.green && hd.greenFallback) hd.green = hd.greenFallback;
+                  if (!hd.tee   && hd.teeFallback)   hd.tee   = hd.teeFallback;
                 }
 
                 const DEFAULT_PARS = [4,3,5,4,4,3,5,4,4,4,5,3,4,4,5,3,4,4];

@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=55";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=55";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=55";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=55";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=55";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=55";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=55";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=55";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=55";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=55";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=55";
-import { buildOnboardScreen } from "./onboard.js?v=55";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=56";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=56";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=56";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=56";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=56";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=56";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=56";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=56";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=56";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=56";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=56";
+import { buildOnboardScreen } from "./onboard.js?v=56";
 
 
 // ── Haversine distance in miles ──
@@ -725,7 +725,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=55");
+      const { initials, avatarColor } = await import("./ui.js?v=56");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1423,16 +1423,40 @@ window.UI = {
       let lat = window._wxLat, lon = window._wxLon;
       const city = window._weatherCity || myProfile.city || '';
       if (!lat && city) {
-        // Use full city+state for geocoding (e.g. "Scottsdale, AZ" not just "Scottsdale")
-        const cn  = city.trim(); // keep full string e.g. "Scottsdale, AZ"
+        // Smart geocoding: strip to city name, add country_code=US, then disambiguate by state
+        const _STATE_MAP = {
+    AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',
+    CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',
+    HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',
+    KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',
+    MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',
+    NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',
+    NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',
+    OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',
+    SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',
+    VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',
+    DC:'District of Columbia',
+  };
+        const _parts   = city.split(',').map(s=>s.trim());
+        const _cityQ   = _parts[0]; // just the city name — open-meteo rejects "City, ST"
+        const _stateAb = _parts[1] || '';
+        const _stateFull = _STATE_MAP[_stateAb] || _stateAb;
+        const cn  = city.trim();
         const gck = 'geo_' + cn.toLowerCase().replace(/[^a-z0-9]/g, '_');
         let geo = null;
         try { const c=sessionStorage.getItem(gck); if(c){const p=JSON.parse(c); if(p.ts&&Date.now()-p.ts<86400000) geo=p;} } catch(_){}
         if (!geo) {
           try {
-            // Use full city string for geocoding so "Scottsdale, AZ" finds Arizona not another Scottsdale
-            const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(cn)+'&count=1&language=en&format=json')).json();
-            if (gd.results?.length) { geo={lat:gd.results[0].latitude,lon:gd.results[0].longitude,ts:Date.now()}; sessionStorage.setItem(gck,JSON.stringify(geo)); }
+            // Fetch top 5 results for city name only (state abbr breaks the query)
+            const _geoUrl = 'https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(_cityQ)+'&count=5&language=en&format=json' + (_stateAb ? '&country_code=US' : '');
+            const gd = await (await fetch(_geoUrl)).json();
+            // Disambiguate: prefer result whose admin1 matches the state
+            let _best = gd.results?.[0];
+            if (_stateFull && gd.results?.length > 1) {
+              const _match = gd.results.find(r => r.admin1 === _stateFull || r.admin1?.toLowerCase() === _stateFull.toLowerCase());
+              if (_match) _best = _match;
+            }
+            if (_best) { geo={lat:_best.latitude,lon:_best.longitude,ts:Date.now()}; sessionStorage.setItem(gck,JSON.stringify(geo)); }
           } catch(_) {}
         }
         if (geo) { lat=geo.lat; lon=geo.lon; window._wxLat=lat; window._wxLon=lon; }

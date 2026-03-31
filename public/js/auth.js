@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=55";
+import { auth, db } from "./firebase-config.js?v=56";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -13,10 +13,10 @@ import {
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=55";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=55";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=55";
-import { goScreen, hideSplash } from "./ui.js?v=55";
+import { loadUserProfile } from "./profile.js?v=56";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=56";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=56";
+import { goScreen, hideSplash } from "./ui.js?v=56";
 
 let _listenersActive = false;
 
