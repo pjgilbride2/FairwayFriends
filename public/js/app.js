@@ -278,15 +278,20 @@ window.UI = {
       // If profile city changed OR we have no coords but do have a geo cache for this city
       const _cityChanged = _profileCity && _profileCity !== window._lastDiscoverCity;
       const _hasNoCoords = !window._wxLat && _geoCached;
-      if (_cityChanged || _hasNoCoords) {
+      const _hasNoCourses = !window._nearbyCourses?.length && !window._coursesLoading;
+      if (_cityChanged || _hasNoCoords || _hasNoCourses) {
         if (_cityChanged) {
           window._lastDiscoverCity = _profileCity;
           window._wxLat = null; window._wxLon = null;
-          try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc2_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+          try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc2_')||k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
           window._nearbyCourses = null; window._coursesLoading = false;
         }
         // Restore coords from geo cache if available
         if (_geoCached && !window._wxLat) { window._wxLat = _geoCached.lat; window._wxLon = _geoCached.lon; }
+        // Clear the courses array so stale courses don't show during reload
+        window._nearbyCourses = [];
+        // Always trigger a fresh course load when city changed or coords restored
+        setTimeout(() => { window._coursesLoading = false; UI.loadNearbyCourses(); }, 80);
       }
       updateProfileUI();
       const currentCity = window._weatherCity || '';
@@ -1623,6 +1628,8 @@ window.UI = {
       try{sessionStorage.setItem(ck,JSON.stringify({ts:Date.now(),data:courses}));}catch(_){}
       window._nearbyCourses=courses; window._lastFetchedMiles=parseFloat(document.getElementById('dist-filter')?.value||100); UI.filterCourses('');
       if(label)label.textContent=courses.length+' golf courses found';
+      // Mark which city these courses belong to so city-change detection works
+      window._lastDiscoverCity = myProfile.city || window._weatherCity || window._lastDiscoverCity;
 
     }catch(e){
       console.error('courses error:',e.message);

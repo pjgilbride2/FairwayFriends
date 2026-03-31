@@ -137,14 +137,23 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
       // Pick closest club to provided coords
       let bestClub = null, bestDist = Infinity;
       for (const club of clubs) {
-        const cLat = parseFloat(club.latitude  || club.lat  || club.location?.latitude);
-        const cLon = parseFloat(club.longitude || club.lon  || club.location?.longitude);
+        // golfapi.io /clubs response uses 'clubLatitude'/'clubLongitude' fields
+        const cLat = parseFloat(
+          club.clubLatitude ?? club.latitude ?? club.lat ?? club.location?.latitude ?? NaN
+        );
+        const cLon = parseFloat(
+          club.clubLongitude ?? club.longitude ?? club.lng ?? club.lon ?? club.location?.longitude ?? NaN
+        );
         if (isNaN(cLat) || isNaN(cLon)) continue;
         const R=3958.8, d2r=Math.PI/180;
         const dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
         const a=Math.sin(dLat/2)**2+Math.cos(lat*d2r)*Math.cos(cLat*d2r)*Math.sin(dLon/2)**2;
         const d=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
         if (d < bestDist) { bestDist=d; bestClub=club; }
+      }
+      // Log what fields are available if still no match
+      if (!bestClub && clubs.length > 0) {
+        console.warn('GPS: golfapi.io club fields:', Object.keys(clubs[0]).join(','));
       }
 
       if (bestClub && bestDist < 30) {
@@ -247,7 +256,7 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
           }
         }
       } else if (clubs.length) {
-        console.warn(`GPS: golfapi.io nearest club is ${bestDist.toFixed(0)}mi away — skipping`);
+        console.warn(`GPS: golfapi.io nearest club '${bestClub?.clubName||bestClub?.name||'?'}' is ${isFinite(bestDist)?bestDist.toFixed(1)+'mi':'unknown distance (no coords)'} away — skipping`);
       }
     }
   } catch(e) { console.warn('GPS: golfapi.io failed:', e.message); }
