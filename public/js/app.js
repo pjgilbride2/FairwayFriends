@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=72";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=72";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=72";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=72";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=72";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=72";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=72";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=72";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=72";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=72";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=72";
-import { buildOnboardScreen } from "./onboard.js?v=72";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=73";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=73";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=73";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=73";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=73";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=73";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=73";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=73";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=73";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=73";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=73";
+import { buildOnboardScreen } from "./onboard.js?v=73";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=72");
+      const { initials, avatarColor } = await import("./ui.js?v=73");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1567,11 +1567,12 @@ window.UI = {
         try {
           const _cityFull = (myProfile.city || window._weatherCity || '');
           const _cityQ    = _cityFull.split(',')[0].trim();
+          const _cityGolfQ = `${_cityQ} golf courses`;
           const _stateQ   = _cityFull.split(',')[1]?.trim() || '';
           if (_cityQ) {
-            // Single smart search — city name gives best locality results
-            // Use city+state for specificity to avoid 429 on multiple calls
-            const _searchQ = _stateQ ? `${_cityQ} ${_stateQ}` : _cityQ;
+            // Primary: city name only — city+state returns 0 results per testing
+            // _cityGolfQ ("city golf courses") gives better metro coverage
+            const _searchQ = _cityQ;
             const _gcFbResp = await fetch(
               `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_searchQ)}`,
               { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(6000) }
@@ -1607,7 +1608,17 @@ window.UI = {
             for (const c of _gcFbData?.courses || []) _addCourse(c);
 
             // If city search returns <5, try broader state search
-            if (courses.length < 5 && _stateQ) {
+            // If city-only gave few results, retry with "city golf courses"
+            if (courses.length < 3 && _cityGolfQ !== _searchQ) {
+              const _gcFb2 = await fetch(
+                `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_cityGolfQ)}`,
+                { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(5000) }
+              ).catch(()=>null);
+              const _gcFb2Data = _gcFb2?.ok ? await _gcFb2.json().catch(()=>null) : null;
+              for (const c of _gcFb2Data?.courses||[]) _addCourse(c);
+              await new Promise(r=>setTimeout(r,200));
+            }
+            if (courses.length < 3 && _stateQ) {
               await new Promise(r=>setTimeout(r,300)); // small delay to avoid 429
               const _gcFb2 = await fetch(
                 `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_stateQ+' golf')}`,
@@ -2065,6 +2076,8 @@ function loadDiscoverTeeTimes() {
   }).join('');
 }
 window.loadDiscoverTeeTimes = loadDiscoverTeeTimes;
+// Expose scorecard handler (called from inline onchange= in score table HTML)
+window._onScoreChange = onScoreChange;
 
 initAuth();
 

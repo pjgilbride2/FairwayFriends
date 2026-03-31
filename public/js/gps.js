@@ -6,12 +6,12 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=72';
+import { db } from './firebase-config.js?v=73';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=72';
+import { showToast } from './ui.js?v=73';
 
 // ── Overpass fetch with retry + mirror fallback ───────────────
 const OVERPASS_MIRRORS = [
