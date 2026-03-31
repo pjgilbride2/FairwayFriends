@@ -94,26 +94,39 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
     const gcResp = await fetch(gcUrl, { signal: AbortSignal.timeout(6000) });
     if (gcResp.ok) {
       const gcData = await gcResp.json();
-      const course = gcData.courses?.[0];
-      if (course?.holes?.length >= 9) {
-        const holes = course.holes.map(h => ({
-          h: h.number,
-          par: h.par,
+      const candidates = gcData.courses || [];
+      // Pick the candidate closest to our provided lat/lon (demo key returns wrong locations)
+      let bestCourse = null, bestDist = Infinity;
+      for (const c of candidates) {
+        if (!c.holes?.length) continue;
+        const h1 = c.holes[0];
+        const cLat = h1?.green_lat || h1?.latitude || c.location?.latitude;
+        const cLon = h1?.green_lng || h1?.longitude || c.location?.longitude;
+        if (!cLat || !cLon) continue;
+        const R=3958.8, d2r=Math.PI/180;
+        const dLat=(cLat-lat)*d2r, dLon=(cLon-lon)*d2r;
+        const a=Math.sin(dLat/2)**2+Math.cos(lat*d2r)*Math.cos(cLat*d2r)*Math.sin(dLon/2)**2;
+        const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+        if (dist < bestDist) { bestDist=dist; bestCourse=c; }
+      }
+      if (bestCourse && bestDist < 30 && bestCourse.holes?.length >= 9) {
+        const holes = bestCourse.holes.map(h => ({
+          h: h.number, par: h.par,
           lat: h.green_lat || h.latitude || null,
           lon: h.green_lng || h.longitude || null,
-          teeLat: h.tee_lat || null,
-          teeLon: h.tee_lng || null,
+          teeLat: h.tee_lat || null, teeLon: h.tee_lng || null,
           yards: h.yards || null,
         }));
         try { sessionStorage.setItem(cacheKey, JSON.stringify({ holes, ts: Date.now(), source:'golfcourseapi' })); } catch(_) {}
-        console.log(`GPS: GolfCourseAPI found ${holes.filter(h=>h.lat).length}/18 holes for ${courseName}`);
+        console.log(`GPS: GolfCourseAPI ✓ ${holes.filter(h=>h.lat).length}/18 holes (${bestDist.toFixed(1)}mi away)`);
         return holes;
       }
+      if (candidates.length) console.warn(`GPS: GolfCourseAPI candidates too far (${bestDist.toFixed(0)}mi) — skipping`);
     }
   } catch(e) { console.warn('GPS: GolfCourseAPI failed:', e.message); }
 
   // ── API 2: OSM Overpass (good for well-mapped public courses) ──
-  const radius = 500;
+    const radius = 800; // meters — enough for any 18-hole layout
   const query = `
     [out:json][timeout:15];
     (
@@ -173,7 +186,7 @@ export async function fetchCourseHoles(courseName, courseLat, courseLon) {
   }
 
   // ── API 3: Synthetic layout (always works) ──────────────────
-  console.log('GPS: Using synthetic hole layout for', courseName);
+  console.log(`GPS: Using synthetic layout for ${courseName} (${lat.toFixed(4)},${lon.toFixed(4)})`);  
   return _syntheticHoles(lat, lon);
 }
 

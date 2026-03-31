@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=48";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=48";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=48";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=48";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=48";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=48";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=48";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=48";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=48";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=48";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=48";
-import { buildOnboardScreen } from "./onboard.js?v=48";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=49";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=49";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=49";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=49";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, isActive as gpsIsActive, fetchCourseHoles } from "./gps.js?v=49";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=49";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=49";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=49";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=49";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=49";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=49";
+import { buildOnboardScreen } from "./onboard.js?v=49";
 
 
 // ── Haversine distance in miles ──
@@ -711,7 +711,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=48");
+      const { initials, avatarColor } = await import("./ui.js?v=49");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1027,11 +1027,15 @@ window.UI = {
 
   toggleGroupMember(uid, name) {
     window._groupMembers = window._groupMembers || [];
+    if (window._groupMembers.length >= 9 && !window._groupMembers.find(m=>m.uid===uid)) {
+      showToast('Max 9 members per group'); return;
+    }
     const idx = window._groupMembers.findIndex(m => m.uid === uid);
     if (idx >= 0) { window._groupMembers.splice(idx, 1); }
     else { window._groupMembers.push({ uid, name }); }
-    // Re-render list to update checkboxes
-    renderFollowingForSearch(window._followingCache||[], "", "group-member-search-results", true);
+    // Re-render results with updated Add/✓ state using our new renderer
+    const results = document.getElementById('group-member-search-results');
+    if (results) this._renderGroupSearchResults(window._groupFollowing||window._followingCache||[], results);
     // Update chips
     const chips = document.getElementById("group-member-chips");
     if (chips) {
@@ -1089,22 +1093,33 @@ window.UI = {
     try {
       const cid = await createGroupConversation(memberUids, memberNames, groupName);
       window._groupMembers = [];
-      const panel = document.getElementById("new-group-panel");
-      if (panel) panel.style.display = "none";
-      UI.openConversation(cid, "", groupName, true);
+      window._groupFollowing = null;
+      const panel = document.getElementById('new-group-panel');
+      if (panel) panel.style.display = 'none';
+      // Reset chips + search
+      const chips = document.getElementById('group-member-chips');
+      const inp = document.getElementById('group-name-input');
+      if (chips) chips.innerHTML = '';
+      if (inp) inp.value = '';
+      showToast('Group "' + groupName + '" created! 🎉');
+      await new Promise(r=>setTimeout(r,600));
+      UI.openConversation(cid, '', groupName, true);
     } catch(e) {
-      showToast("Could not create group");
-      if (btn) { btn.disabled = false; btn.textContent = "Create Group"; }
+      console.error('createGroup error:', e);
+      showToast('Could not create group: ' + (e.message||'unknown error'));
+      if (btn) { btn.disabled = false; btn.textContent = 'Create Group'; }
     }
   },
 
   async sendMsg() {
-    const input = document.getElementById("msg-input");
+    const input = document.getElementById('msg-input');
     const text  = input?.value?.trim();
     const cid   = window._activeConvId;
-    if (!text || !cid) return;
-    input.value = "";
-    input.style.height = "auto";
+    if (!text) return;
+    if (!cid) { showToast('No active conversation'); return; }
+    const prevVal = input.value;
+    input.value = '';
+    input.style.height = 'auto';
     try {
       const otherUid = await sendMessage(cid, text);
       // Fire notification to all recipients (DM: 1, Group: many)
