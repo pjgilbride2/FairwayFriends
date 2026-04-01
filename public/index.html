@@ -64,16 +64,18 @@
 
 <!-- DISCOVER -->
 <div id="screen-search" class="screen">
-  <div class="header">
-    <div class="app-logo">
-      <span style="color:var(--green);font-weight:800">Fairway</span>&nbsp;Friend<span style="color:var(--green)">·</span>
-      <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:6px">Discover</span>
+  <div class="header" style="flex-direction:column;align-items:stretch;padding-bottom:0;gap:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px">
+      <div class="app-logo">
+        <span style="color:var(--green);font-weight:800">Fairway</span>&nbsp;Friend<span style="color:var(--green)">·</span>
+        <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:6px">Discover</span>
+      </div>
+      <button onclick="safeUI('loadNearbyCourses')" style="background:none;border:none;font-size:13px;color:var(--green);font-weight:600;cursor:pointer;font-family:inherit">Refresh</button>
     </div>
-    <button onclick="safeUI('loadNearbyCourses')" style="background:none;border:none;font-size:13px;color:var(--green);font-weight:600;cursor:pointer;font-family:inherit">Refresh</button>
-  </div>
-  <div style="display:flex;border-bottom:0.5px solid var(--border)">
-    <button id="disc-tab-courses" class="disc-tab disc-tab-active" onclick="safeUI('discoverTab','courses')">⛳ Courses</button>
-    <button id="disc-tab-teetimes" class="disc-tab" onclick="safeUI('discoverTab','teetimes')">🕐 Tee Times</button>
+    <div style="display:flex;margin:0 -20px">
+      <button id="disc-tab-courses" class="disc-tab disc-tab-active" onclick="safeUI('discoverTab','courses')">⛳ Courses</button>
+      <button id="disc-tab-teetimes" class="disc-tab" onclick="safeUI('discoverTab','teetimes')">🕐 Tee Times</button>
+    </div>
   </div>
   <div id="disc-courses">
     <div style="padding:8px 16px 4px;display:flex;align-items:center;justify-content:space-between">

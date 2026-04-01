@@ -1555,6 +1555,11 @@ window.UI = {
               const pLat = place.geometry?.location?.lat;
               const pLon = place.geometry?.location?.lng;
               if (!pLat || !pLon) continue;
+              // Strict filter: reject non-golf results that may slip through
+              const _pn = (place.name||'').toLowerCase();
+              const _pt = place.types||[];
+              if (!_pt.includes('golf_course') && !_pt.includes('country_club') &&
+                  !_pn.includes('golf') && !_pn.includes('country club')) continue;
               const name  = place.name || 'Golf Course';
               const key   = norm(name);
               if (seen.has(key)) continue;
@@ -1584,10 +1589,10 @@ window.UI = {
           } while (_gpPageToken && _gpPage < 3);
 
           // Search additional types: country_club, and keyword "golf" for anything missed
+          // Only search types that reliably return golf venues — no keywords
+          // Keyword searches return non-golf businesses (schools, pharmacies, etc)
           const _gpExtraSearches = [
             `/api/places?location=${lat},${lon}&radius=${_gpRadius}&type=country_club&key=${window._googlePlacesKey}`,
-            `/api/places?location=${lat},${lon}&radius=${_gpRadius}&keyword=golf+course&key=${window._googlePlacesKey}`,
-            `/api/places?location=${lat},${lon}&radius=${_gpRadius}&keyword=golf+club&key=${window._googlePlacesKey}`,
           ];
           for (const _gpExtraUrl of _gpExtraSearches) {
             const _gpExtraResp = await fetch(_gpExtraUrl).catch(()=>null);
@@ -1611,9 +1616,22 @@ window.UI = {
               // Filter: must have golf-related name or type
               const pName = (place.name||'').toLowerCase();
               const pTypes = place.types||[];
-              const isGolfRelated = pName.includes('golf') || pName.includes('country club') ||
-                pTypes.includes('golf_course') || pTypes.includes('country_club');
-              if (!isGolfRelated) continue;
+              // Strict filter: must be typed as golf_course/country_club
+              // OR name must explicitly contain golf/country club keywords
+              const isGolfRelated =
+                pTypes.includes('golf_course') ||
+                pTypes.includes('country_club') ||
+                pName.includes('golf') ||
+                pName.includes('country club') ||
+                pName.includes(' cc ') ||
+                pName.endsWith(' cc');
+              // Extra check: reject obviously non-golf places
+              const isNotGolf = pName.includes('school') || pName.includes('pharmacy') ||
+                pName.includes('medical') || pName.includes('dental') ||
+                pName.includes('church') || pName.includes('mart') ||
+                (!pTypes.includes('golf_course') && !pTypes.includes('country_club') &&
+                 !pName.includes('golf') && !pName.includes('country club'));
+              if (!isGolfRelated || isNotGolf) continue;
               const name = place.name || 'Golf Course';
               const key  = norm(name);
               if (seen.has(key)) continue;
