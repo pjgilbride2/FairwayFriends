@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=85";
+import { db } from "./firebase-config.js?v=86";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=85";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=85";
+import { myProfile, myVibes } from "./profile.js?v=86";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=86";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -473,6 +473,7 @@ export function updateTotals() {
     const total=hasAny?fY+bY:null;
     const diff=total!==null?((total-COURSE_RATING)*113/SLOPE_RATING).toFixed(1):null;
     set("ft-you",hasAny?fY:"—"); set("bt-you",hasAny?bY:"—");
+    set("sc-out",hasAny?fY:"—"); set("sc-in",hasAny?bY:"—");
     set("tt-you",total??"—"); set("sc-total",total??"—");
     set("sc-diff",diff??"—");
     set("sc-vs-par",total===null?"—":total-72>0?"+"+(total-72):total-72===0?"E":String(total-72));

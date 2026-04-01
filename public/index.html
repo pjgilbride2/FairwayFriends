@@ -107,7 +107,15 @@
       style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;
         font-size:14px;background:var(--card-bg);color:var(--text);font-family:inherit;outline:none" />
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 16px 10px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;padding:0 16px 10px">
+    <div class="player-card" style="text-align:center;padding:10px 6px;cursor:default">
+      <div id="sc-out" style="font-size:18px;font-weight:700;color:var(--text)">—</div>
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Front</div>
+    </div>
+    <div class="player-card" style="text-align:center;padding:10px 6px;cursor:default">
+      <div id="sc-in" style="font-size:18px;font-weight:700;color:var(--text)">—</div>
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Back</div>
+    </div>
     <div class="player-card" style="text-align:center;padding:10px 6px;cursor:default">
       <div id="sc-total" style="font-size:20px;font-weight:700;color:var(--text)">—</div>
       <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Total</div>
@@ -484,18 +492,20 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=85"></script>
+<script type="module" src="/js/app.js?v=86"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->
 <div id="sheet-overlay" class="sheet-overlay">
   <div class="sheet">
     <div class="sheet-handle"></div>
+    <div id="sheet-content">
     <div id="sheet-title" class="sheet-title"></div>
     <div id="sheet-sub" class="sheet-sub"></div>
     <div id="sheet-vibe-row" style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0"></div>
     <div id="sheet-details" style="margin:8px 0;font-size:13px"></div>
     <div id="sheet-weather"></div>
+    </div><!-- #sheet-content -->
     <button id="sheet-cta"
       style="width:100%;padding:12px;background:var(--green);color:#fff;border:none;border-radius:12px;
         font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:8px">

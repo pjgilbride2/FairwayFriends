@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=85";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=85";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=85";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=85";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=85";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=85";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=85";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=85";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=85";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=85";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=85";
-import { buildOnboardScreen } from "./onboard.js?v=85";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=86";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=86";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=86";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=86";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=86";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=86";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=86";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=86";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=86";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=86";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=86";
+import { buildOnboardScreen } from "./onboard.js?v=86";
 
 
 // ── Haversine distance in miles ──
@@ -746,7 +746,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=85");
+      const { initials, avatarColor } = await import("./ui.js?v=86");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1913,18 +1913,20 @@ window.UI = {
       const mapsUrl  = `https://maps.google.com/?q=${encodeURIComponent(c.name + ' golf course')}`;
 
 
-      // Build Supreme Golf URL by calling the pre-built helper (handles city/state from course.addr)
-      const _sgUrl    = _supremeGolfUrl(c);
-      const bookBase  = c.website || _sgUrl;
-      const bookUrl   = _sgUrl; // always link to Supreme Golf for tee times
-      const bookLabel = '🏌️ Book on Supreme Golf';
-      const teeOffUrl = _sgUrl; // Supreme Golf replaces TeeOff — it aggregates TeeOff too
-
       const infoStr    = [parStr, slopeStr].filter(Boolean).join('');
       const ratingStr  = c.rating ? ` · ⭐ ${c.rating}` : '';
 
       const _access = getAccessType(c);
       const _badge  = ACCESS_BADGE[_access] || ACCESS_BADGE['public'];
+
+      // Private clubs don’t have public tee times on Supreme Golf
+      const _sgUrl     = _supremeGolfUrl(c);
+      const _isPrivate = _access === 'private';
+      const bookUrl    = _isPrivate ? (c.website || mapsUrl) : _sgUrl;
+      const bookLabel  = _isPrivate
+        ? (c.website ? '🌐 Website' : '🗓 Find tee times')
+        : '🏌️ Book on Supreme Golf';
+      const teeOffUrl  = _isPrivate ? (c.website || mapsUrl) : _sgUrl;
       return `<div class="course-card">
         <div class="course-card-top">
           <div style="flex:1">
