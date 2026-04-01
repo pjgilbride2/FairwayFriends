@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=79";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=79";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=79";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=79";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=79";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=79";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=79";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=79";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=79";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=79";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=79";
-import { buildOnboardScreen } from "./onboard.js?v=79";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=80";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=80";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=80";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=80";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=80";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=80";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=80";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=80";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=80";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=80";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=80";
+import { buildOnboardScreen } from "./onboard.js?v=80";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=79");
+      const { initials, avatarColor } = await import("./ui.js?v=80");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1555,11 +1555,16 @@ window.UI = {
               const pLat = place.geometry?.location?.lat;
               const pLon = place.geometry?.location?.lng;
               if (!pLat || !pLon) continue;
-              // Strict filter: reject non-golf results that may slip through
+              // Trust Google's type=golf_course results — only reject obvious non-golf
               const _pn = (place.name||'').toLowerCase();
               const _pt = place.types||[];
-              if (!_pt.includes('golf_course') && !_pt.includes('country_club') &&
-                  !_pn.includes('golf') && !_pn.includes('country club')) continue;
+              // If typed as golf_course or country_club, always include
+              // Only reject if NOT typed as golf AND name is clearly non-golf
+              if (!_pt.includes('golf_course') && !_pt.includes('country_club')) {
+                const _badName = _pn.includes('school') || _pn.includes('pharmacy') ||
+                  _pn.includes('hospital') || _pn.includes('church');
+                if (_badName) continue;
+              }
               const name  = place.name || 'Golf Course';
               const key   = norm(name);
               if (seen.has(key)) continue;
@@ -1589,11 +1594,27 @@ window.UI = {
           } while (_gpPageToken && _gpPage < 3);
 
           // Search additional types: country_club, and keyword "golf" for anything missed
-          // Only search types that reliably return golf venues — no keywords
-          // Keyword searches return non-golf businesses (schools, pharmacies, etc)
+          // Search country_club type to catch private clubs not tagged golf_course
           const _gpExtraSearches = [
             `/api/places?location=${lat},${lon}&radius=${_gpRadius}&type=country_club&key=${window._googlePlacesKey}`,
           ];
+          // For larger radii (>15mi), tile the search with offset centres to
+          // overcome the 60-result cap and find courses at the radius edges
+          const _radiusMi = parseFloat(document.getElementById('dist-filter')?.value||25);
+          if (_radiusMi > 15) {
+            // Offset ~40% of radius in 4 directions to cover fringe areas
+            const _off = (_gpRadius * 0.4) / 111320; // degrees
+            const _offsets = [
+              [lat + _off, lon], [lat - _off, lon],
+              [lat, lon + _off / Math.cos(lat * Math.PI/180)],
+              [lat, lon - _off / Math.cos(lat * Math.PI/180)],
+            ];
+            for (const [oLat, oLon] of _offsets) {
+              _gpExtraSearches.push(
+                `/api/places?location=${oLat.toFixed(5)},${oLon.toFixed(5)}&radius=${Math.round(_gpRadius*0.65)}&type=golf_course&key=${window._googlePlacesKey}`
+              );
+            }
+          }
           for (const _gpExtraUrl of _gpExtraSearches) {
             const _gpExtraResp = await fetch(_gpExtraUrl).catch(()=>null);
             if (!_gpExtraResp?.ok) continue;
@@ -1616,22 +1637,24 @@ window.UI = {
               // Filter: must have golf-related name or type
               const pName = (place.name||'').toLowerCase();
               const pTypes = place.types||[];
-              // Strict filter: must be typed as golf_course/country_club
-              // OR name must explicitly contain golf/country club keywords
-              const isGolfRelated =
+              // Trust Google's type tags completely —
+              // golf_course and country_club are reliably typed by Google
+              // Only name-filter if type is absent (shouldn't happen for type= searches)
+              const isGolfVenue =
                 pTypes.includes('golf_course') ||
                 pTypes.includes('country_club') ||
                 pName.includes('golf') ||
                 pName.includes('country club') ||
-                pName.includes(' cc ') ||
+                pName.includes('country clb') ||
                 pName.endsWith(' cc');
-              // Extra check: reject obviously non-golf places
-              const isNotGolf = pName.includes('school') || pName.includes('pharmacy') ||
-                pName.includes('medical') || pName.includes('dental') ||
-                pName.includes('church') || pName.includes('mart') ||
-                (!pTypes.includes('golf_course') && !pTypes.includes('country_club') &&
-                 !pName.includes('golf') && !pName.includes('country club'));
-              if (!isGolfRelated || isNotGolf) continue;
+              // Only reject if clearly not golf AND not typed as golf
+              const isObviouslyNotGolf =
+                !pTypes.includes('golf_course') &&
+                !pTypes.includes('country_club') &&
+                (pName.includes('school') || pName.includes('pharmacy') ||
+                 pName.includes('hospital') || pName.includes('medical center') ||
+                 pName.includes('church') || pName.includes('supermarket'));
+              if (!isGolfVenue || isObviouslyNotGolf) continue;
               const name = place.name || 'Golf Course';
               const key  = norm(name);
               if (seen.has(key)) continue;

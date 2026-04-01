@@ -412,7 +412,7 @@
 </div>
 
 <!-- BOTTOM NAV -->
-<nav id="bottom-nav" style="display:none">
+<nav id="bottom-nav" class="bottom-nav" style="display:none">
   <button class="nav-item active" onclick="safeUI('goScreen','feed')">
     <span class="nav-icon">🏠</span><span class="nav-label">Home</span>
   </button>
@@ -484,7 +484,7 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=79"></script>
+<script type="module" src="/js/app.js?v=80"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->
