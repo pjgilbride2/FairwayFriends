@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=74";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=74";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=74";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=74";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=74";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=74";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=74";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=74";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=74";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=74";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=74";
-import { buildOnboardScreen } from "./onboard.js?v=74";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=75";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=75";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=75";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=75";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=75";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=75";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=75";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=75";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=75";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=75";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=75";
+import { buildOnboardScreen } from "./onboard.js?v=75";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=74");
+      const { initials, avatarColor } = await import("./ui.js?v=75");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1527,10 +1527,8 @@ window.UI = {
         if(label)label.textContent='Loading more courses…';
       }
 
-      // ── 5. Primary geo-search — Google Places (preferred) or OSM Overpass ────
-      // Google Places Nearby Search uses real lat/lon coordinates for accuracy
-      // Overpass is the fallback when no Google Places key is set
-      let txt1 = null; // Overpass result (used by Step 7 if available)
+      // ── 5. Primary geo-search — Google Places (coordinate-based) ──────────────
+      // When no Google Places key: GolfCourseAPI city-name fallback runs below
 
       if (window._googlePlacesKey) {
         // ── 5a. Google Places Nearby Search — coordinate-based course discovery ──
@@ -1609,45 +1607,12 @@ window.UI = {
           }
         } catch(e) { console.warn('Discover: Google Places failed:', e.message); }
       } else {
-        // ── 5b. OSM Overpass fallback — geo-search for courses within radius ──
-
-      const radius = Math.round((parseFloat(document.getElementById('dist-filter')?.value || '25') || 25) * 1609.34);
-      const q='[out:json][timeout:25];('+
-        'way["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
-        'relation["leisure"="golf_course"](around:'+radius+','+lat+','+lon+');'+
-        'way["amenity"="golf_course"]["name"](around:'+radius+','+lat+','+lon+');'+
-        ');out center tags;';
-
-      const mirrors=[
-        'https://overpass-api.de/api/interpreter',
-        'https://overpass.private.coffee/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter',
-      ];
-      // Race all mirrors with a hard 8s total timeout — non-blocking
-      let txt1=null;
-      try {
-        const tryMirror = async (mirror) => {
-          const ctrl=new AbortController();
-          const t=setTimeout(()=>ctrl.abort(),6000);
-          try{
-            const r=await fetch(mirror+'?data='+encodeURIComponent(q),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
-            clearTimeout(t);
-            if(!r.ok||r.status===429) return null;
-            const txt=await r.text();
-            return (txt&&!txt.trim().startsWith('<'))?txt:null;
-          }catch(e){clearTimeout(t);return null;}
-        };
-        // Race: first successful result wins, total cap 8s
-        const raceResult = await Promise.race([
-          Promise.any(mirrors.map(m=>tryMirror(m).then(t=>t||Promise.reject()))).catch(()=>null),
-          new Promise(res=>setTimeout(()=>res(null),8000)),
-        ]);
-        txt1 = raceResult;
-      } catch(e) { txt1=null; }
+        // No Google Places key — GolfCourseAPI fallback runs below (step 5b)
+        console.log('Discover: no Google Places key set — using GolfCourseAPI fallback');
       } // end else (no Google Places key)
 
-      // ── 5b. GolfCourseAPI city fallback if Overpass failed ──────────────
-      if (!txt1) {
+      // ── 5b. GolfCourseAPI city fallback (when no Google Places key) ──────
+      if (!window._googlePlacesKey) {
         try {
           const _cityFull = (myProfile.city || window._weatherCity || '');
           const _cityQ    = _cityFull.split(',')[0].trim();
@@ -1720,51 +1685,7 @@ window.UI = {
       }
 
       // (Google Places now runs as primary in step 5a above)
-      // ── Step 7: txt1 Overpass processing ────────────────────────────
-      if (txt1) {
-        const parsed = (JSON.parse(txt1).elements || []);
-        const norm2 = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-        const haversine2 = (a,b,c,d) => { const R=3958.8,dr=Math.PI/180,dLat=(c-a)*dr,dLon=(d-b)*dr,x=Math.sin(dLat/2)**2+Math.cos(a*dr)*Math.cos(c*dr)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)); };
-        for (const el of parsed) {
-          const name = el.tags?.name || el.tags?.['name:en'];
-          if (!name) continue;
-          const cLat = el.center?.lat || el.lat;
-          const cLon = el.center?.lon || el.lon;
-          if (!cLat || !cLon) continue;
-          const key = norm2(name);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          const dist = haversine2(lat, lon, cLat, cLon);
-          courses.push({
-            name, dist, lat: cLat, lon: cLon,
-            type: el.tags?.leisure || el.tags?.amenity || 'Golf Course',
-            holes: null, phone: el.tags?.phone || null,
-            website: el.tags?.website || null,
-            addr: [el.tags?.['addr:street'], el.tags?.['addr:city'], el.tags?.['addr:state']].filter(Boolean).join(', '),
-          });
-        }
-        // ── Step 6: GolfCourseAPI enrichment (only when Overpass worked) ──
-        const _enrichKey = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
-        await Promise.allSettled(courses.slice(0,12).map(async (c) => {
-          try {
-            const r = await fetch(
-              `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(c.name.replace(/\s*\(\d+\)\s*$/, ''))}`,
-              { headers: {'Authorization': `Key ${_enrichKey}`}, signal: AbortSignal.timeout(4000) }
-            );
-            if (!r.ok) return;
-            const d = await r.json();
-            const match = d.courses?.find(x => norm2(x.club_name||'').includes(norm2(c.name.split(' ').slice(0,2).join(' '))));
-            if (match) {
-              const tee = match.tees?.male?.[0] || match.tees?.female?.[0];
-              if (tee?.par_total)     c.par    = tee.par_total;
-              if (tee?.slope_rating)  c.slope  = tee.slope_rating;
-              if (tee?.course_rating) c.rating = tee.course_rating;
-              if (!c.phone   && match.location?.phone)   c.phone   = match.location.phone;
-              if (!c.website && match.website)            c.website = match.website;
-            }
-          } catch(_) {}
-        }));
-      } // end if(txt1)
+      // (Overpass/OSM removed — GolfAPI.io is the sole coordinate source)
 
       // ── Step 8: Filter, sort, dedupe, persist ──────────────────────
       const radiusMi2 = parseFloat(document.getElementById('dist-filter')?.value || 100);
