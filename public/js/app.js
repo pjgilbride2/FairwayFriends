@@ -1504,22 +1504,29 @@ window.UI = {
       const seen=new Set(), norm=n=>n.toLowerCase().replace(/[^a-z0-9]/g,'');
       let courses=[];
       const KNOWN_COURSES=[
-          {name:'Heritage Harbor Golf & Country Club',lat:28.1372,lon:-82.5012},
-          {name:'TPC Tampa Bay',lat:28.1673,lon:-82.5123},
-          {name:'Northdale Golf & Tennis Club',lat:28.1018,lon:-82.5223},
-          {name:'Babe Zaharias Golf Course',lat:28.0267,lon:-82.4334},
-          {name:'Rogers Park Golf Course',lat:28.0341,lon:-82.4445},
-          {name:'Rocky Point Golf Course',lat:27.9658,lon:-82.5732},
-          {name:'Innisbrook Resort Copperhead',lat:28.1278,lon:-82.7342},
-          {name:'Saddlebrook Resort Golf',lat:28.2195,lon:-82.3878},
-          {name:'Bloomingdale Golfers Club',lat:27.8612,lon:-82.2734},
-          {name:'Celebration Golf Club',lat:28.3201,lon:-81.5478},
-          {name:'Arnold Palmers Bay Hill Club',lat:28.4534,lon:-81.5089},
-          {name:'Orange County National Golf Center',lat:28.6012,lon:-81.5445},
+          {name:'Heritage Harbor Golf & Country Club',lat:28.1372,lon:-82.5012, type:'Country Club'},
+          {name:'TPC Tampa Bay',                      lat:28.1673,lon:-82.5123, type:'Golf Course'},
+          {name:'Northdale Golf & Tennis Club',       lat:28.1018,lon:-82.5223, type:'Golf Course'},
+          {name:'Babe Zaharias Golf Course',          lat:28.0267,lon:-82.4334, type:'Golf Course'},
+          {name:'Rogers Park Golf Course',            lat:28.0341,lon:-82.4445, type:'Golf Course'},
+          {name:'Rocky Point Golf Course',            lat:27.9658,lon:-82.5732, type:'Golf Course'},
+          {name:'Innisbrook Resort Copperhead',       lat:28.1278,lon:-82.7342, type:'Resort'},
+          {name:'Saddlebrook Resort Golf',            lat:28.2195,lon:-82.3878, type:'Resort'},
+          {name:'Bloomingdale Golfers Club',          lat:27.8612,lon:-82.2734, type:'Golf Course'},
+          {name:'Lutz Executive Golf Center',         lat:28.1601,lon:-82.4887, type:'Golf Course'},
+          {name:'Avila Golf & Country Club',          lat:28.1423,lon:-82.4895, type:'Country Club'},
+          {name:'Cheval Golf & Country Club',         lat:28.1398,lon:-82.5078, type:'Country Club'},
+          {name:'USF The Claw Golf Course',           lat:28.0622,lon:-82.4131, type:'Golf Course'},
+          {name:'Tampa Palms Country Club',           lat:28.1001,lon:-82.3987, type:'Country Club'},
+          {name:'Carrollwood Country Club',           lat:28.0778,lon:-82.5012, type:'Country Club'},
+          {name:'Hunters Green Country Club',         lat:28.0712,lon:-82.3421, type:'Country Club'},
+          {name:'Lexington Oaks Golf Club',           lat:28.1987,lon:-82.4123, type:'Golf Course'},
+          {name:'Temple Terrace Golf & Country Club', lat:28.0389,lon:-82.3845, type:'Golf Course'},
+          {name:'Heritage Isles Golf & Country Club', lat:28.2312,lon:-82.3745, type:'Golf Course'},
         ];
       KNOWN_COURSES.forEach(k=>{
         const d=_haversine(lat,lon,k.lat,k.lon);
-        if(d<30){const key=norm(k.name); if(!seen.has(key)){seen.add(key);courses.push({...k,dist:d});}}
+        if(d<30){const key=norm(k.name); if(!seen.has(key)){seen.add(key);courses.push({...k,dist:d,type:k.type||'Golf Course',holes:18});}}
       });
       courses.sort((a,b)=>a.dist-b.dist);
       if(courses.length){
@@ -1561,7 +1568,7 @@ window.UI = {
                 lat:          pLat,
                 lon:          pLon,
                 addr:         place.vicinity || '',
-                type:         'Golf Course',
+                type:         _gpType === 'country_club' ? 'Country Club' : 'Golf Course',
                 holes:        null,
                 phone:        null,
                 website:      null,
@@ -1747,10 +1754,42 @@ window.UI = {
     }
 
     const norm2 = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-    const isPrivate = c => {
+
+    // Determine access type from name, OSM tags, and type field
+    const getAccessType = c => {
       const n = norm2(c.name);
-      return n.includes('country') || n.includes('private') || c.type==='Country Club';
+      const raw = (c.name||'').toLowerCase();
+      // Explicit private indicators
+      if (c.access === 'private' || c.type === 'Country Club') return 'private';
+      if (raw.includes('country club') || raw.includes('cc ') || raw.endsWith(' cc')) return 'private';
+      if (raw.includes('private')) return 'private';
+      if (raw.includes('yacht') || raw.includes('polo')) return 'private';
+      // Military / government
+      if (raw.includes('military') || raw.includes('air force') || raw.includes('naval')) return 'military';
+      // Resort
+      if (raw.includes('resort') || raw.includes('marriott') || raw.includes('hilton') ||
+          raw.includes('hyatt') || raw.includes('ritz') || raw.includes('omni')) return 'resort';
+      // University
+      if (raw.includes('usf') || raw.includes('university') || raw.includes(' college')) return 'university';
+      // Semi-private / club
+      if (raw.includes('semi') || raw.includes('members')) return 'semi-private';
+      // Executive / par-3
+      if (raw.includes('executive') || raw.includes('par 3') || raw.includes('par-3') ||
+          (c.par && c.par < 65)) return 'executive';
+      return 'public';
     };
+
+    const ACCESS_BADGE = {
+      'private':     { label: 'Private',      bg: '#7f1d1d', color: '#fca5a5', icon: '🔒' },
+      'semi-private':{ label: 'Semi-Private', bg: '#78350f', color: '#fcd34d', icon: '🔑' },
+      'resort':      { label: 'Resort',       bg: '#1e3a5f', color: '#93c5fd', icon: '🏨' },
+      'military':    { label: 'Military',     bg: '#14532d', color: '#86efac', icon: '🎖️' },
+      'university':  { label: 'University',   bg: '#3b0764', color: '#d8b4fe', icon: '🎓' },
+      'executive':   { label: 'Executive',    bg: '#374151', color: '#d1d5db', icon: '⛳' },
+      'public':      { label: 'Public',       bg: '#14532d', color: '#86efac', icon: '⛳' },
+    };
+
+    const isPrivate = c => getAccessType(c) === 'private' || getAccessType(c) === 'semi-private';
 
     container.innerHTML = filtered.map(c => {
       const distStr  = c.dist != null ? `${c.dist.toFixed(1)} mi away` : '';
@@ -1768,13 +1807,21 @@ window.UI = {
       const infoStr    = [parStr, slopeStr].filter(Boolean).join('');
       const ratingStr  = c.rating ? ` · ⭐ ${c.rating}` : '';
 
+      const _access = getAccessType(c);
+      const _badge  = ACCESS_BADGE[_access] || ACCESS_BADGE['public'];
       return `<div class="course-card">
         <div class="course-card-top">
           <div style="flex:1">
-            <div class="course-name">${c.name}</div>
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+              <div class="course-name" style="margin-bottom:0">${c.name}</div>
+              <span style="flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.4px;
+                text-transform:uppercase;padding:2px 7px;border-radius:20px;
+                background:${_badge.bg}22;color:${_badge.color};border:1px solid ${_badge.bg}55">
+                ${_badge.icon} ${_badge.label}
+              </span>
+            </div>
             <div class="course-meta">${distStr}${holesStr}${infoStr}${ratingStr}${c.addr ? ' · ' + c.addr : ''}</div>
           </div>
-          <span style="font-size:22px">${isPrivate(c) ? '🏌️' : '⛳'}</span>
         </div>
         <div class="course-actions">
           <button class="course-btn course-btn-gps"
