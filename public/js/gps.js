@@ -6,12 +6,12 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=75';
+import { db } from './firebase-config.js?v=76';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=75';
+import { showToast } from './ui.js?v=76';
 
 // ── GolfAPI.io config ─────────────────────────────────────────
 const GOLFAPI_KEY  = 'e75f3420-aef6-4ab7-8c93-39270d7319cc';
@@ -107,11 +107,13 @@ function _syntheticHoles(lat, lon) {
 // ── Known direct endpoints (no search-cost calls) ─────────────
 const KNOWN_COURSE_ENDPOINTS = [
   {
+    // Heritage Harbor Golf & Country Club — Lutz, FL
+    // Verified via GolfAPI.io name search on 2026-03-31
     names:    ['Heritage Harbor', 'heritage harbor golf', 'heritage harbor golf & country club'],
-    clubID:   '141520610397251566',
-    courseID: '012141520658891108829',
-    fallbackLat: 28.1372,
-    fallbackLon: -82.5012,
+    clubID:   '141520610570674851',
+    courseID: '012141520702358023480',
+    fallbackLat: 28.16806,
+    fallbackLon: -82.51176,
   },
 ];
 
