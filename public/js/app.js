@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=86";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=86";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=86";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=86";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=86";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=86";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=86";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=86";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=86";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=86";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=86";
-import { buildOnboardScreen } from "./onboard.js?v=86";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=87";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=87";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=87";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=87";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=87";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=87";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=87";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=87";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=87";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=87";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=87";
+import { buildOnboardScreen } from "./onboard.js?v=87";
 
 
 // ── Haversine distance in miles ──
@@ -746,7 +746,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=86");
+      const { initials, avatarColor } = await import("./ui.js?v=87");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1546,144 +1546,117 @@ window.UI = {
       // When no Google Places key: GolfCourseAPI city-name fallback runs below
 
       if (window._googlePlacesKey) {
-        // ── 5a. Google Places Nearby Search — coordinate-based course discovery ──
+        // ── 5a. Google Places Nearby Search — tiled coordinate-based course discovery ──
+        // GP API max radius is 50km (~31mi). For larger radii we tile the search area
+        // with overlapping circles so every part of the requested radius is covered.
         try {
-          const _gpRadius = Math.min(50000, Math.round((parseFloat(document.getElementById('dist-filter')?.value||25)) * 1609.34)); // max 50km (~31mi) per GP API limit
-          let _gpPageToken = null;
-          let _gpPage = 0;
-          do {
-            const _gpUrl = _gpPageToken
-              ? `/api/places?pagetoken=${_gpPageToken}&key=${window._googlePlacesKey}`
-              : `/api/places?location=${lat},${lon}&radius=${_gpRadius}&type=golf_course&key=${window._googlePlacesKey}`;
-            const _gpResp = await fetch(_gpUrl).catch(()=>null);
-            if (!_gpResp?.ok) break;
-            const _gpData = await _gpResp.json().catch(()=>null);
-            if (!_gpData) break;
-            for (const place of _gpData.results||[]) {
-              const pLat = place.geometry?.location?.lat;
-              const pLon = place.geometry?.location?.lng;
-              if (!pLat || !pLon) continue;
-              // Trust Google's type=golf_course results — only reject obvious non-golf
-              const _pn = (place.name||'').toLowerCase();
-              const _pt = place.types||[];
-              // If typed as golf_course or country_club, always include
-              // Only reject if NOT typed as golf AND name is clearly non-golf
-              if (!_pt.includes('golf_course') && !_pt.includes('country_club')) {
-                const _badName = _pn.includes('school') || _pn.includes('pharmacy') ||
-                  _pn.includes('hospital') || _pn.includes('church');
-                if (_badName) continue;
-              }
-              const name  = place.name || 'Golf Course';
-              const key   = norm(name);
-              if (seen.has(key)) continue;
-              seen.add(key);
-              const distMi = _haversine(lat, lon, pLat, pLon);
-              const radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
-              if (distMi > radiusMi) continue;
-              courses.push({
-                name,
-                dist:         distMi,
-                lat:          pLat,
-                lon:          pLon,
-                addr:         place.vicinity || '',
-                type:         (place.types||[]).includes('country_club') ? 'Country Club' : 'Golf Course',
-                holes:        null,
-                phone:        null,
-                website:      null,
-                rating:       place.rating   || null,
-                slope:        null,
-                par:          null,
-                googlePlaceId: place.place_id,
-              });
-            }
-            _gpPageToken = _gpData.next_page_token || null;
-            if (_gpPageToken) await new Promise(r=>setTimeout(r,1800)); // GP requires delay between pages
-            _gpPage++;
-          } while (_gpPageToken && _gpPage < 3);
+          const _filterMi = parseFloat(document.getElementById('dist-filter')?.value || 25);
+          const _tileRad  = 40000; // 40km per tile (~25mi) — overlapping ensures no gaps
 
-          // Search additional types: country_club, and keyword "golf" for anything missed
-          // Search country_club type to catch private clubs not tagged golf_course
-          const _gpExtraSearches = [
-            `/api/places?location=${lat},${lon}&radius=${_gpRadius}&type=country_club&key=${window._googlePlacesKey}`,
-          ];
-          // For larger radii (>15mi), tile the search with offset centres to
-          // overcome the 60-result cap and find courses at the radius edges
-          const _radiusMi = parseFloat(document.getElementById('dist-filter')?.value||25);
-          if (_radiusMi > 15) {
-            // Offset ~40% of radius in 4 directions to cover fringe areas
-            const _off = (_gpRadius * 0.4) / 111320; // degrees
-            const _offsets = [
-              [lat + _off, lon], [lat - _off, lon],
-              [lat, lon + _off / Math.cos(lat * Math.PI/180)],
-              [lat, lon - _off / Math.cos(lat * Math.PI/180)],
-            ];
-            for (const [oLat, oLon] of _offsets) {
-              _gpExtraSearches.push(
-                `/api/places?location=${oLat.toFixed(5)},${oLon.toFixed(5)}&radius=${Math.round(_gpRadius*0.65)}&type=golf_course&key=${window._googlePlacesKey}`
-              );
-            }
+          // Build tile centers: one center + rings based on filter radius
+          const _tileCenters = [[lat, lon]]; // always search center
+
+          if (_filterMi > 25) {
+            // Ring 1: 4 tiles at ~25mi offset in cardinal directions
+            const _step1 = 0.36; // ~25mi in degrees lat
+            const _stepLon1 = _step1 / Math.cos(lat * Math.PI / 180);
+            _tileCenters.push(
+              [lat + _step1, lon], [lat - _step1, lon],
+              [lat, lon + _stepLon1], [lat, lon - _stepLon1]
+            );
           }
-          for (const _gpExtraUrl of _gpExtraSearches) {
-            const _gpExtraResp = await fetch(_gpExtraUrl).catch(()=>null);
-            if (!_gpExtraResp?.ok) continue;
-            const _gpExtraData = await _gpExtraResp.json().catch(()=>null);
-            let _gpExtraToken = _gpExtraData?.next_page_token;
-            const _gpExtraAllPages = [...(_gpExtraData?.results||[])];
-            // Paginate through all results
-            for (let _pg=0; _pg<2 && _gpExtraToken; _pg++) {
-              await new Promise(r=>setTimeout(r,2100));
-              const _pgResp = await fetch(`/api/places?pagetoken=${_gpExtraToken}&key=${window._googlePlacesKey}`).catch(()=>null);
-              if (!_pgResp?.ok) break;
-              const _pgData = await _pgResp.json().catch(()=>null);
-              _gpExtraAllPages.push(...(_pgData?.results||[]));
-              _gpExtraToken = _pgData?.next_page_token || null;
-            }
-            for (const place of _gpExtraAllPages) {
-              const pLat = place.geometry?.location?.lat;
-              const pLon = place.geometry?.location?.lng;
-              if (!pLat || !pLon) continue;
-              // Filter: must have golf-related name or type
-              const pName = (place.name||'').toLowerCase();
-              const pTypes = place.types||[];
-              // Trust Google's type tags completely —
-              // golf_course and country_club are reliably typed by Google
-              // Only name-filter if type is absent (shouldn't happen for type= searches)
-              const isGolfVenue =
-                pTypes.includes('golf_course') ||
-                pTypes.includes('country_club') ||
-                pName.includes('golf') ||
-                pName.includes('country club') ||
-                pName.includes('country clb') ||
-                pName.endsWith(' cc');
-              // Only reject if clearly not golf AND not typed as golf
-              const isObviouslyNotGolf =
-                !pTypes.includes('golf_course') &&
-                !pTypes.includes('country_club') &&
-                (pName.includes('school') || pName.includes('pharmacy') ||
-                 pName.includes('hospital') || pName.includes('medical center') ||
-                 pName.includes('church') || pName.includes('supermarket'));
-              if (!isGolfVenue || isObviouslyNotGolf) continue;
-              const name = place.name || 'Golf Course';
-              const key  = norm(name);
-              if (seen.has(key)) continue;
-              seen.add(key);
-              const distMi = _haversine(lat, lon, pLat, pLon);
-              const radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
-              if (distMi > radiusMi) continue;
-              const _placeType = pTypes.includes('country_club') ? 'Country Club' : 'Golf Course';
-              courses.push({
-                name, dist:distMi, lat:pLat, lon:pLon,
-                addr: place.vicinity||'', type:_placeType,
-                holes:null, phone:null, website:null,
-                rating:place.rating||null, slope:null, par:null,
-                googlePlaceId:place.place_id,
-              });
-            }
+          if (_filterMi > 50) {
+            // Ring 2: 4 diagonal tiles at ~45mi offset
+            const _step2 = 0.52;
+            const _stepLon2 = _step2 / Math.cos(lat * Math.PI / 180);
+            _tileCenters.push(
+              [lat + _step2, lon + _stepLon2], [lat + _step2, lon - _stepLon2],
+              [lat - _step2, lon + _stepLon2], [lat - _step2, lon - _stepLon2]
+            );
           }
-          if (courses.length > 0) {
-            const _gpNewCount = courses.filter(c=>c.googlePlaceId).length;
-          console.log(`Discover: Google Places found ${_gpNewCount} new courses (${courses.length} total) near ${lat.toFixed(3)},${lon.toFixed(3)}`);
+          if (_filterMi > 75) {
+            // Ring 3: 8 tiles at ~70mi offset (cardinal + diagonal)
+            const _step3 = 1.0;
+            const _stepLon3 = _step3 / Math.cos(lat * Math.PI / 180);
+            _tileCenters.push(
+              [lat + _step3, lon], [lat - _step3, lon],
+              [lat, lon + _stepLon3], [lat, lon - _stepLon3],
+              [lat + _step3 * 0.7, lon + _stepLon3 * 0.7],
+              [lat + _step3 * 0.7, lon - _stepLon3 * 0.7],
+              [lat - _step3 * 0.7, lon + _stepLon3 * 0.7],
+              [lat - _step3 * 0.7, lon - _stepLon3 * 0.7]
+            );
           }
+
+          console.log(`Discover: GP searching ${_tileCenters.length} tiles at ${_filterMi}mi`);
+
+          // Run each tile search (primary + country_club type)
+          for (const [tLat, tLon] of _tileCenters) {
+            for (const _type of ['golf_course', 'country_club']) {
+              let _gpPageToken = null;
+              let _gpPage = 0;
+              do {
+                const _gpUrl = _gpPageToken
+                  ? `/api/places?pagetoken=${_gpPageToken}&key=${window._googlePlacesKey}`
+                  : `/api/places?location=${tLat.toFixed(5)},${tLon.toFixed(5)}&radius=${_tileRad}&type=${_type}&key=${window._googlePlacesKey}`;
+                const _gpResp = await fetch(_gpUrl).catch(()=>null);
+                if (!_gpResp?.ok) break;
+                const _gpData = await _gpResp.json().catch(()=>null);
+                if (!_gpData) break;
+
+                let _newCount = 0;
+                for (const place of _gpData.results || []) {
+                  const pLat = place.geometry?.location?.lat;
+                  const pLon = place.geometry?.location?.lng;
+                  if (!pLat || !pLon) continue;
+                  const _pn = (place.name || '').toLowerCase();
+                  const _pt = place.types || [];
+                  if (!_pt.includes('golf_course') && !_pt.includes('country_club')) {
+                    const _badName = _pn.includes('school') || _pn.includes('pharmacy') ||
+                      _pn.includes('hospital') || _pn.includes('church');
+                    if (_badName) continue;
+                  }
+                  const distMi = _haversine(lat, lon, pLat, pLon);
+                  if (distMi > _filterMi) continue; // outside user's requested radius
+                  const name = place.name || 'Golf Course';
+                  const key  = norm(name);
+                  if (seen.has(key)) continue;
+                  seen.add(key);
+                  _newCount++;
+                  courses.push({
+                    name,
+                    dist:          distMi,
+                    lat:           pLat,
+                    lon:           pLon,
+                    addr:          place.vicinity || '',
+                    type:          _pt.includes('country_club') ? 'Country Club' : 'Golf Course',
+                    holes:         null,
+                    phone:         null,
+                    website:       null,
+                    rating:        place.rating || null,
+                    slope:         null,
+                    par:           null,
+                    googlePlaceId: place.place_id,
+                  });
+                }
+                if (_newCount > 0) {
+                  window._nearbyCourses = [...courses].sort((a,b)=>(a.dist||999)-(b.dist||999));
+                  UI.filterCourses('');
+                }
+                console.log(`Discover: GP tile [${tLat.toFixed(2)},${tLon.toFixed(2)}] ${_type} → ${_gpData.results?.length||0} results, ${_newCount} new`);
+
+                _gpPageToken = _gpData.next_page_token || null;
+                if (_gpPageToken) await new Promise(r => setTimeout(r, 1800));
+                _gpPage++;
+              } while (_gpPageToken && _gpPage < 3);
+            }
+
+            // Small delay between tile centers to avoid rate limiting
+            await new Promise(r => setTimeout(r, 250));
+          }
+
+          const _gpFinal = courses.filter(c=>c.googlePlaceId).length;
+          console.log(`Discover: Google Places found ${_gpFinal} courses total at ${_filterMi}mi`);
         } catch(e) { console.warn('Discover: Google Places failed:', e.message); }
       } else {
         // No Google Places key — GolfCourseAPI fallback runs below (step 5b)
