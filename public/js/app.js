@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=77";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=77";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=77";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=77";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=77";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=77";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=77";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=77";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=77";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=77";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=77";
-import { buildOnboardScreen } from "./onboard.js?v=77";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=78";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=78";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=78";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=78";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=78";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=78";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=78";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=78";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=78";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=78";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=78";
+import { buildOnboardScreen } from "./onboard.js?v=78";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=77");
+      const { initials, avatarColor } = await import("./ui.js?v=78");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1545,8 +1545,8 @@ window.UI = {
           let _gpPage = 0;
           do {
             const _gpUrl = _gpPageToken
-              ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${_gpPageToken}&key=${window._googlePlacesKey}`
-              : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${_gpRadius}&type=golf_course&key=${window._googlePlacesKey}`;
+              ? `/api/places?pagetoken=${_gpPageToken}&key=${window._googlePlacesKey}`
+              : `/api/places?location=${lat},${lon}&radius=${_gpRadius}&type=golf_course&key=${window._googlePlacesKey}`;
             const _gpResp = await fetch(_gpUrl).catch(()=>null);
             if (!_gpResp?.ok) break;
             const _gpData = await _gpResp.json().catch(()=>null);
@@ -1583,16 +1583,37 @@ window.UI = {
             _gpPage++;
           } while (_gpPageToken && _gpPage < 3);
 
-          // Also search country_club type
-          const _gpResp2 = await fetch(
-            `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${_gpRadius}&type=country_club&key=${window._googlePlacesKey}`
-          ).catch(()=>null);
-          if (_gpResp2?.ok) {
-            const _gpData2 = await _gpResp2.json().catch(()=>null);
-            for (const place of _gpData2?.results||[]) {
+          // Search additional types: country_club, and keyword "golf" for anything missed
+          const _gpExtraSearches = [
+            `/api/places?location=${lat},${lon}&radius=${_gpRadius}&type=country_club&key=${window._googlePlacesKey}`,
+            `/api/places?location=${lat},${lon}&radius=${_gpRadius}&keyword=golf+course&key=${window._googlePlacesKey}`,
+            `/api/places?location=${lat},${lon}&radius=${_gpRadius}&keyword=golf+club&key=${window._googlePlacesKey}`,
+          ];
+          for (const _gpExtraUrl of _gpExtraSearches) {
+            const _gpExtraResp = await fetch(_gpExtraUrl).catch(()=>null);
+            if (!_gpExtraResp?.ok) continue;
+            const _gpExtraData = await _gpExtraResp.json().catch(()=>null);
+            let _gpExtraToken = _gpExtraData?.next_page_token;
+            const _gpExtraAllPages = [...(_gpExtraData?.results||[])];
+            // Paginate through all results
+            for (let _pg=0; _pg<2 && _gpExtraToken; _pg++) {
+              await new Promise(r=>setTimeout(r,2100));
+              const _pgResp = await fetch(`/api/places?pagetoken=${_gpExtraToken}&key=${window._googlePlacesKey}`).catch(()=>null);
+              if (!_pgResp?.ok) break;
+              const _pgData = await _pgResp.json().catch(()=>null);
+              _gpExtraAllPages.push(...(_pgData?.results||[]));
+              _gpExtraToken = _pgData?.next_page_token || null;
+            }
+            for (const place of _gpExtraAllPages) {
               const pLat = place.geometry?.location?.lat;
               const pLon = place.geometry?.location?.lng;
               if (!pLat || !pLon) continue;
+              // Filter: must have golf-related name or type
+              const pName = (place.name||'').toLowerCase();
+              const pTypes = place.types||[];
+              const isGolfRelated = pName.includes('golf') || pName.includes('country club') ||
+                pTypes.includes('golf_course') || pTypes.includes('country_club');
+              if (!isGolfRelated) continue;
               const name = place.name || 'Golf Course';
               const key  = norm(name);
               if (seen.has(key)) continue;
@@ -1600,9 +1621,10 @@ window.UI = {
               const distMi = _haversine(lat, lon, pLat, pLon);
               const radiusMi = parseFloat(document.getElementById('dist-filter')?.value||100);
               if (distMi > radiusMi) continue;
+              const _placeType = pTypes.includes('country_club') ? 'Country Club' : 'Golf Course';
               courses.push({
                 name, dist:distMi, lat:pLat, lon:pLon,
-                addr: place.vicinity||'', type:'Country Club',
+                addr: place.vicinity||'', type:_placeType,
                 holes:null, phone:null, website:null,
                 rating:place.rating||null, slope:null, par:null,
                 googlePlaceId:place.place_id,
@@ -1610,7 +1632,8 @@ window.UI = {
             }
           }
           if (courses.length > 0) {
-            console.log(`Discover: Google Places found ${courses.length} courses near ${lat.toFixed(3)},${lon.toFixed(3)}`);
+            const _gpNewCount = courses.filter(c=>c.googlePlaceId).length;
+          console.log(`Discover: Google Places found ${_gpNewCount} new courses (${courses.length} total) near ${lat.toFixed(3)},${lon.toFixed(3)}`);
           }
         } catch(e) { console.warn('Discover: Google Places failed:', e.message); }
       } else {
