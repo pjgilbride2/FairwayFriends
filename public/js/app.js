@@ -1892,10 +1892,10 @@ const _SG_STATE = {
       const _sgDate  = new Date().toISOString().slice(0,10);
       const _supremeGolfUrl = (courseName) => {
         const slug = _toSlug(courseName) + '-' + _sgState;
-        return \`https://supremegolf.com/explore/united-states/\${_sgState}/\${_sgCity}/\${slug}?date=\${_sgDate}&players=2\`;
+        return `https://supremegolf.com/explore/united-states/${_sgState}/${_sgCity}/${slug}?date=${_sgDate}&players=2`;
       };
       const _supremeGolfSearchUrl = (courseName) =>
-        \`https://supremegolf.com/explore/united-states/\${_sgState}/\${_sgCity}?searchQuery=\${encodeURIComponent(courseName)}&date=\${_sgDate}\`;
+        `https://supremegolf.com/explore/united-states/${_sgState}/${_sgCity}?searchQuery=${encodeURIComponent(courseName)}&date=${_sgDate}`;
 
       // Booking URL — Supreme Golf is primary (40,000+ courses, aggregates GolfNow/TeeOff/Golf18)
       const _sgUrl   = _supremeGolfUrl(c.name);
