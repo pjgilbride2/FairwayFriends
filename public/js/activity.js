@@ -4,12 +4,12 @@
 //  Owner can hide or delete each item.
 // ============================================================
 
-import { db } from "./firebase-config.js?v=83";
+import { db } from "./firebase-config.js?v=84";
 import {
   collection, query, where, orderBy, limit,
   getDocs, deleteDoc, updateDoc, doc, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { esc, relativeTime, showToast, vibePip } from "./ui.js?v=83";
+import { esc, relativeTime, showToast, vibePip } from "./ui.js?v=84";
 
 // ── Load all activity for a uid (posts + rounds) ──
 export async function loadUserActivity(uid) {

@@ -5,8 +5,8 @@
 //  Shows live GPS dot, shot history, and hole stats.
 // ============================================================
 
-import { showToast, esc } from './ui.js?v=83';
-import { fetchCourseHoles, gpsIsActive, getCurrentHole, getShots } from './gps.js?v=83';
+import { showToast, esc } from './ui.js?v=84';
+import { fetchCourseHoles, gpsIsActive, getCurrentHole, getShots } from './gps.js?v=84';
 
 // ── State ─────────────────────────────────────────────────────
 let _courseName   = '';
