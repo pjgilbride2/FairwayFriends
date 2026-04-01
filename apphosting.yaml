@@ -14,3 +14,5 @@ runConfig:
 env:
   - variable: NODE_ENV
     value: production
+  - variable: GOOGLE_PLACES_KEY
+    value: AIzaSyAQSzxQm7wfeih4X5gAggZiZhCjMLDipjA
