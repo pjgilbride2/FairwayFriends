@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=82";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=82";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=82";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=82";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=82";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=82";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=82";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=82";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=82";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=82";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=82";
-import { buildOnboardScreen } from "./onboard.js?v=82";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=83";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=83";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=83";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=83";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=83";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=83";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=83";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=83";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=83";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=83";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=83";
+import { buildOnboardScreen } from "./onboard.js?v=83";
 
 
 // ── Haversine distance in miles ──
@@ -741,7 +741,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=82");
+      const { initials, avatarColor } = await import("./ui.js?v=83");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1805,9 +1805,16 @@ window.UI = {
     const distText = maxDist >= 100 ? '100 mi' : maxDist + ' mi';
 
     if (label) {
-      label.textContent = filtered.length === total
+      const _lText = filtered.length === total
         ? `${total} courses within ${distText}`
         : `${filtered.length} of ${total} courses within ${distText}`;
+      // Add Supreme Golf link for full tee time inventory
+      const _cityFull2 = (myProfile?.city || window._weatherCity || '').trim();
+      const _cityParts2 = _cityFull2.split(',').map(s=>s.trim());
+      const _sgState2 = ({AL:'alabama',AK:'alaska',AZ:'arizona',AR:'arkansas',CA:'california',CO:'colorado',CT:'connecticut',DE:'delaware',FL:'florida',GA:'georgia',HI:'hawaii',ID:'idaho',IL:'illinois',IN:'indiana',IA:'iowa',KS:'kansas',KY:'kentucky',LA:'louisiana',ME:'maine',MD:'maryland',MA:'massachusetts',MI:'michigan',MN:'minnesota',MS:'mississippi',MO:'missouri',MT:'montana',NE:'nebraska',NV:'nevada',NH:'new-hampshire',NJ:'new-jersey',NM:'new-mexico',NY:'new-york',NC:'north-carolina',ND:'north-dakota',OH:'ohio',OK:'oklahoma',OR:'oregon',PA:'pennsylvania',RI:'rhode-island',SC:'south-carolina',SD:'south-dakota',TN:'tennessee',TX:'texas',UT:'utah',VT:'vermont',VA:'virginia',WA:'washington',WV:'west-virginia',WI:'wisconsin',WY:'wyoming'})[_cityParts2[1]?.toUpperCase()] || 'united-states';
+      const _sgCitySlug2 = (_cityParts2[0]||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      const _sgCityUrl = `https://supremegolf.com/explore/united-states/${_sgState2}/${_sgCitySlug2}`;
+      label.innerHTML = `${_lText} &nbsp;<a href="${_sgCityUrl}" target="_blank" rel="noopener" style="font-size:11px;color:var(--green);text-decoration:none;font-weight:600;white-space:nowrap">+ Supreme Golf ↗</a>`;
     }
 
     if (!container) return;
@@ -1865,11 +1872,37 @@ window.UI = {
       const slopeStr = c.slope ? ` · Slope ${c.slope}` : '';
       const mapsUrl  = `https://maps.google.com/?q=${encodeURIComponent(c.name + ' golf course')}`;
 
-      // Booking URL
-      const bookBase = c.website || `https://www.golfnow.com/search#misc=radius&centerLat=${c.lat}&centerLon=${c.lon}&facilityName=${encodeURIComponent(c.name)}`;
-      const bookUrl  = isPrivate(c) && !c.website ? mapsUrl : bookBase;
-      const bookLabel = isPrivate(c) && !c.website ? '🌐 Website' : '🗓 Find tee times';
-      const teeOffUrl = `https://www.teeoff.com/courses?search=${encodeURIComponent(c.name)}`;
+const _SG_STATE = {
+        AL:'alabama',AK:'alaska',AZ:'arizona',AR:'arkansas',CA:'california',
+        CO:'colorado',CT:'connecticut',DE:'delaware',FL:'florida',GA:'georgia',
+        HI:'hawaii',ID:'idaho',IL:'illinois',IN:'indiana',IA:'iowa',KS:'kansas',
+        KY:'kentucky',LA:'louisiana',ME:'maine',MD:'maryland',MA:'massachusetts',
+        MI:'michigan',MN:'minnesota',MS:'mississippi',MO:'missouri',MT:'montana',
+        NE:'nebraska',NV:'nevada',NH:'new-hampshire',NJ:'new-jersey',NM:'new-mexico',
+        NY:'new-york',NC:'north-carolina',ND:'north-dakota',OH:'ohio',OK:'oklahoma',
+        OR:'oregon',PA:'pennsylvania',RI:'rhode-island',SC:'south-carolina',
+        SD:'south-dakota',TN:'tennessee',TX:'texas',UT:'utah',VT:'vermont',
+        VA:'virginia',WA:'washington',WV:'west-virginia',WI:'wisconsin',WY:'wyoming'
+      };
+      const _toSlug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      const _cityFull = (myProfile?.city || window._weatherCity || '').trim();
+      const _cityParts = _cityFull.split(',').map(s=>s.trim());
+      const _sgCity  = _toSlug(_cityParts[0] || 'golf');
+      const _sgState = _SG_STATE[_cityParts[1]?.toUpperCase()] || _toSlug(_cityParts[1] || 'united-states');
+      const _sgDate  = new Date().toISOString().slice(0,10);
+      const _supremeGolfUrl = (courseName) => {
+        const slug = _toSlug(courseName) + '-' + _sgState;
+        return \`https://supremegolf.com/explore/united-states/\${_sgState}/\${_sgCity}/\${slug}?date=\${_sgDate}&players=2\`;
+      };
+      const _supremeGolfSearchUrl = (courseName) =>
+        \`https://supremegolf.com/explore/united-states/\${_sgState}/\${_sgCity}?searchQuery=\${encodeURIComponent(courseName)}&date=\${_sgDate}\`;
+
+      // Booking URL — Supreme Golf is primary (40,000+ courses, aggregates GolfNow/TeeOff/Golf18)
+      const _sgUrl   = _supremeGolfUrl(c.name);
+      const bookBase = _sgUrl;
+      const bookUrl  = isPrivate(c) && !c.website ? (c.website || mapsUrl) : bookBase;
+      const bookLabel = isPrivate(c) ? (c.website ? '🌐 Website' : '🗓 Find tee times') : '🏌️ Book on Supreme Golf';
+      const teeOffUrl = _sgUrl; // Supreme Golf replaces TeeOff — it aggregates TeeOff too
 
       const infoStr    = [parStr, slopeStr].filter(Boolean).join('');
       const ratingStr  = c.rating ? ` · ⭐ ${c.rating}` : '';
@@ -1900,7 +1933,7 @@ window.UI = {
           </button>
           <a href="${bookUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bookLabel}</a>
           <a href="${mapsUrl}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
-          ${!isPrivate(c) ? `<a href="${teeOffUrl}" target="_blank" rel="noopener" class="course-btn">⛳ TeeOff</a>` : ''}
+          ${!isPrivate(c) ? `<a href="${teeOffUrl}" target="_blank" rel="noopener" class="course-btn" style="background:var(--green-dark);color:#fff;border-color:var(--green-dark)">⛳ Supreme Golf</a>` : ''}
           ${c.phone ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>` : ''}
           ${c.website ? `<a href="${c.website}" target="_blank" rel="noopener" class="course-btn">🌐 Website</a>` : ''}
         </div>
