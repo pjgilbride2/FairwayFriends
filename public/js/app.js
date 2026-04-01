@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=78";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=78";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=78";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=78";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=78";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=78";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=78";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=78";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=78";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=78";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=78";
-import { buildOnboardScreen } from "./onboard.js?v=78";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=79";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=79";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=79";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=79";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=79";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=79";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=79";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=79";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=79";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=79";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=79";
+import { buildOnboardScreen } from "./onboard.js?v=79";
 
 
 // ── Haversine distance in miles ──
@@ -738,7 +738,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=78");
+      const { initials, avatarColor } = await import("./ui.js?v=79");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1540,7 +1540,7 @@ window.UI = {
       if (window._googlePlacesKey) {
         // ── 5a. Google Places Nearby Search — coordinate-based course discovery ──
         try {
-          const _gpRadius = Math.min(50000, Math.round((parseFloat(document.getElementById('dist-filter')?.value||25)) * 1609.34));
+          const _gpRadius = Math.min(50000, Math.round((parseFloat(document.getElementById('dist-filter')?.value||25)) * 1609.34)); // max 50km (~31mi) per GP API limit
           let _gpPageToken = null;
           let _gpPage = 0;
           do {
@@ -1568,7 +1568,7 @@ window.UI = {
                 lat:          pLat,
                 lon:          pLon,
                 addr:         place.vicinity || '',
-                type:         _gpType === 'country_club' ? 'Country Club' : 'Golf Course',
+                type:         (place.types||[]).includes('country_club') ? 'Country Club' : 'Golf Course',
                 holes:        null,
                 phone:        null,
                 website:      null,
