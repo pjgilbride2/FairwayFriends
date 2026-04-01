@@ -9,23 +9,34 @@ const PORT = process.env.PORT || 8080;
 // Proxies Google Places Nearby Search server-side to avoid browser CORS blocks.
 // Called by app.js with: fetch('/api/places?...')
 app.get("/api/places", (req, res) => {
-  const GP_KEY = process.env.GOOGLE_PLACES_KEY || req.query.key || "";
-  if (!GP_KEY) return res.status(400).json({ error: "No API key" });
+  // Key priority: server env → client query param
+  const GP_KEY = (process.env.GOOGLE_PLACES_KEY || "").trim() || (req.query.key || "").trim();
+  if (!GP_KEY) return res.status(400).json({ error: "No API key configured" });
 
-  // Build the upstream URL — strip 'key' from query, inject server key
-  const params = new URLSearchParams(req.query);
+  // Build upstream URL with server key (never expose to client)
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(req.query)) {
+    if (k !== "key") params.set(k, v); // strip client key
+  }
   params.set("key", GP_KEY);
-  params.delete("key"); // remove client-supplied key
-  params.set("key", GP_KEY); // re-add server key
 
   const upstreamUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?${params.toString()}`;
+  console.log(`[Places proxy] ${req.query.type || req.query.keyword || "?"} → ${upstreamUrl.split("key=")[0]}key=***`);
 
-  https.get(upstreamUrl, (gpRes) => {
+  const gpReq = https.get(upstreamUrl, (gpRes) => {
     res.setHeader("Content-Type", "application/json");
+    res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cache-Control", "no-cache");
+    res.status(gpRes.statusCode || 200);
     gpRes.pipe(res);
-  }).on("error", (e) => {
+  });
+  gpReq.on("error", (e) => {
+    console.error("[Places proxy] error:", e.message);
     res.status(502).json({ error: e.message });
+  });
+  gpReq.setTimeout(10000, () => {
+    gpReq.destroy();
+    res.status(504).json({ error: "Upstream timeout" });
   });
 });
 
