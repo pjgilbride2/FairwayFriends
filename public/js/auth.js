@@ -2,10 +2,15 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=88";
+import { auth, db } from "./firebase-config.js?v=89";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+  OAuthProvider,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -13,10 +18,10 @@ import {
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=88";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=88";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=88";
-import { goScreen, hideSplash } from "./ui.js?v=88";
+import { loadUserProfile } from "./profile.js?v=89";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=89";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=89";
+import { goScreen, hideSplash } from "./ui.js?v=89";
 
 let _listenersActive = false;
 
@@ -81,13 +86,13 @@ export function buildAuthScreen() {
 .au-wordmark .gn{color:#3d7a52;}.au-wordmark .cr{color:#f5f0e8;}
 .au-tagline{font-size:15px;color:rgba(255,255,255,.55);line-height:1.5;max-width:260px;margin:0 auto;}
 .au-actions {
-  padding:24px 0 32px;
-  display:flex;flex-direction:column;gap:12px;
+  padding:20px 0 28px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
 }
 .au-btn {
-  width:100%;padding:16px;border-radius:14px;
-  font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;max-width:320px;padding:12px 20px;border-radius:12px;
+  font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;
   transition:all .2s;border:none;
 }
 .au-btn-apple{background:#fff;color:#000;}
@@ -256,14 +261,72 @@ export function buildAuthScreen() {
 </div>`;
 
   // Wire Apple/Google buttons (currently just route to email signup)
-  const _goOnboard = () => { safeUI('goScreen','onboard'); };
-  document.getElementById("au-apple-btn").onclick  = _goOnboard;
-  document.getElementById("au-google-btn").onclick = _goOnboard;
-  document.getElementById("au-email-btn").onclick  = _goOnboard;
+  // ── Wire SSO buttons to actual OAuth providers ──────────────
+  const _handleAuthError = (e, provider) => {
+    const msgs = {
+      'auth/popup-closed-by-user':   null, // user closed, no toast
+      'auth/cancelled-popup-request': null,
+      'auth/account-exists-with-different-credential':
+        'An account already exists with a different sign-in method.',
+      'auth/user-disabled':          'This account has been disabled.',
+      'auth/network-request-failed': 'Network error. Check your connection.',
+    };
+    const msg = msgs[e.code];
+    if (msg !== null) window.showToast?.(msg || e.message || 'Sign-in failed.');
+  };
+
+  document.getElementById("au-google-btn").onclick = async () => {
+    const btn = document.getElementById("au-google-btn");
+    if (!btn) return;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span style="opacity:.6;font-size:14px">Signing in…</span>';
+    btn.disabled = true;
+    try {
+      await doGoogleLogin();
+      // onAuthStateChanged will handle navigation
+    } catch(e) {
+      _handleAuthError(e, 'Google');
+    } finally {
+      btn.innerHTML = orig;
+      btn.disabled = false;
+    }
+  };
+
+  document.getElementById("au-apple-btn").onclick = async () => {
+    const btn = document.getElementById("au-apple-btn");
+    if (!btn) return;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span style="opacity:.6;font-size:14px">Signing in…</span>';
+    btn.disabled = true;
+    try {
+      await doAppleLogin();
+    } catch(e) {
+      _handleAuthError(e, 'Apple');
+    } finally {
+      btn.innerHTML = orig;
+      btn.disabled = false;
+    }
+  };
+
+  document.getElementById("au-email-btn").onclick = () => {
+    // Show email sign-up / sign-in form
+    safeUI('goScreen', 'onboard');
+  };
 }
 
 // ── Init auth state listener ──────────────────────────────────
 export function initAuth() {
+  // Handle redirect result (for Apple/Google redirect fallback)
+  getRedirectResult(auth).then(result => {
+    if (result?.user) {
+      console.log('Auth: redirect sign-in success', result.user.email);
+    }
+  }).catch(e => {
+    if (e.code !== 'auth/no-auth-event') {
+      console.warn('Auth: redirect error', e.code);
+    }
+  });
+
   const splashFallback = setTimeout(() => {
     hideSplash();
     buildAuthScreen();
@@ -347,6 +410,41 @@ export async function doSignup(first, last, email, password) {
 }
 
 // ── Sign In ──────────────────────────────────────────────────
+// ── Google Sign-In ─────────────────────────────────────────────
+export async function doGoogleLogin() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  try {
+    // Try popup first (works on desktop & most mobile browsers)
+    const cred = await signInWithPopup(auth, provider);
+    return cred.user;
+  } catch(e) {
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+      // Fallback to redirect for popup-blocked environments
+      await signInWithRedirect(auth, provider);
+      return null; // redirect will reload page
+    }
+    throw e;
+  }
+}
+
+// ── Apple Sign-In ───────────────────────────────────────────────
+export async function doAppleLogin() {
+  const provider = new OAuthProvider('apple.com');
+  provider.addScope('email');
+  provider.addScope('name');
+  try {
+    const cred = await signInWithPopup(auth, provider);
+    return cred.user;
+  } catch(e) {
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+      await signInWithRedirect(auth, provider);
+      return null;
+    }
+    throw e;
+  }
+}
+
 export async function doLogin(email, password) {
   const cred = await signInWithEmailAndPassword(auth, email, password);
   return cred.user;

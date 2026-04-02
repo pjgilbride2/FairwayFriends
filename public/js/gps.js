@@ -6,12 +6,12 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=88';
+import { db } from './firebase-config.js?v=89';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=88';
+import { showToast } from './ui.js?v=89';
 
 // ── GolfAPI.io config ─────────────────────────────────────────
 const GOLFAPI_KEY  = 'e75f3420-aef6-4ab7-8c93-39270d7319cc';
