@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=93";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=93";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=93";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=93";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=93";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=93";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=93";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=93";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=93";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=93";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=93";
-import { buildOnboardScreen } from "./onboard.js?v=93";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=94";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=94";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=94";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=94";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=94";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=94";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=94";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=94";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=94";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=94";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=94";
+import { buildOnboardScreen } from "./onboard.js?v=94";
 
 
 // ── Haversine distance in miles ──
@@ -746,7 +746,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=93");
+      const { initials, avatarColor } = await import("./ui.js?v=94");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1220,12 +1220,23 @@ window.UI = {
   showAuthLanding() {
     const _s = id => { const el=document.getElementById(id); if(el) el.style.display = id==='auth-landing'?'flex':'none'; };
     _s('auth-landing'); _s('auth-signin'); _s('auth-email-signup');
+    // Reset all auth buttons to default state
+    const lb = document.getElementById('login-btn');
+    const sb = document.getElementById('signup-btn');
+    if (lb) { lb.disabled=false; lb.textContent='Sign in'; }
+    if (sb) { sb.disabled=false; sb.textContent='Get Started →'; }
+    ['login-error','signup-error'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
   },
   showAuthSignIn() {
     const el = id => document.getElementById(id);
     if(el('auth-landing'))    el('auth-landing').style.display    = 'none';
     if(el('auth-signin'))     el('auth-signin').style.display     = 'block';
     if(el('auth-email-signup')) el('auth-email-signup').style.display = 'none';
+    // Always reset button state when panel opens — prevents stuck "Signing in…" from previous attempt
+    const btn = el('login-btn');
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
+    const errEl = el('login-error');
+    if (errEl) errEl.style.display = 'none';
     setTimeout(() => el('login-email')?.focus(), 100);
   },
   showAuthEmailSignup() {
@@ -1236,7 +1247,7 @@ window.UI = {
   // ── Forgot password ──
   async handleForgotPassword() {
     const email = document.getElementById("login-email")?.value.trim();
-    if (!email) { showFormError("login", "Enter your email address first."); return; }
+    if (!email) { const e=document.getElementById("login-error"); if(e){e.textContent="Enter your email address first.";e.style.display="block";} return; }
     try {
       const { sendPasswordResetEmail, getAuth } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
       await sendPasswordResetEmail(getAuth(), email);
