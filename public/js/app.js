@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=87";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=87";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=87";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=87";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=87";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=87";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=87";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=87";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=87";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=87";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=87";
-import { buildOnboardScreen } from "./onboard.js?v=87";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=88";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=88";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=88";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=88";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=88";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=88";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=88";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=88";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=88";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=88";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=88";
+import { buildOnboardScreen } from "./onboard.js?v=88";
 
 
 // ── Haversine distance in miles ──
@@ -371,7 +371,7 @@ window.UI = {
               window._coursesLoading = false;
               if (_lbl) _lbl.textContent = 'Searching within ' + newMi + ' mi…';
               if (_lst) _lst.innerHTML = '<div style="padding:40px 16px;text-align:center;color:var(--muted)">⛳ Finding courses…</div>';
-              try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+              try{Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k));Object.keys(localStorage).filter(k=>k.startsWith('fw_gc_')).forEach(k=>localStorage.removeItem(k));}catch(_){}
               UI.loadNearbyCourses();
             } else {
               UI.filterCourses(document.getElementById('course-search-input')?.value || '');
@@ -612,7 +612,7 @@ window.UI = {
       window._wxLon   = null;
       window._coursesLoading = false;
       // Clear cached courses so new city's courses load fresh
-      try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+      try{Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k));Object.keys(localStorage).filter(k=>k.startsWith('fw_gc_')).forEach(k=>localStorage.removeItem(k));}catch(_){}
       // Refresh weather and courses with new city
       UI.refreshWeather();
       goScreen("profile");
@@ -746,7 +746,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=87");
+      const { initials, avatarColor } = await import("./ui.js?v=88");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1433,7 +1433,7 @@ window.UI = {
     // Clear cache if radius changed since last fetch
     const _curMi = parseFloat(document.getElementById('dist-filter')?.value || '100');
     if (window._lastFetchedMiles && _curMi !== window._lastFetchedMiles) {
-      try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+      try{Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k));Object.keys(localStorage).filter(k=>k.startsWith('fw_gc_')).forEach(k=>localStorage.removeItem(k));}catch(_){}
     }
     const container = document.getElementById('courses-list');
     const label     = document.getElementById('courses-radius-label');
@@ -1488,15 +1488,29 @@ window.UI = {
       }
       if (!lat) { container.innerHTML='<div class="empty-state">Add your city in Edit Profile to find nearby courses ⛳</div>'; window._coursesLoading=false; return; }
 
-      // ── 2. 24-hour cache (longer = faster repeat loads) ────────────
-      const ck = 'gc2_'+Math.round(lat*10)/10+'_'+Math.round(lon*10)/10;
+      // ── 2. Cache read — sessionStorage (same tab, fast) then localStorage (cross-session) ──
+      const _cacheRadius = parseFloat(document.getElementById('dist-filter')?.value || 25);
+      const _cacheKey = 'gc_' + (lat||0).toFixed(2) + '_' + (lon||0).toFixed(2) + '_' + _cacheRadius;
       try {
-        const cd=sessionStorage.getItem(ck);
-        if(cd){const p=JSON.parse(cd); if(p.ts&&Date.now()-p.ts<86400000&&p.data?.length>0){
-          window._nearbyCourses=p.data; UI.filterCourses('');
-          if(label)label.textContent=p.data.length+' golf courses found';
-          window._coursesLoading=false; return;
-        }}
+        // Check sessionStorage first (fastest), then localStorage (shared across sessions)
+        const _cached = sessionStorage.getItem(_cacheKey) || localStorage.getItem('fw_' + _cacheKey);
+        if (_cached) {
+          const _cp = JSON.parse(_cached);
+          // 6-hour TTL: GP data is fairly stable but refreshes daily
+          if (_cp.ts && Date.now() - _cp.ts < 21600000 && _cp.data?.length > 0) {
+            window._nearbyCourses = _cp.data;
+            window._lastFetchedMiles = _cacheRadius;
+            UI.filterCourses('');
+            if (label) label.textContent = _cp.data.length + ' courses within ' + _cacheRadius + ' mi (cached)';
+            window._coursesLoading = false;
+            console.log('Discover: loaded', _cp.data.length, 'courses from cache at', _cacheRadius + 'mi');
+            return;
+          } else {
+            // Stale — remove both copies
+            try { sessionStorage.removeItem(_cacheKey); } catch(_) {}
+            try { localStorage.removeItem('fw_' + _cacheKey); } catch(_) {}
+          }
+        }
       } catch(_) {}
 
       // ── 3. Skeleton ────────────────────────────────────────────────
@@ -1640,8 +1654,16 @@ window.UI = {
                   });
                 }
                 if (_newCount > 0) {
-                  window._nearbyCourses = [...courses].sort((a,b)=>(a.dist||999)-(b.dist||999));
+                  const _sorted = [...courses].sort((a,b)=>(a.dist||999)-(b.dist||999));
+                  window._nearbyCourses = _sorted;
                   UI.filterCourses('');
+                  // Write partial cache so fast reloads use what we have so far
+                  try {
+                    const _pck = 'gc_' + (lat||0).toFixed(2) + '_' + (lon||0).toFixed(2) + '_' + _filterMi;
+                    const _pcp = JSON.stringify({data:_sorted, ts:Date.now(), partial:true, v:1});
+                    sessionStorage.setItem(_pck, _pcp);
+                    try { localStorage.setItem('fw_' + _pck, _pcp); } catch(_) {}
+                  } catch(_) {}
                 }
                 console.log(`Discover: GP tile [${tLat.toFixed(2)},${tLon.toFixed(2)}] ${_type} → ${_gpData.results?.length||0} results, ${_newCount} new`);
 
@@ -1758,10 +1780,13 @@ window.UI = {
         label.innerHTML = (_lc ? `${_lc} courses within ${_lMi} mi` : 'No courses found — try a larger radius') + ' &nbsp;' + _sgCityLink;
       }
 
-      // Cache to sessionStorage
+      // Cache final courses — radius-keyed so 25mi and 50mi have separate caches
       try {
-        const cKey = 'gc_' + (window._wxLat||0).toFixed(2) + '_' + (window._wxLon||0).toFixed(2);
-        sessionStorage.setItem(cKey, JSON.stringify({data:courses, ts:Date.now()}));
+        const cKey = 'gc_' + (window._wxLat||0).toFixed(2) + '_' + (window._wxLon||0).toFixed(2) + '_' + radiusMi2;
+        const cPayload = JSON.stringify({data:courses, ts:Date.now(), v:1});
+        sessionStorage.setItem(cKey, cPayload);
+        // Write to localStorage so next user at same location skips GP entirely
+        try { localStorage.setItem('fw_' + cKey, cPayload); } catch(_) {}
       } catch(_) {}
 
     } catch(e) {
@@ -1878,62 +1903,78 @@ window.UI = {
       const slug   = _sgSlug(c.name) + '-' + st;
       return `https://supremegolf.com/explore/united-states/${st}/${city}/${slug}?date=${_sgToday}&players=2`;
     };
-    container.innerHTML = filtered.map(c => {
-      const distStr  = c.dist != null ? `${c.dist.toFixed(1)} mi away` : '';
-      const holesStr = c.holes ? ` · ${c.holes} holes` : '';
-      const parStr   = c.par   ? ` · Par ${c.par}` : '';
-      const slopeStr = c.slope ? ` · Slope ${c.slope}` : '';
-      const mapsUrl  = `https://maps.google.com/?q=${encodeURIComponent(c.name + ' golf course')}`;
-
-
-      const infoStr    = [parStr, slopeStr].filter(Boolean).join('');
-      const ratingStr  = c.rating ? ` · ⭐ ${c.rating}` : '';
-
-      const _access = getAccessType(c);
-      const _badge  = ACCESS_BADGE[_access] || ACCESS_BADGE['public'];
-
-      // Private clubs don’t have public tee times on Supreme Golf
-      const _sgUrl     = _supremeGolfUrl(c);
-      const _isPrivate = _access === 'private';
-      const bookUrl    = _isPrivate ? (c.website || mapsUrl) : _sgUrl;
-      const bookLabel  = _isPrivate
-        ? (c.website ? '🌐 Website' : '🗓 Find tee times')
-        : '🏌️ Book on Supreme Golf';
-      const teeOffUrl  = _isPrivate ? (c.website || mapsUrl) : _sgUrl;
-      return `<div class="course-card">
-        <div class="course-card-top">
-          <div style="flex:1">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
-              <div class="course-name" style="margin-bottom:0">${c.name}</div>
-              <span style="flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.4px;
-                text-transform:uppercase;padding:2px 7px;border-radius:20px;
-                background:${_badge.bg}22;color:${_badge.color};border:1px solid ${_badge.bg}55">
-                ${_badge.icon} ${_badge.label}
-              </span>
-            </div>
-            <div class="course-meta">${distStr}${holesStr}${infoStr}${ratingStr}${c.addr ? ' · ' + c.addr : ''}</div>
-          </div>
-        </div>
-        <div class="course-actions">
-          <button class="course-btn course-btn-gps"
-            data-cname="${c.name}" data-clat="${c.lat||''}" data-clon="${c.lon||''}"
-            onclick="safeUI('launchGpsForCourse',this.dataset.cname,this.dataset.clat,this.dataset.clon)"
-            style="background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;
-            cursor:pointer;font-family:inherit;white-space:nowrap">
-            ▶ Play GPS
-          </button>
-          <a href="${bookUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bookLabel}</a>
-          <a href="${_supremeGolfUrl(c)}" target="_blank" rel="noopener"
-            class="course-btn" style="background:#1a6b3a;color:#fff;border-color:#1a6b3a">
-            ⛳ Tee Times
-          </a>
-          <a href="${mapsUrl}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
-
-          ${c.phone ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>` : ''}
-          ${c.website ? `<a href="${c.website}" target="_blank" rel="noopener" class="course-btn">🌐 Website</a>` : ''}
-        </div>
+    // ── Smart DOM diff — add/remove only changed cards, scroll preserved ──
+    if (!filtered.length) {
+      container.innerHTML = `<div class="empty-state" style="padding:32px 20px;text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">⛳</div>
+        <div style="font-weight:600;margin-bottom:8px;color:var(--text)">No courses found</div>
+        <div style="color:var(--muted);font-size:14px">Try expanding the radius or changing your city in Profile</div>
       </div>`;
-    }).join('');
+      return;
+    }
+
+    // Map currently rendered cards by stable key (course name)
+    const _existing = new Map();
+    container.querySelectorAll('.course-card[data-ckey]').forEach(el => _existing.set(el.dataset.ckey, el));
+
+    // Remove cards that are no longer in the filtered set
+    const _keep = new Set(filtered.map(c => c.name));
+    _existing.forEach((el, k) => { if (!_keep.has(k)) el.remove(); });
+
+    // Build card HTML using variables already in scope (_supremeGolfUrl, getAccessType, ACCESS_BADGE)
+    const _buildCard = (c) => {
+      const dStr  = c.dist != null ? `${c.dist.toFixed(1)} mi away` : '';
+      const hStr  = c.holes  ? ` · ${c.holes} holes` : '';
+      const pStr  = c.par    ? ` · Par ${c.par}` : '';
+      const slStr = c.slope  ? ` · Slope ${c.slope}` : '';
+      const maps  = `https://maps.google.com/?q=${encodeURIComponent(c.name + ' golf course')}`;
+      const info  = [pStr, slStr].filter(Boolean).join('');
+      const rat   = c.rating ? ` · ⭐ ${c.rating}` : '';
+      const _ac   = getAccessType(c);
+      const _bdg  = ACCESS_BADGE[_ac] || ACCESS_BADGE['public'];
+      const _sg   = _supremeGolfUrl(c);
+      const _prv  = _ac === 'private';
+      const bUrl  = _prv ? (c.website || maps) : _sg;
+      const bLbl  = _prv ? (c.website ? '🌐 Website' : '🗓 Find tee times') : '🏌️ Book on Supreme Golf';
+      const sn    = c.name.replace(/"/g, '&quot;');
+      return `<div class="course-card" data-ckey="${sn}">
+        <div class="course-card-top"><div style="flex:1">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+            <div class="course-name" style="margin-bottom:0">${c.name}</div>
+            <span style="flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:20px;background:${_bdg.bg}22;color:${_bdg.color};border:1px solid ${_bdg.bg}55">${_bdg.icon} ${_bdg.label}</span>
+          </div>
+          <div class="course-meta">${dStr}${hStr}${info}${rat}${c.addr ? ' · ' + c.addr : ''}</div>
+        </div></div>
+        <div class="course-actions">
+          <button class="course-btn course-btn-gps" data-cname="${sn}" data-clat="${c.lat||''}" data-clon="${c.lon||''}" onclick="safeUI('launchGpsForCourse',this.dataset.cname,this.dataset.clat,this.dataset.clon)" style="background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">▶ Play GPS</button>
+          <a href="${bUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bLbl}</a>
+          <a href="${_sg}" target="_blank" rel="noopener" class="course-btn" style="background:#1a6b3a;color:#fff;border-color:#1a6b3a">⛳ Tee Times</a>
+          <a href="${maps}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
+          ${c.phone   ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>`   : ''}
+          ${c.website ? `<a href="${c.website}" target="_blank" rel="noopener" class="course-btn">🌐 Website</a>` : ''}
+        </div></div>`;
+    };
+
+    // Insert/reorder cards to match sorted filtered order, without touching unchanged ones
+    let _prev = null;
+    for (const c of filtered) {
+      const _el = _existing.get(c.name);
+      if (_el) {
+        // Existing card — reorder if needed
+        const _target = _prev ? _prev.nextElementSibling : container.firstElementChild;
+        if (_el !== _target) container.insertBefore(_el, _target || null);
+        _prev = _el;
+      } else {
+        // New card — create and insert
+        const _t = document.createElement('div');
+        _t.innerHTML = _buildCard(c);
+        const _ne = _t.firstElementChild;
+        const _target = _prev ? _prev.nextElementSibling : container.firstElementChild;
+        container.insertBefore(_ne, _target || null);
+        _prev = _ne;
+      }
+    }
+  },
   },
 
   bookTeeTime(name, website) {
