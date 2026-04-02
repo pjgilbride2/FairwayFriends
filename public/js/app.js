@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=92";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=92";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=92";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=92";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=92";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=92";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=92";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=92";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=92";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=92";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=92";
-import { buildOnboardScreen } from "./onboard.js?v=92";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=93";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=93";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=93";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=93";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=93";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=93";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=93";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=93";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=93";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=93";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=93";
+import { buildOnboardScreen } from "./onboard.js?v=93";
 
 
 // ── Haversine distance in miles ──
@@ -746,7 +746,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=92");
+      const { initials, avatarColor } = await import("./ui.js?v=93");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1276,20 +1276,21 @@ window.UI = {
 
   // ── Sign Up ──
   async handleSignup() {
-    const email = document.getElementById("signup-email").value.trim();
-    const pass  = document.getElementById("signup-password").value;
+    const email = document.getElementById("signup-email")?.value?.trim();
+    const pass  = document.getElementById("signup-password")?.value;
     const btn   = document.getElementById("signup-btn");
     const errEl = document.getElementById("signup-error");
+    const showErr = msg => { if (errEl) { errEl.textContent=msg; errEl.style.display="block"; setTimeout(()=>errEl.style.display="none",5000); } else showToast(msg); };
     if (errEl) errEl.style.display = "none";
-    if (!email || !pass) { showFormError("signup", "Please fill in all fields."); return; }
-    if (pass.length < 6) { showFormError("signup", "Password must be at least 6 characters."); return; }
+    if (!email || !pass) { showErr("Please fill in all fields."); return; }
+    if (pass.length < 6) { showErr("Password must be at least 6 characters."); return; }
     btn.disabled = true; btn.textContent = "Creating account…";
     try {
       await doSignup("", "", email, pass);
-      // auth state change fires → onboard screen shown by auth.js
     } catch (e) {
+      showErr(friendlyError(e.code));
+    } finally {
       btn.disabled = false; btn.textContent = "Get Started →";
-      showFormError("signup", friendlyError(e.code));
     }
   },
 

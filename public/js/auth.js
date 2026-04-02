@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=92";
+import { auth, db } from "./firebase-config.js?v=93";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -14,14 +14,16 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  browserLocalPersistence,
+  setPersistence,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=92";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=92";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=92";
-import { goScreen, hideSplash } from "./ui.js?v=92";
+import { loadUserProfile } from "./profile.js?v=93";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=93";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=93";
+import { goScreen, hideSplash } from "./ui.js?v=93";
 
 let _listenersActive = false;
 
@@ -316,14 +318,22 @@ export function buildAuthScreen() {
 
 // ── Init auth state listener ──────────────────────────────────
 export function initAuth() {
-  // Handle redirect result (for Apple/Google redirect fallback)
-  getRedirectResult(auth).then(result => {
+  // Force LOCAL persistence so auth state survives redirect hops
+  // (default may be SESSION which gets cleared on redirect in some browsers)
+  setPersistence(auth, browserLocalPersistence).catch(e => console.warn('setPersistence:', e.message));
+
+  // Handle redirect result (popup-blocked fallback for Google/Apple)
+  getRedirectResult(auth).then(async result => {
     if (result?.user) {
-      console.log('Auth: redirect sign-in success', result.user.email);
+      console.log('Auth: redirect sign-in success', result.user.email, result.user.uid);
+      // onAuthStateChanged will fire automatically, but force it for reliability
+      window._currentUser = result.user;
     }
   }).catch(e => {
-    if (e.code !== 'auth/no-auth-event') {
-      console.warn('Auth: redirect error', e.code);
+    if (e.code === 'auth/account-exists-with-different-credential') {
+      window.showToast?.('An account already exists with a different sign-in method. Try email sign-in.');
+    } else if (e.code !== 'auth/no-auth-event' && e.code !== 'auth/null-user') {
+      console.warn('Auth: redirect error', e.code, e.message);
     }
   });
 
@@ -335,6 +345,7 @@ export function initAuth() {
 
   onAuthStateChanged(auth, async (user) => {
     clearTimeout(splashFallback);
+    console.log('Auth state changed:', user ? user.email + ' (' + (user.providerData?.[0]?.providerId||'?') + ')' : 'null');
 
     if (user) {
       window._currentUser = user;
@@ -362,7 +373,7 @@ export function initAuth() {
           if (window.UI?.refreshWeather) window.UI.refreshWeather();
         }
       } catch (err) {
-        console.error("Fairway Friend — auth flow error:", err);
+        console.error("Fairway Friend — auth flow error:", err.code || err.message);
         hideSplash();
         buildAuthScreen();
         goScreen("auth");
@@ -415,15 +426,23 @@ export async function doGoogleLogin() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   try {
-    // Try popup first (works on desktop & most mobile browsers)
     const cred = await signInWithPopup(auth, provider);
     return cred.user;
   } catch(e) {
-    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
-      // Fallback to redirect for popup-blocked environments
+    // Any popup failure — fall back to redirect (mobile, popup-blocked, etc.)
+    const redirectCodes = [
+      'auth/popup-blocked',
+      'auth/popup-closed-by-user',
+      'auth/cancelled-popup-request',
+      'auth/operation-not-supported-in-this-environment',
+      'auth/web-storage-unsupported',
+    ];
+    if (redirectCodes.includes(e.code)) {
+      console.log('Google: popup blocked, switching to redirect');
       await signInWithRedirect(auth, provider);
-      return null; // redirect will reload page
+      return null;
     }
+    console.error('Google login error:', e.code, e.message);
     throw e;
   }
 }
@@ -437,10 +456,19 @@ export async function doAppleLogin() {
     const cred = await signInWithPopup(auth, provider);
     return cred.user;
   } catch(e) {
-    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+    const redirectCodes = [
+      'auth/popup-blocked',
+      'auth/popup-closed-by-user',
+      'auth/cancelled-popup-request',
+      'auth/operation-not-supported-in-this-environment',
+      'auth/web-storage-unsupported',
+    ];
+    if (redirectCodes.includes(e.code)) {
+      console.log('Apple: popup blocked, switching to redirect');
       await signInWithRedirect(auth, provider);
       return null;
     }
+    console.error('Apple login error:', e.code, e.message);
     throw e;
   }
 }
@@ -451,7 +479,14 @@ export async function doLogin(email, password) {
 }
 
 // ── Sign Out ─────────────────────────────────────────────────
-export async function doSignOut() { await signOut(auth); }
+export async function doSignOut() {
+  // Close any open modals/sheets before signing out
+  document.querySelectorAll('.sheet, .modal, #add-player-modal').forEach(el => {
+    el.style.display = 'none';
+  });
+  window._listenersActive = false;
+  await signOut(auth);
+}
 
 // ── Friendly error messages ───────────────────────────────────
 export function friendlyError(code) {
@@ -464,6 +499,9 @@ export function friendlyError(code) {
     "auth/weak-password":          "Password must be at least 6 characters.",
     "auth/too-many-requests":      "Too many attempts. Please try again later.",
     "auth/network-request-failed": "Network error. Check your connection.",
+    "auth/missing-password":        "Please enter your password.",
+    "auth/missing-email":           "Please enter your email address.",
+    "auth/invalid-login-credentials": "Email or password is incorrect.",
   };
   return map[code] || "Something went wrong. Please try again.";
 }
