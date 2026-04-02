@@ -6,12 +6,12 @@
 //  - Shot tracking overlay
 // ============================================================
 
-import { db } from './firebase-config.js?v=91';
+import { db } from './firebase-config.js?v=92';
 import {
   collection, addDoc, doc, updateDoc,
   serverTimestamp, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { showToast } from './ui.js?v=91';
+import { showToast } from './ui.js?v=92';
 
 // ── GolfAPI.io config ─────────────────────────────────────────
 const GOLFAPI_KEY  = 'e75f3420-aef6-4ab7-8c93-39270d7319cc';
@@ -305,7 +305,10 @@ export async function startGpsRound(courseName, courseLat, courseLon, onUpdate) 
 
   _gpsWatchId = navigator.geolocation.watchPosition(
     pos => _gpsOnPosition(pos),
-    err => console.warn('GPS error:', err.message),
+    err => {
+      console.warn('GPS error:', err.message);
+      if (err.code === 1) window.showToast?.('📍 Enable location in browser settings to use GPS tracking');
+    },
     { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
   );
 }

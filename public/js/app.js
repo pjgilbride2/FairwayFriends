@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=91";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=91";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=91";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=91";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=91";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=91";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=91";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=91";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=91";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=91";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=91";
-import { buildOnboardScreen } from "./onboard.js?v=91";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=92";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=92";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=92";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=92";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=92";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=92";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=92";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=92";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=92";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=92";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=92";
+import { buildOnboardScreen } from "./onboard.js?v=92";
 
 
 // ── Haversine distance in miles ──
@@ -746,7 +746,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=91");
+      const { initials, avatarColor } = await import("./ui.js?v=92");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1792,7 +1792,7 @@ window.UI = {
       // (Overpass/OSM removed — GolfAPI.io is the sole coordinate source)
 
       // ── Step 8: Filter, sort, dedupe, persist ──────────────────────
-      const radiusMi2 = parseFloat(document.getElementById('dist-filter')?.value || 100);
+      const radiusMi2 = parseFloat(document.getElementById('dist-filter')?.value || _curMi || 25);
       courses = courses.filter(c => c.dist <= radiusMi2);
       courses.sort((a,b) => (a.dist||999)-(b.dist||999));
 
@@ -1942,6 +1942,9 @@ window.UI = {
       </div>`;
       return;
     }
+
+    // Remove skeleton loader cards (no data-ckey) — they have no stable key so diff never cleans them
+    container.querySelectorAll('.course-card:not([data-ckey])').forEach(el => el.remove());
 
     // Map currently rendered cards by stable key (course name)
     const _existing = new Map();
@@ -2163,6 +2166,10 @@ window.UI = {
   },
 
   toggleChip(el) { toggleChip(el); },
+
+  // ── Proxy methods for safeUI dispatch ──
+  loadReplies(postId)  { loadReplies(postId); },
+  openMessages(uid)    { if(typeof openMessages==='function') openMessages(uid); else safeUI('goScreen','messages'); },
 };
 
 // ── Expose safeUI ─────────────────────────────────────────────────────────────
