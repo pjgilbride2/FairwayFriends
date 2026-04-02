@@ -78,7 +78,7 @@ app.use(express.static(path.join(__dirname, "public"), {
       "https://*.firebaseapp.com https://*.firebaseio.com " +
       "https://api.open-meteo.com https://geocoding-api.open-meteo.com " +
       "https://nominatim.openstreetmap.org https://overpass-api.de; " +
-      "script-src 'self' 'unsafe-inline' https://*.gstatic.com; " +
+      "script-src 'self' 'unsafe-inline' https://*.gstatic.com https://apis.google.com https://*.googleapis.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "font-src 'self' https://fonts.gstatic.com; " +
       "img-src 'self' data: blob: https: ; " +

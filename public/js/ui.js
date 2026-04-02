@@ -104,6 +104,49 @@ export function goScreen(name) {
   const noNav = ["auth", "onboard", "vibes", "edit-profile"].includes(name);
   const bottomNav = document.getElementById("bottom-nav");
   if (bottomNav) bottomNav.style.display = noNav ? "none" : "flex";
+
+  // Populate vibes-grid when navigating to the vibes screen
+  if (name === "vibes") {
+    const grid = document.getElementById("vibes-grid");
+    if (grid && grid.children.length === 0) {
+      const ALL_VIBES = [
+    ['🎯', 'Competitive'],
+    ['😎', 'Casual'],
+    ['🍺', 'Drinker'],
+    ['🥤', 'Sober'],
+    ['🌿', '420 Friendly'],
+    ['🎵', 'Music on Cart'],
+    ['⚡', 'Fast Pace'],
+    ['🚶', 'Walker'],
+    ['🛺', 'Cart Only'],
+    ['🌅', 'Early Bird'],
+    ['🌇', 'Twilight'],
+    ['📸', 'Social Poster'],
+    ['🤫', 'Low Key'],
+    ['🏆', 'Score Keeper'],
+    ['🗺️', 'Course Explorer']
+  ];
+      // Determine which vibes are already selected (from myProfile)
+      const saved = (window.myProfile?.vibes || window.myVibes || []);
+      grid.innerHTML = ALL_VIBES
+        .map(([icon, label]) =>
+          `<button class="vibe-chip" data-vibe="${label}"
+            style="display:flex;align-items:center;gap:6px;padding:8px 14px;
+              border-radius:20px;border:1.5px solid var(--border);background:${saved.includes(label) ? 'var(--green)' : 'var(--surface)'};
+              color:${saved.includes(label) ? '#fff' : 'var(--text)'};
+              font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;
+              transition:all .15s" onclick="this.classList.toggle('selected');
+              this.style.background=this.classList.contains('selected')?'var(--green)':'var(--surface)';
+              this.style.color=this.classList.contains('selected')?'#fff':'var(--text)'">
+            ${icon} ${label}
+          </button>`
+        ).join("");
+      // Pre-select saved vibes
+      grid.querySelectorAll(".vibe-chip").forEach(btn => {
+        if (saved.includes(btn.dataset.vibe)) btn.classList.add("selected");
+      });
+    }
+  }
 }
 
 // ── Toggle chip filter ──

@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=90";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=90";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=90";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=90";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=90";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=90";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=90";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=90";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=90";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=90";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=90";
-import { buildOnboardScreen } from "./onboard.js?v=90";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=91";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=91";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=91";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=91";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=91";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=91";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=91";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=91";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=91";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=91";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=91";
+import { buildOnboardScreen } from "./onboard.js?v=91";
 
 
 // ── Haversine distance in miles ──
@@ -188,9 +188,9 @@ window.UI = {
       // Inject vibe + location filter dropdowns if not present
       const pList = document.getElementById('players-list-main');
       if (pList && !document.getElementById('players-vibe-bar')) {
-        const ALL_VIBES = ['Competitive','Casual','Social Drinker','420 Friendly','Music on Cart',
+        const ALL_VIBES = ['Competitive','Casual','Drinker','Sober','420 Friendly','Music on Cart',
           'Fast Pace','Walker','Cart Only','Early Bird','Twilight','Social Poster','Low Key',
-          'Drinker','Score Keeper','Course Explorer'];
+          'Score Keeper','Course Explorer'];
         // Build unique city list from allPlayers for location filter
         const cities = [...new Set((allPlayers||[]).map(p=>(p.city||'').split(',')[0].trim()).filter(Boolean))].sort();
         const pbar = document.createElement('div');
@@ -746,7 +746,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=90");
+      const { initials, avatarColor } = await import("./ui.js?v=91");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -860,7 +860,37 @@ window.UI = {
       if (!snap.exists()) { showToast("Profile not found"); return; }
       const p = { uid, ...snap.data() };
       window._viewingPlayer = p;
-      buildPlayerProfileScreen(p);
+      // Build player profile screen inline (buildPlayerProfileScreen was missing)
+      const ppScr = document.getElementById('screen-player-profile');
+      if (ppScr) {
+        const hn = p.handicap != null ? `HCP ${parseFloat(p.handicap).toFixed(1)}` : 'HCP --';
+        const rounds = p.roundCount || p.rounds || 0;
+        const vibeHtml = (p.vibes||[]).slice(0,6).map(v=>`<span style="background:var(--surface);border:1px solid var(--border);padding:4px 10px;border-radius:20px;font-size:12px;color:var(--text)">${v}</span>`).join('');
+        const cityHtml = p.city ? `<div style="font-size:13px;color:var(--muted);margin-top:2px">📍 ${p.city}</div>` : '';
+        ppScr.innerHTML = `
+          <div class="header" style="display:flex;align-items:center;gap:12px;padding:16px;position:sticky;top:0;background:var(--bg);z-index:10;border-bottom:1px solid var(--border)">
+            <button onclick="safeUI('goScreen', window._ppOriginScreen||'players')" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text);padding:0 8px 0 0">‹</button>
+            <span style="font-weight:700;font-size:17px;flex:1">${p.displayName || 'Golfer'}</span>
+            <button onclick="safeUI('openMessages','${p.uid}')" style="background:var(--green);color:#fff;border:none;border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Message</button>
+          </div>
+          <div style="padding:20px 16px">
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+              <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;background:var(--green);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff">
+                ${p.photoURL ? `<img src="${p.photoURL}" style="width:100%;height:100%;object-fit:cover">` : (p.displayName||'G')[0].toUpperCase()}
+              </div>
+              <div style="flex:1">
+                <div style="font-size:18px;font-weight:700">${p.displayName || 'Golfer'}</div>
+                ${cityHtml}
+                <div style="display:flex;gap:16px;margin-top:8px">
+                  <div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--green)">${hn}</div><div style="font-size:11px;color:var(--muted)">HANDICAP</div></div>
+                  <div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--green)">${rounds}</div><div style="font-size:11px;color:var(--muted)">ROUNDS</div></div>
+                </div>
+              </div>
+            </div>
+            ${p.bio ? `<div style="font-size:14px;color:var(--text);line-height:1.5;margin-bottom:16px;padding:12px;background:var(--surface);border-radius:10px">${p.bio}</div>` : ''}
+            ${vibeHtml ? `<div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Vibes</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px">${vibeHtml}</div>` : ''}
+          </div>`;
+      }
       goScreen("player-profile");
     } catch(e) {
       console.error("openPlayerProfile error:", e);
@@ -1328,7 +1358,7 @@ window.UI = {
   },
 
   async handleSaveVibes() {
-    const selected = [...document.querySelectorAll("#screen-vibes [data-vibe].selected")]
+    const selected = [...document.querySelectorAll("#screen-vibes .vibe-chip.selected, #screen-vibes [data-vibe].selected")]
       .map((el) => el.dataset.vibe);
     await saveVibes(selected);
     // FIX: single feedback path — show msg div then navigate

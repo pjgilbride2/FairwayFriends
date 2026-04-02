@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=90";
+import { db, storage } from "./firebase-config.js?v=91";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=90";
+import { showToast } from "./ui.js?v=91";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -303,9 +303,9 @@ export function buildOnboardScreen() {
       <div class="ob-h1">What kind of golfer are you?</div>
       <div class="ob-sub">Pick everything that fits your vibe.</div>
       <div class="ob-chips">
-        ${[['🎯','Competitive'],['😎','Casual'],['🍺','Drinker'],['🌿','420 Friendly'],
+        ${[['🎯','Competitive'],['😎','Casual'],['🍺','Drinker'],['🥤','Sober'],['🌿','420 Friendly'],
            ['🎵','Music on Cart'],['⚡','Fast Pace'],['🚶','Walker'],['🛺','Cart Only'],
-           ['🌅','Early Bird'],['🌇','Twilight'],['📸','Social Poster'],['🤫','Low Key']]
+           ['🌅','Early Bird'],['🌇','Twilight'],['📸','Social Poster'],['🤫','Low Key'],['🏆','Score Keeper']]
           .map(([e,l])=>`<button class="ob-chip" data-vibe="${l}">${e} ${l}</button>`).join('')}
       </div>
     </div>
