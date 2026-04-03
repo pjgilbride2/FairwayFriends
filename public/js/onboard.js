@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=99";
+import { db, storage } from "./firebase-config.js?v=100";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=99";
+import { showToast } from "./ui.js?v=100";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -43,6 +43,21 @@ export function buildOnboardScreen() {
   delete screen.dataset.built;
   screen.dataset.built = '1';
   _reset();
+
+  // Restore in-progress onboard after page reload (e.g. Firebase auth triggers reload)
+  try {
+    const _savedStep = sessionStorage.getItem('_ob_step');
+    const _savedData = sessionStorage.getItem('_ob_data');
+    if (_savedStep && window._currentUser) {
+      const step = parseInt(_savedStep);
+      if (step > 1 && step < 9) {
+        if (_savedData) Object.assign(_data, JSON.parse(_savedData));
+        _data.email = window._currentUser.email || _data.email;
+        // Restore after DOM is built
+        setTimeout(() => _goTo(step), 50);
+      }
+    }
+  } catch(_) {}
 
   screen.innerHTML = `
 <style>
@@ -531,6 +546,16 @@ function _goTo(n) {
   _cur = n;
   _refresh();
   document.getElementById('screen-onboard')?.scrollTo({ top: 0, behavior: 'smooth' });
+  // Persist step so page reloads (from Firebase auth) can resume
+  try {
+    if (n > 0 && n < 9) {
+      sessionStorage.setItem('_ob_step', String(n));
+      sessionStorage.setItem('_ob_data', JSON.stringify(_data));
+    } else if (n === 9 || n === 0) {
+      sessionStorage.removeItem('_ob_step');
+      sessionStorage.removeItem('_ob_data');
+    }
+  } catch(_) {}
 }
 
 // ── Continue with validation ──────────────────────────────────
@@ -594,6 +619,8 @@ function _showErr(el, msg) {
 
 // ── Save profile to Firestore ─────────────────────────────────
 async function _launchApp() {
+  // Clear persisted onboard state on success
+  try { sessionStorage.removeItem('_ob_step'); sessionStorage.removeItem('_ob_data'); } catch(_) {}
   const user = window._currentUser;
   if (!user) return;
   const btn = document.getElementById('ob-main-btn');
