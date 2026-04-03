@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=97";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=97";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=97";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=97";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=97";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=97";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=97";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=97";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=97";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=97";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=97";
-import { buildOnboardScreen } from "./onboard.js?v=97";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=98";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=98";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=98";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=98";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=98";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=98";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=98";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=98";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=98";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=98";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=98";
+import { buildOnboardScreen } from "./onboard.js?v=98";
 
 
 // ── Haversine distance in miles ──
@@ -891,7 +891,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=97");
+      const { initials, avatarColor } = await import("./ui.js?v=98");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1957,6 +1957,24 @@ window.UI = {
       window._lastFetchedMiles = radiusMi2;
       window._lastDiscoverCity = myProfile?.city || window._weatherCity || '';
       UI.filterCourses('');
+
+      // ── Auto-expand radius if too few courses found ───────────────────
+      // If fewer than 5 courses at current radius, auto-bump to next tier
+      const _autoExpandTiers = [25, 50, 75, 100];
+      const _curTierIdx = _autoExpandTiers.indexOf(radiusMi2);
+      if (courses.length < 5 && _curTierIdx >= 0 && _curTierIdx < _autoExpandTiers.length - 1) {
+        const _nextMi = _autoExpandTiers[_curTierIdx + 1];
+        console.log(`Discover: only ${courses.length} courses at ${radiusMi2}mi — auto-expanding to ${_nextMi}mi`);
+        const distEl = document.getElementById('dist-filter');
+        if (distEl) distEl.value = _nextMi;
+        // Clear cache for the expanded radius and reload
+        try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
+        window._nearbyCourses = null;
+        window._coursesLoading = false;
+        // Brief delay then reload with new radius
+        setTimeout(() => { if (document.querySelector('.screen.active')?.id === 'screen-search') safeUI('goScreen','search'); }, 300);
+      }
+
       if (label) {
         const _lc = courses.length;
         const _lMi = radiusMi2;
@@ -1964,7 +1982,7 @@ window.UI = {
         const _ss3 = ({AL:'alabama',AK:'alaska',AZ:'arizona',AR:'arkansas',CA:'california',CO:'colorado',CT:'connecticut',DE:'delaware',FL:'florida',GA:'georgia',HI:'hawaii',ID:'idaho',IL:'illinois',IN:'indiana',IA:'iowa',KS:'kansas',KY:'kentucky',LA:'louisiana',ME:'maine',MD:'maryland',MA:'massachusetts',MI:'michigan',MN:'minnesota',MS:'mississippi',MO:'missouri',MT:'montana',NE:'nebraska',NV:'nevada',NH:'new-hampshire',NJ:'new-jersey',NM:'new-mexico',NY:'new-york',NC:'north-carolina',ND:'north-dakota',OH:'ohio',OK:'oklahoma',OR:'oregon',PA:'pennsylvania',RI:'rhode-island',SC:'south-carolina',SD:'south-dakota',TN:'tennessee',TX:'texas',UT:'utah',VT:'vermont',VA:'virginia',WA:'washington',WV:'west-virginia',WI:'wisconsin',WY:'wyoming'})[_cp3[1]?.toUpperCase()]||(_cp3[1]||'').toLowerCase().replace(/[^a-z0-9]+/g,'-');
         const _sc3 = (_cp3[0]||'').toLowerCase().replace(/[^a-z0-9]+/g,'-');
         const _sgCityLink = `<a href="https://supremegolf.com/explore/united-states/${_ss3}/${_sc3}" target="_blank" rel="noopener" style="font-size:11px;color:var(--green);text-decoration:none;font-weight:600;white-space:nowrap">+ Supreme Golf ↗</a>`;
-        label.innerHTML = (_lc ? `${_lc} courses within ${_lMi} mi` : 'No courses found — try a larger radius') + ' &nbsp;' + _sgCityLink;
+        label.innerHTML = (_lc ? `${_lc} courses within ${_lMi} mi` : `No courses found within ${_lMi} mi`) + ' &nbsp;' + _sgCityLink;
       }
 
       // Cache final courses — radius-keyed so 25mi and 50mi have separate caches
