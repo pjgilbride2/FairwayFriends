@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=100";
+import { db, storage } from "./firebase-config.js?v=101";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=100";
+import { showToast } from "./ui.js?v=101";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -55,9 +55,29 @@ export function buildOnboardScreen() {
         _data.email = window._currentUser.email || _data.email;
         // Restore after DOM is built
         setTimeout(() => _goTo(step), 50);
+        return; // don't run SSO skip below
       }
     }
   } catch(_) {}
+
+  // If user is already authenticated via Google/Apple SSO, skip the auth picker (ob-s0)
+  // and email/password step (ob-s1) — go straight to profile setup (ob-s2)
+  if (window._currentUser) {
+    const providerId = window._currentUser.providerData?.[0]?.providerId || '';
+    const isSso = providerId === 'google.com' || providerId === 'apple.com';
+    if (isSso) {
+      // Pre-fill name from Google/Apple profile
+      const fullName = window._currentUser.displayName || '';
+      const parts = fullName.trim().split(/\s+/);
+      _data.firstName = parts[0] || '';
+      _data.lastName  = parts.slice(1).join(' ') || '';
+      _data.email     = window._currentUser.email || '';
+      _data.ssoProvider = providerId;
+      // Skip to step 2 (name/dob) after DOM is ready
+      setTimeout(() => _goTo(2), 50);
+      return;
+    }
+  }
 
   screen.innerHTML = `
 <style>
@@ -374,11 +394,63 @@ export function buildOnboardScreen() {
 
 // ── Wire all events ───────────────────────────────────────────
 function _wire() {
-  // Step 0: auth buttons → step 1
-  ['ob-apple','ob-google','ob-email'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.onclick = () => _goTo(1);
-  });
+  // Step 0: auth method picker
+  // Email → go to email/password step (ob-s1)
+  const obEmailBtn = document.getElementById('ob-email');
+  if (obEmailBtn) obEmailBtn.onclick = () => _goTo(1);
+
+  // Google → trigger actual Google SSO, then skip to profile setup
+  const obGoogleBtn = document.getElementById('ob-google');
+  if (obGoogleBtn) obGoogleBtn.onclick = async () => {
+    obGoogleBtn.disabled = true;
+    const orig = obGoogleBtn.innerHTML;
+    obGoogleBtn.innerHTML = '<span style="opacity:.6;font-size:13px">Connecting…</span>';
+    try {
+      // Import and call doGoogleLogin from auth.js
+      const authMod = await import('./auth.js?v=101');
+      const user = await authMod.doGoogleLogin();
+      if (user) {
+        // Signed in — pre-fill name from Google profile
+        const parts = (user.displayName||'').trim().split(/\s+/);
+        _data.firstName = parts[0] || '';
+        _data.lastName  = parts.slice(1).join(' ') || '';
+        _data.email     = user.email || '';
+        _data.ssoProvider = 'google.com';
+        _goTo(2); // skip to profile steps
+      }
+      // If user is null, signInWithRedirect was called — page will reload
+    } catch(e) {
+      console.error('Onboard Google SSO error:', e.code || e.message);
+      window.showToast?.('Google sign-in failed. Please try again.');
+      obGoogleBtn.disabled = false;
+      obGoogleBtn.innerHTML = orig;
+    }
+  };
+
+  // Apple → trigger Apple SSO
+  const obAppleBtn = document.getElementById('ob-apple');
+  if (obAppleBtn) obAppleBtn.onclick = async () => {
+    obAppleBtn.disabled = true;
+    const orig = obAppleBtn.innerHTML;
+    obAppleBtn.innerHTML = '<span style="opacity:.6;font-size:13px">Connecting…</span>';
+    try {
+      const authMod = await import('./auth.js?v=101');
+      const user = await authMod.doAppleLogin();
+      if (user) {
+        const parts = (user.displayName||'').trim().split(/\s+/);
+        _data.firstName = parts[0] || '';
+        _data.lastName  = parts.slice(1).join(' ') || '';
+        _data.email     = user.email || '';
+        _data.ssoProvider = 'apple.com';
+        _goTo(2);
+      }
+    } catch(e) {
+      console.error('Onboard Apple SSO error:', e.code || e.message);
+      window.showToast?.('Apple sign-in failed. Please try again.');
+      obAppleBtn.disabled = false;
+      obAppleBtn.innerHTML = orig;
+    }
+  };
 
   // Step 0: sign in link → go back to auth screen
   const signinLink = document.getElementById('ob-signin-link');
@@ -546,6 +618,15 @@ function _goTo(n) {
   _cur = n;
   _refresh();
   document.getElementById('screen-onboard')?.scrollTo({ top: 0, behavior: 'smooth' });
+  // Pre-fill name fields from SSO profile when arriving at step 2 or 3
+  if ((n === 2 || n === 3) && _data.ssoProvider) {
+    setTimeout(() => {
+      const fEl = document.getElementById('ob-first');
+      const lEl = document.getElementById('ob-last');
+      if (fEl && !fEl.value && _data.firstName) fEl.value = _data.firstName;
+      if (lEl && !lEl.value && _data.lastName)  lEl.value = _data.lastName;
+    }, 80);
+  }
   // Persist step so page reloads (from Firebase auth) can resume
   try {
     if (n > 0 && n < 9) {
@@ -568,6 +649,8 @@ async function _continue() {
 
   // Step 1: create Firebase account
   if (_cur === 1) {
+    // If user already authed via SSO (arrived here via _goTo(1) fallback), skip
+    if (window._currentUser && _data.ssoProvider) { _goTo(2); return; }
     const email = _data.email.trim();
     const pass  = _data.password;
     const errEl = document.getElementById('ob-s1-err');
