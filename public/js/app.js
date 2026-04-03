@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=94";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=94";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=94";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=94";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=94";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=94";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=94";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=94";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=94";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=94";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=94";
-import { buildOnboardScreen } from "./onboard.js?v=94";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=95";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=95";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=95";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=95";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=95";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=95";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=95";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=95";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=95";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=95";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=95";
+import { buildOnboardScreen } from "./onboard.js?v=95";
 
 
 // ── Haversine distance in miles ──
@@ -746,7 +746,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=94");
+      const { initials, avatarColor } = await import("./ui.js?v=95");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1992,6 +1992,7 @@ window.UI = {
         </div></div>
         <div class="course-actions">
           <button class="course-btn course-btn-gps" data-cname="${sn}" data-clat="${c.lat||''}" data-clon="${c.lon||''}" onclick="safeUI('launchGpsForCourse',this.dataset.cname,this.dataset.clat,this.dataset.clon)" style="background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">▶ Play GPS</button>
+          <button class="course-btn" data-cname="${sn}" onclick="safeUI('openScorecardForCourse',this.dataset.cname)" style="background:var(--surface);color:var(--text);border:1.5px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">📋 Scorecard</button>
           <a href="${bUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bLbl}</a>
           <a href="${_sg}" target="_blank" rel="noopener" class="course-btn" style="background:#1a6b3a;color:#fff;border-color:#1a6b3a">⛳ Tee Times</a>
           <a href="${maps}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
@@ -2062,7 +2063,170 @@ window.UI = {
   },
 
   // ── Course Layout ──────────────────────────────────────────────
+  // ── Fetch scorecard from Ryze API ────────────────────────────
+  async _fetchRyzeCourse(courseName) {
+    const key = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
+    const cacheKey = 'ryze_' + courseName.toLowerCase().replace(/[^a-z0-9]/g,'_');
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch(_) {}
+    try {
+      const resp = await fetch(
+        `https://golf-course-api.p.rapidapi.com/search?name=${encodeURIComponent(courseName)}`,
+        { headers: { 'x-rapidapi-host': 'golf-course-api.p.rapidapi.com', 'x-rapidapi-key': key }, signal: AbortSignal.timeout(8000) }
+      );
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      const course = Array.isArray(data) ? data[0] : data;
+      if (!course) return null;
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(course)); } catch(_) {}
+      return course;
+    } catch(e) { console.warn('Ryze API:', e.message); return null; }
+  },
+
+  // ── Show tee picker sheet ─────────────────────────────────────
+  _showTeePicker(courseName, tees, onSelect) {
+    // Remove any existing picker
+    document.getElementById('tee-picker-overlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'tee-picker-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
+
+    const sheet = document.createElement('div');
+    sheet.style.cssText = 'background:var(--surface);border-radius:18px 18px 0 0;padding:20px 20px 32px;width:100%;max-width:480px;box-sizing:border-box';
+
+    const title = `<div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">Select Tees</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${courseName}</div>`;
+
+    const teeRows = tees.map((t, i) => `
+      <label style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);cursor:pointer">
+        <input type="radio" name="tee-pick" value="${i}" ${i===0?'checked':''} style="accent-color:var(--green);width:17px;height:17px">
+        <div>
+          <span style="font-size:14px;font-weight:600;color:var(--text)">${t.color}</span>
+          <span style="font-size:12px;color:var(--muted);margin-left:8px">${t.yards ? t.yards + ' yds' : ''} ${t.slope ? '· ' + t.slope + '/' + (t.courseRating||'') : ''}</span>
+        </div>
+      </label>`).join('');
+
+    sheet.innerHTML = title + teeRows +
+      `<button id="tee-picker-go" style="margin-top:18px;width:100%;background:var(--green);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">▶ Start Round</button>
+       <button id="tee-picker-cancel" style="margin-top:10px;width:100%;background:transparent;border:none;color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit">Cancel</button>`;
+
+    overlay.appendChild(sheet);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('tee-picker-cancel').onclick = () => overlay.remove();
+    document.getElementById('tee-picker-go').onclick = () => {
+      const sel = sheet.querySelector('input[name="tee-pick"]:checked');
+      const idx = sel ? parseInt(sel.value) : 0;
+      overlay.remove();
+      onSelect(tees[idx]);
+    };
+  },
+
+  // ── Launch GPS for a course (with tee picker + live scorecard) ─
   async launchGpsForCourse(courseName, latStr, lonStr) {
+    const lat = parseFloat(latStr) || window._wxLat;
+    const lon = parseFloat(lonStr) || window._wxLon;
+    if (!lat) { showToast('Set your location in profile to use GPS'); return; }
+
+    // Fetch Ryze API data in background
+    const ryzeData = await this._fetchRyzeCourse(courseName);
+
+    const proceed = async (selectedTee) => {
+      // Apply API scorecard data if available
+      if (ryzeData?.scorecard?.length >= 18) {
+        const holes = ryzeData.scorecard.map(h => ({
+          h:     h.Hole,
+          par:   h.Par,
+          hcp:   h.Handicap,
+          yards: selectedTee && h.tees
+            ? Object.values(h.tees).find(t => t.color === selectedTee.color)?.yards
+              ?? Object.values(h.tees)[0]?.yards
+            : null,
+        }));
+        const teeBoxData = ryzeData.teeBoxes?.find(t => t.tee === selectedTee?.color) || ryzeData.teeBoxes?.[0];
+        applyApiCourseData(holes, teeBoxData?.handicap, teeBoxData?.slope);
+        console.log('[GPS] Applied Ryze scorecard for', courseName, '· tee:', selectedTee?.color);
+      }
+
+      const scInp = document.getElementById('sc-course-input');
+      if (scInp) scInp.value = courseName;
+      window._pendingGpsCourse = courseName;
+      window._pendingGpsLat    = lat;
+      window._pendingGpsLon    = lon;
+      safeUI('goScreen','scorecard');
+      await new Promise(r => setTimeout(r, 400));
+      const body = document.getElementById('gps-body');
+      if (body) body.style.display = 'block';
+      safeUI('startGpsTracking');
+      showToast(`▶ GPS started for ${courseName}`);
+    };
+
+    // Show tee picker if we have tee data
+    const teeBoxes = ryzeData?.teeBoxes;
+    if (teeBoxes?.length > 0) {
+      const tees = teeBoxes.map(t => ({
+        color: t.tee,
+        slope: t.slope,
+        courseRating: t.handicap,
+        yards: ryzeData.scorecard?.[0]?.tees
+          ? Object.values(ryzeData.scorecard[0].tees).find(x => x.color === t.tee)?.yards
+          : null,
+      }));
+      this._showTeePicker(courseName, tees, proceed);
+    } else {
+      // No tee data — go straight in
+      await proceed(null);
+    }
+  },
+
+  // ── Open scorecard for a course (no GPS) ─────────────────────
+  async openScorecardForCourse(courseName) {
+    resetHolesToDefault();
+    const scInp = document.getElementById('sc-course-input');
+    if (scInp) scInp.value = courseName;
+
+    const ryzeData = await this._fetchRyzeCourse(courseName);
+
+    const apply = (selectedTee) => {
+      if (ryzeData?.scorecard?.length >= 18) {
+        const holes = ryzeData.scorecard.map(h => ({
+          h:     h.Hole,
+          par:   h.Par,
+          hcp:   h.Handicap,
+          yards: selectedTee && h.tees
+            ? Object.values(h.tees).find(t => t.color === selectedTee.color)?.yards
+              ?? Object.values(h.tees)[0]?.yards
+            : null,
+        }));
+        const teeBoxData = ryzeData.teeBoxes?.find(t => t.tee === selectedTee?.color) || ryzeData.teeBoxes?.[0];
+        applyApiCourseData(holes, teeBoxData?.handicap, teeBoxData?.slope);
+      }
+      safeUI('goScreen','scorecard');
+      showToast(`📋 Scorecard loaded for ${courseName}`);
+    };
+
+    const teeBoxes = ryzeData?.teeBoxes;
+    if (teeBoxes?.length > 0) {
+      const tees = teeBoxes.map(t => ({
+        color: t.tee,
+        slope: t.slope,
+        courseRating: t.handicap,
+        yards: ryzeData.scorecard?.[0]?.tees
+          ? Object.values(ryzeData.scorecard[0].tees).find(x => x.color === t.tee)?.yards
+          : null,
+      }));
+      this._showTeePicker(courseName, tees, apply);
+    } else {
+      safeUI('goScreen','scorecard');
+      showToast(`📋 Scorecard opened for ${courseName}`);
+    }
+  },
+
+
     const lat = parseFloat(latStr) || window._wxLat;
     const lon = parseFloat(lonStr) || window._wxLon;
     if (!lat) { showToast('Set your location in profile to use GPS'); return; }

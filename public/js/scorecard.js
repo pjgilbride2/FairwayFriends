@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=94";
+import { db } from "./firebase-config.js?v=95";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=94";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=94";
+import { myProfile, myVibes } from "./profile.js?v=95";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=95";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -28,7 +28,7 @@ function _initPlayers() {
 export const PLAYER_COLORS = ["var(--green)", "#3b82f6", "#f59e0b", "#ef4444"];
 export const PLAYER_COLOR_NAMES = ["green", "blue", "amber", "red"];
 
-export const HOLES = [
+export let HOLES = [
   {h:1, par:4,hcp:7 },{h:2, par:3,hcp:15},{h:3, par:5,hcp:1 },
   {h:4, par:4,hcp:11},{h:5, par:4,hcp:5 },{h:6, par:3,hcp:17},
   {h:7, par:5,hcp:3 },{h:8, par:4,hcp:9 },{h:9, par:4,hcp:13},
@@ -36,12 +36,51 @@ export const HOLES = [
   {h:13,par:4,hcp:6 },{h:14,par:4,hcp:10},{h:15,par:5,hcp:4 },
   {h:16,par:3,hcp:18},{h:17,par:4,hcp:12},{h:18,par:4,hcp:14},
 ];
-const COURSE_RATING = 71.5;
-const SLOPE_RATING  = 113;
+let COURSE_RATING = 71.5;
+let SLOPE_RATING  = 113;
 
 export function resetScores() {
   _initPlayers();
   myScores = players[0].scores;
+}
+
+// ── Apply real course data from API ──────────────────────────
+// Called when user taps Play GPS or Scorecard on a course card.
+// holes: array of {h, par, hcp, yards} (18 items)
+// courseRating, slopeRating: for differential
+export function applyApiCourseData(holes, courseRating, slopeRating) {
+  if (!holes || holes.length < 18) return;
+  // Update HOLES in-place so all existing references stay valid
+  for (let i = 0; i < 18; i++) {
+    if (holes[i]) {
+      HOLES[i] = {
+        h:    holes[i].h    ?? i+1,
+        par:  holes[i].par  ?? HOLES[i].par,
+        hcp:  holes[i].hcp  ?? HOLES[i].hcp,
+        yards: holes[i].yards ?? null,
+      };
+    }
+  }
+  if (courseRating) COURSE_RATING = parseFloat(courseRating);
+  if (slopeRating)  SLOPE_RATING  = parseFloat(slopeRating);
+  buildScoreTable();
+  updateTotals();
+  console.log('[SC] Applied API course data — par:', HOLES.slice(0,9).map(h=>h.par).join(','));
+}
+
+// ── Reset HOLES to generic defaults ──────────────────────────
+export function resetHolesToDefault() {
+  const DEFAULT = [
+    {h:1, par:4,hcp:7 },{h:2, par:3,hcp:15},{h:3, par:5,hcp:1 },
+    {h:4, par:4,hcp:11},{h:5, par:4,hcp:5 },{h:6, par:3,hcp:17},
+    {h:7, par:5,hcp:3 },{h:8, par:4,hcp:9 },{h:9, par:4,hcp:13},
+    {h:10,par:4,hcp:8 },{h:11,par:5,hcp:2 },{h:12,par:3,hcp:16},
+    {h:13,par:4,hcp:6 },{h:14,par:4,hcp:10},{h:15,par:5,hcp:4 },
+    {h:16,par:3,hcp:18},{h:17,par:4,hcp:12},{h:18,par:4,hcp:14},
+  ];
+  for (let i=0;i<18;i++) HOLES[i] = {...DEFAULT[i]};
+  COURSE_RATING = 71.5;
+  SLOPE_RATING  = 113;
 }
 
 // ── Game modes ───────────────────────────────────────────────
@@ -374,10 +413,14 @@ export function buildScoreTable() {
           : `<td class="sc-result-cell" style="color:var(--muted)">—</td>`;
       }
 
+      const yardsTd = hole.yards
+        ? `<td style="color:var(--muted);font-size:10px">${hole.yards}</td>`
+        : '';
       tr.innerHTML =
         `<td>${hole.h}</td>` +
         `<td style="color:var(--muted);font-size:11px">${hole.par}</td>` +
         `<td style="color:var(--muted);font-size:10px">${hole.hcp}</td>` +
+        yardsTd +
         playerCells + resultCell;
       tbody.appendChild(tr);
     });
@@ -391,8 +434,10 @@ export function buildScoreTable() {
         ${i===0?"You":p.name.split(" ")[0]}
       </th>`
     ).join('');
+    const hasYards = HOLES.some(h => h.yards);
     thead.innerHTML = `<tr>
       <th>Hole</th><th>Par</th><th>HCP</th>
+      ${hasYards ? '<th style="color:var(--muted);font-size:10px">Yds</th>' : ''}
       ${playerHeaders}
       ${needsResult ? `<th>${_resultHdr()}</th>` : ""}
     </tr>`;
