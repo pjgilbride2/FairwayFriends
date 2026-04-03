@@ -101,6 +101,7 @@ export async function saveVibes(selectedVibes) {
 export async function saveOnboardingData({ handicap, city, homeCourse, vibes }) {
   const user = window._currentUser;
   if (!user) return;
+  if (!user) throw new Error("Not signed in.");
   const updates = {
     uid:             user.uid,
     displayName:     user.displayName || myProfile.displayName || "Golfer",
@@ -243,7 +244,9 @@ export function updateProfileUI() {
   const elVibes = document.getElementById("profile-vibes-display");
   if (elVibes) {
     elVibes.innerHTML = (myProfile.vibes || []).map((v) => {
-      const m = VIBE_META[v]; if (!m) return "";
+      // Sanitize: only allow alphanumeric + basic chars for vibe keys
+      const vSafe = String(v).replace(/[^a-zA-Z0-9_-]/g, '');
+      const m = VIBE_META[vSafe]; if (!m) return "";
       return `<span class="vibe-toggle ${m.cls} selected" style="font-size:12px;padding:6px 12px;margin-bottom:4px">
         <span class="vt-icon">${m.icon}</span>${m.label}</span>`;
     }).join("");

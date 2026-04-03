@@ -46,7 +46,10 @@ app.get("/api/places", (req, res) => {
           console.log(`[Places proxy] filtered to ${data.results.length} golf venues`);
         }
         res.setHeader("Content-Type", "application/json");
-        res.setHeader("Access-Control-Allow-Origin", "*");
+        const allowedOrigin = process.env.NODE_ENV === 'production'
+          ? 'https://fairwayfriendapp--fairwayfriend-c4deb.us-east4.hosted.app'
+          : '*';
+        res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
         res.setHeader("Cache-Control", "no-cache");
         res.json(data);
       } catch(e) {
@@ -83,11 +86,16 @@ app.use(express.static(path.join(__dirname, "public"), {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "font-src 'self' https://fonts.gstatic.com; " +
       "img-src 'self' data: blob: https: ; " +
-      "connect-src 'self' https: wss: ;"
+      "connect-src 'self' https: wss: ; " +
+      "frame-ancestors 'none'; " +
+      "form-action 'self'; " +
+      "base-uri 'self'; " +
+      "upgrade-insecure-requests;"
     );
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(self), payment=()");
   }
 }));
 
