@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=95";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=95";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=95";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=95";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=95";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=95";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=95";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=95";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=95";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=95";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=95";
-import { buildOnboardScreen } from "./onboard.js?v=95";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=96";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=96";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=96";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=96";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=96";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=96";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=96";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=96";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=96";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=96";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=96";
+import { buildOnboardScreen } from "./onboard.js?v=96";
 
 
 // ── Haversine distance in miles ──
@@ -27,6 +27,76 @@ function _haversine(lat1, lon1, lat2, lon2) {
 }
 
 // ── Expose all UI actions to inline HTML onclick handlers ──
+const COURSE_SCORECARDS = {"TPC Tampa Bay":[{"h":1,"par":4,"hcp":11,"yards":{"TPC":383,"BLUE":371,"GREEN":355,"WHITE":333,"RED":292}},{"h":2,"par":3,"hcp":13,"yards":{"TPC":187,"BLUE":178,"GREEN":168,"WHITE":157,"RED":120}},{"h":3,"par":4,"hcp":7,"yards":{"TPC":427,"BLUE":400,"GREEN":390,"WHITE":344,"RED":302}},{"h":4,"par":4,"hcp":3,"yards":{"TPC":424,"BLUE":397,"GREEN":383,"WHITE":371,"RED":308}},{"h":5,"par":4,"hcp":15,"yards":{"TPC":331,"BLUE":320,"GREEN":306,"WHITE":284,"RED":230}},{"h":6,"par":3,"hcp":17,"yards":{"TPC":149,"BLUE":140,"GREEN":130,"WHITE":120,"RED":93}},{"h":7,"par":5,"hcp":9,"yards":{"TPC":539,"BLUE":532,"GREEN":525,"WHITE":495,"RED":414}},{"h":8,"par":4,"hcp":5,"yards":{"TPC":422,"BLUE":409,"GREEN":390,"WHITE":359,"RED":310}},{"h":9,"par":4,"hcp":1,"yards":{"TPC":473,"BLUE":433,"GREEN":412,"WHITE":356,"RED":314}},{"h":10,"par":4,"hcp":10,"yards":{"TPC":401,"BLUE":385,"GREEN":352,"WHITE":332,"RED":299}},{"h":11,"par":3,"hcp":18,"yards":{"TPC":178,"BLUE":168,"GREEN":162,"WHITE":126,"RED":86}},{"h":12,"par":5,"hcp":14,"yards":{"TPC":485,"BLUE":476,"GREEN":476,"WHITE":460,"RED":382}},{"h":13,"par":4,"hcp":16,"yards":{"TPC":342,"BLUE":332,"GREEN":320,"WHITE":297,"RED":247}},{"h":14,"par":5,"hcp":6,"yards":{"TPC":586,"BLUE":572,"GREEN":531,"WHITE":512,"RED":447}},{"h":15,"par":4,"hcp":2,"yards":{"TPC":459,"BLUE":434,"GREEN":379,"WHITE":361,"RED":281}},{"h":16,"par":4,"hcp":8,"yards":{"TPC":428,"BLUE":417,"GREEN":403,"WHITE":369,"RED":327}},{"h":17,"par":3,"hcp":12,"yards":{"TPC":217,"BLUE":202,"GREEN":180,"WHITE":156,"RED":102}},{"h":18,"par":4,"hcp":4,"yards":{"TPC":456,"BLUE":442,"GREEN":411,"WHITE":413,"RED":299}}],"Heritage Harbor Golf & Country Club":[{"h":1,"par":4,"hcp":12,"yards":{"GOLD":339,"BLUE":304,"WHITE":280,"RED":247}},{"h":2,"par":4,"hcp":14,"yards":{"GOLD":298,"BLUE":284,"WHITE":226,"RED":211}},{"h":3,"par":3,"hcp":18,"yards":{"GOLD":179,"BLUE":150,"WHITE":134,"RED":92}},{"h":4,"par":4,"hcp":6,"yards":{"GOLD":416,"BLUE":389,"WHITE":294,"RED":283}},{"h":5,"par":5,"hcp":4,"yards":{"GOLD":517,"BLUE":460,"WHITE":440,"RED":380}},{"h":6,"par":4,"hcp":8,"yards":{"GOLD":413,"BLUE":396,"WHITE":354,"RED":306}},{"h":7,"par":3,"hcp":16,"yards":{"GOLD":212,"BLUE":181,"WHITE":169,"RED":118}},{"h":8,"par":5,"hcp":2,"yards":{"GOLD":534,"BLUE":472,"WHITE":435,"RED":376}},{"h":9,"par":4,"hcp":10,"yards":{"GOLD":373,"BLUE":343,"WHITE":316,"RED":267}},{"h":10,"par":5,"hcp":3,"yards":{"GOLD":550,"BLUE":532,"WHITE":478,"RED":425}},{"h":11,"par":4,"hcp":11,"yards":{"GOLD":388,"BLUE":342,"WHITE":317,"RED":257}},{"h":12,"par":4,"hcp":5,"yards":{"GOLD":417,"BLUE":329,"WHITE":296,"RED":266}},{"h":13,"par":4,"hcp":7,"yards":{"GOLD":416,"BLUE":358,"WHITE":325,"RED":287}},{"h":14,"par":3,"hcp":15,"yards":{"GOLD":258,"BLUE":131,"WHITE":117,"RED":98}},{"h":15,"par":5,"hcp":1,"yards":{"GOLD":587,"BLUE":523,"WHITE":487,"RED":460}},{"h":16,"par":3,"hcp":17,"yards":{"GOLD":170,"BLUE":135,"WHITE":122,"RED":90}},{"h":17,"par":4,"hcp":13,"yards":{"GOLD":402,"BLUE":346,"WHITE":315,"RED":282}},{"h":18,"par":4,"hcp":9,"yards":{"GOLD":374,"BLUE":332,"WHITE":309,"RED":270}}],"Innisbrook Resort - Copperhead Course":[{"h":1,"par":5,"hcp":5,"yards":{"BLACK":560,"GREEN":528,"WHITE":521,"GOLD":456,"RED":456}},{"h":2,"par":4,"hcp":11,"yards":{"BLACK":413,"GREEN":371,"WHITE":359,"GOLD":331,"RED":291}},{"h":3,"par":4,"hcp":7,"yards":{"BLACK":442,"GREEN":407,"WHITE":386,"GOLD":362,"RED":291}},{"h":4,"par":3,"hcp":17,"yards":{"BLACK":188,"GREEN":163,"WHITE":140,"GOLD":134,"RED":95}},{"h":5,"par":5,"hcp":1,"yards":{"BLACK":607,"GREEN":570,"WHITE":526,"GOLD":458,"RED":388}},{"h":6,"par":4,"hcp":3,"yards":{"BLACK":452,"GREEN":422,"WHITE":406,"GOLD":357,"RED":304}},{"h":7,"par":4,"hcp":13,"yards":{"BLACK":410,"GREEN":373,"WHITE":345,"GOLD":335,"RED":273}},{"h":8,"par":3,"hcp":15,"yards":{"BLACK":232,"GREEN":201,"WHITE":176,"GOLD":168,"RED":124}},{"h":9,"par":4,"hcp":9,"yards":{"BLACK":420,"GREEN":392,"WHITE":378,"GOLD":343,"RED":294}},{"h":10,"par":4,"hcp":8,"yards":{"BLACK":441,"GREEN":410,"WHITE":374,"GOLD":343,"RED":295}},{"h":11,"par":5,"hcp":6,"yards":{"BLACK":567,"GREEN":525,"WHITE":514,"GOLD":503,"RED":372}},{"h":12,"par":4,"hcp":12,"yards":{"BLACK":373,"GREEN":357,"WHITE":343,"GOLD":343,"RED":315}},{"h":13,"par":3,"hcp":18,"yards":{"BLACK":199,"GREEN":179,"WHITE":148,"GOLD":144,"RED":102}},{"h":14,"par":5,"hcp":2,"yards":{"BLACK":590,"GREEN":561,"WHITE":532,"GOLD":505,"RED":448}},{"h":15,"par":3,"hcp":14,"yards":{"BLACK":208,"GREEN":182,"WHITE":172,"GOLD":160,"RED":158}},{"h":16,"par":4,"hcp":4,"yards":{"BLACK":458,"GREEN":412,"WHITE":376,"GOLD":336,"RED":294}},{"h":17,"par":3,"hcp":16,"yards":{"BLACK":206,"GREEN":181,"WHITE":171,"GOLD":161,"RED":118}},{"h":18,"par":4,"hcp":10,"yards":{"BLACK":443,"GREEN":390,"WHITE":376,"GOLD":328,"RED":261}}],"Northdale Golf & Tennis Club":[{"h":1,"par":5,"hcp":5,"yards":{"Blue":511,"White":487,"Gold":468,"Red":449}},{"h":2,"par":4,"hcp":9,"yards":{"Blue":350,"White":321,"Gold":305,"Red":288}},{"h":3,"par":4,"hcp":1,"yards":{"Blue":430,"White":395,"Gold":371,"Red":340}},{"h":4,"par":3,"hcp":15,"yards":{"Blue":174,"White":155,"Gold":138,"Red":120}},{"h":5,"par":4,"hcp":7,"yards":{"Blue":381,"White":361,"Gold":343,"Red":316}},{"h":6,"par":5,"hcp":3,"yards":{"Blue":517,"White":498,"Gold":472,"Red":444}},{"h":7,"par":3,"hcp":17,"yards":{"Blue":168,"White":149,"Gold":137,"Red":112}},{"h":8,"par":4,"hcp":13,"yards":{"Blue":372,"White":352,"Gold":330,"Red":302}},{"h":9,"par":4,"hcp":11,"yards":{"Blue":388,"White":359,"Gold":344,"Red":295}},{"h":10,"par":4,"hcp":4,"yards":{"Blue":400,"White":372,"Gold":351,"Red":333}},{"h":11,"par":5,"hcp":2,"yards":{"Blue":536,"White":515,"Gold":497,"Red":454}},{"h":12,"par":4,"hcp":10,"yards":{"Blue":358,"White":341,"Gold":323,"Red":299}},{"h":13,"par":3,"hcp":18,"yards":{"Blue":196,"White":177,"Gold":152,"Red":130}},{"h":14,"par":4,"hcp":6,"yards":{"Blue":404,"White":377,"Gold":363,"Red":332}},{"h":15,"par":4,"hcp":12,"yards":{"Blue":362,"White":341,"Gold":325,"Red":286}},{"h":16,"par":5,"hcp":8,"yards":{"Blue":521,"White":497,"Gold":470,"Red":445}},{"h":17,"par":3,"hcp":16,"yards":{"Blue":178,"White":153,"Gold":137,"Red":124}},{"h":18,"par":4,"hcp":14,"yards":{"Blue":385,"White":371,"Gold":350,"Red":309}}],"Babe Zaharias Golf Course":[{"h":1,"par":4,"hcp":16,"yards":{"Back":330,"Middle":312,"Senior":312,"Forward":290}},{"h":2,"par":4,"hcp":2,"yards":{"Back":402,"Middle":369,"Senior":306,"Forward":298}},{"h":3,"par":4,"hcp":18,"yards":{"Back":301,"Middle":280,"Senior":280,"Forward":258}},{"h":4,"par":4,"hcp":14,"yards":{"Back":359,"Middle":313,"Senior":313,"Forward":260}},{"h":5,"par":3,"hcp":10,"yards":{"Back":158,"Middle":135,"Senior":135,"Forward":120}},{"h":6,"par":5,"hcp":2,"yards":{"Back":481,"Middle":462,"Senior":441,"Forward":405}},{"h":7,"par":4,"hcp":8,"yards":{"Back":362,"Middle":336,"Senior":305,"Forward":287}},{"h":8,"par":3,"hcp":6,"yards":{"Back":151,"Middle":133,"Senior":133,"Forward":107}},{"h":9,"par":4,"hcp":12,"yards":{"Back":353,"Middle":321,"Senior":321,"Forward":280}},{"h":10,"par":4,"hcp":17,"yards":{"Back":285,"Middle":261,"Senior":261,"Forward":230}},{"h":11,"par":4,"hcp":9,"yards":{"Back":398,"Middle":369,"Senior":369,"Forward":319}},{"h":12,"par":5,"hcp":7,"yards":{"Back":490,"Middle":466,"Senior":441,"Forward":404}},{"h":13,"par":4,"hcp":1,"yards":{"Back":430,"Middle":405,"Senior":380,"Forward":364}},{"h":14,"par":4,"hcp":13,"yards":{"Back":316,"Middle":284,"Senior":259,"Forward":232}},{"h":15,"par":3,"hcp":15,"yards":{"Back":167,"Middle":137,"Senior":137,"Forward":113}},{"h":16,"par":4,"hcp":3,"yards":{"Back":433,"Middle":408,"Senior":408,"Forward":372}},{"h":17,"par":3,"hcp":11,"yards":{"Back":176,"Middle":144,"Senior":144,"Forward":119}},{"h":18,"par":4,"hcp":5,"yards":{"Back":428,"Middle":396,"Senior":361,"Forward":350}}],"Rogers Park Golf Course":[{"h":1,"par":4,"hcp":13,"yards":{"Championship Blue":344,"Clifton White":315,"Club Green":315,"Forward Red":286}},{"h":2,"par":5,"hcp":5,"yards":{"Championship Blue":549,"Clifton White":519,"Club Green":503,"Forward Red":441}},{"h":3,"par":4,"hcp":3,"yards":{"Championship Blue":413,"Clifton White":383,"Club Green":357,"Forward Red":322}},{"h":4,"par":4,"hcp":15,"yards":{"Championship Blue":336,"Clifton White":310,"Club Green":306,"Forward Red":274}},{"h":5,"par":4,"hcp":9,"yards":{"Championship Blue":387,"Clifton White":352,"Club Green":349,"Forward Red":305}},{"h":6,"par":3,"hcp":17,"yards":{"Championship Blue":163,"Clifton White":147,"Club Green":139,"Forward Red":119}},{"h":7,"par":4,"hcp":7,"yards":{"Championship Blue":397,"Clifton White":371,"Club Green":367,"Forward Red":317}},{"h":8,"par":5,"hcp":1,"yards":{"Championship Blue":530,"Clifton White":485,"Club Green":467,"Forward Red":402}},{"h":9,"par":3,"hcp":11,"yards":{"Championship Blue":143,"Clifton White":124,"Club Green":115,"Forward Red":96}},{"h":10,"par":4,"hcp":2,"yards":{"Championship Blue":392,"Clifton White":357,"Club Green":347,"Forward Red":287}},{"h":11,"par":4,"hcp":10,"yards":{"Championship Blue":350,"Clifton White":320,"Club Green":308,"Forward Red":262}},{"h":12,"par":5,"hcp":6,"yards":{"Championship Blue":512,"Clifton White":476,"Club Green":456,"Forward Red":416}},{"h":13,"par":3,"hcp":16,"yards":{"Championship Blue":155,"Clifton White":133,"Club Green":127,"Forward Red":115}},{"h":14,"par":4,"hcp":4,"yards":{"Championship Blue":386,"Clifton White":348,"Club Green":339,"Forward Red":280}},{"h":15,"par":4,"hcp":18,"yards":{"Championship Blue":335,"Clifton White":311,"Club Green":295,"Forward Red":256}},{"h":16,"par":3,"hcp":14,"yards":{"Championship Blue":178,"Clifton White":152,"Club Green":141,"Forward Red":119}},{"h":17,"par":4,"hcp":8,"yards":{"Championship Blue":365,"Clifton White":329,"Club Green":314,"Forward Red":255}},{"h":18,"par":5,"hcp":12,"yards":{"Championship Blue":497,"Clifton White":464,"Club Green":450,"Forward Red":413}}],"Rocky Point Golf Course":[{"h":1,"par":3,"hcp":13,"yards":{"Blue":106,"White":93,"Red":86}},{"h":2,"par":4,"hcp":7,"yards":{"Blue":320,"White":302,"Red":272}},{"h":3,"par":4,"hcp":11,"yards":{"Blue":356,"White":337,"Red":290}},{"h":4,"par":3,"hcp":15,"yards":{"Blue":142,"White":127,"Red":109}},{"h":5,"par":5,"hcp":3,"yards":{"Blue":490,"White":463,"Red":413}},{"h":6,"par":4,"hcp":5,"yards":{"Blue":351,"White":314,"Red":270}},{"h":7,"par":4,"hcp":1,"yards":{"Blue":399,"White":372,"Red":319}},{"h":8,"par":3,"hcp":17,"yards":{"Blue":118,"White":106,"Red":88}},{"h":9,"par":4,"hcp":9,"yards":{"Blue":322,"White":301,"Red":256}},{"h":10,"par":5,"hcp":4,"yards":{"Blue":470,"White":444,"Red":408}},{"h":11,"par":4,"hcp":6,"yards":{"Blue":372,"White":358,"Red":312}},{"h":12,"par":4,"hcp":2,"yards":{"Blue":401,"White":369,"Red":319}},{"h":13,"par":3,"hcp":16,"yards":{"Blue":155,"White":140,"Red":112}},{"h":14,"par":4,"hcp":8,"yards":{"Blue":357,"White":332,"Red":280}},{"h":15,"par":4,"hcp":10,"yards":{"Blue":323,"White":307,"Red":260}},{"h":16,"par":4,"hcp":14,"yards":{"Blue":343,"White":315,"Red":278}},{"h":17,"par":3,"hcp":18,"yards":{"Blue":143,"White":124,"Red":107}},{"h":18,"par":4,"hcp":12,"yards":{"Blue":312,"White":290,"Red":244}}],"Bloomingdale Golfers Club":[{"h":1,"par":4,"hcp":9,"yards":{"Raccoon":385,"Blue":342,"Green":334,"White":316,"Silver":280,"Red":280}},{"h":2,"par":4,"hcp":3,"yards":{"Raccoon":435,"Blue":410,"Green":381,"White":367,"Silver":338,"Red":338}},{"h":3,"par":3,"hcp":13,"yards":{"Raccoon":226,"Blue":186,"Green":173,"White":166,"Silver":128,"Red":128}},{"h":4,"par":5,"hcp":1,"yards":{"Raccoon":564,"Blue":534,"Green":508,"White":483,"Silver":431,"Red":431}},{"h":5,"par":4,"hcp":7,"yards":{"Raccoon":412,"Blue":379,"Green":365,"White":346,"Silver":312,"Red":312}},{"h":6,"par":4,"hcp":5,"yards":{"Raccoon":439,"Blue":410,"Green":384,"White":357,"Silver":316,"Red":316}},{"h":7,"par":3,"hcp":17,"yards":{"Raccoon":197,"Blue":166,"Green":154,"White":147,"Silver":122,"Red":122}},{"h":8,"par":4,"hcp":15,"yards":{"Raccoon":443,"Blue":394,"Green":378,"White":357,"Silver":306,"Red":306}},{"h":9,"par":5,"hcp":11,"yards":{"Raccoon":546,"Blue":521,"Green":497,"White":476,"Silver":437,"Red":437}},{"h":10,"par":4,"hcp":2,"yards":{"Raccoon":433,"Blue":405,"Green":381,"White":363,"Silver":329,"Red":329}},{"h":11,"par":4,"hcp":12,"yards":{"Raccoon":385,"Blue":353,"Green":338,"White":325,"Silver":295,"Red":295}},{"h":12,"par":5,"hcp":8,"yards":{"Raccoon":524,"Blue":495,"Green":471,"White":451,"Silver":413,"Red":413}},{"h":13,"par":4,"hcp":14,"yards":{"Raccoon":392,"Blue":360,"Green":344,"White":325,"Silver":295,"Red":295}},{"h":14,"par":4,"hcp":4,"yards":{"Raccoon":398,"Blue":374,"Green":358,"White":343,"Silver":313,"Red":313}},{"h":15,"par":5,"hcp":6,"yards":{"Raccoon":547,"Blue":514,"Green":491,"White":462,"Silver":426,"Red":426}},{"h":16,"par":3,"hcp":18,"yards":{"Raccoon":184,"Blue":162,"Green":148,"White":139,"Silver":117,"Red":117}},{"h":17,"par":4,"hcp":10,"yards":{"Raccoon":388,"Blue":353,"Green":335,"White":318,"Silver":285,"Red":285}},{"h":18,"par":4,"hcp":16,"yards":{"Raccoon":409,"Blue":382,"Green":355,"White":342,"Silver":307,"Red":307}}],"Avila Golf & Country Club":[{"h":1,"par":4,"hcp":9,"yards":{"Gold":407,"Blue":372,"Member":372,"White":348,"Senior":340,"Red":296}},{"h":2,"par":4,"hcp":3,"yards":{"Gold":417,"Blue":389,"Member":389,"White":369,"Senior":359,"Red":318}},{"h":3,"par":3,"hcp":15,"yards":{"Gold":186,"Blue":153,"Member":153,"White":148,"Senior":136,"Red":119}},{"h":4,"par":4,"hcp":7,"yards":{"Gold":368,"Blue":341,"Member":341,"White":323,"Senior":312,"Red":272}},{"h":5,"par":5,"hcp":5,"yards":{"Gold":530,"Blue":505,"Member":505,"White":474,"Senior":455,"Red":400}},{"h":6,"par":3,"hcp":17,"yards":{"Gold":183,"Blue":167,"Member":167,"White":148,"Senior":134,"Red":118}},{"h":7,"par":5,"hcp":1,"yards":{"Gold":537,"Blue":510,"Member":510,"White":484,"Senior":468,"Red":419}},{"h":8,"par":4,"hcp":11,"yards":{"Gold":391,"Blue":360,"Member":360,"White":332,"Senior":314,"Red":272}},{"h":9,"par":4,"hcp":13,"yards":{"Gold":355,"Blue":327,"Member":327,"White":306,"Senior":295,"Red":249}},{"h":10,"par":4,"hcp":8,"yards":{"Gold":401,"Blue":370,"Member":370,"White":352,"Senior":341,"Red":281}},{"h":11,"par":4,"hcp":4,"yards":{"Gold":429,"Blue":406,"Member":406,"White":389,"Senior":364,"Red":302}},{"h":12,"par":3,"hcp":16,"yards":{"Gold":180,"Blue":161,"Member":161,"White":142,"Senior":133,"Red":113}},{"h":13,"par":4,"hcp":2,"yards":{"Gold":415,"Blue":392,"Member":392,"White":373,"Senior":358,"Red":307}},{"h":14,"par":4,"hcp":14,"yards":{"Gold":382,"Blue":345,"Member":345,"White":327,"Senior":317,"Red":268}},{"h":15,"par":3,"hcp":18,"yards":{"Gold":175,"Blue":153,"Member":153,"White":136,"Senior":127,"Red":107}},{"h":16,"par":4,"hcp":10,"yards":{"Gold":404,"Blue":381,"Member":381,"White":355,"Senior":337,"Red":290}},{"h":17,"par":5,"hcp":6,"yards":{"Gold":538,"Blue":502,"Member":502,"White":471,"Senior":451,"Red":406}},{"h":18,"par":4,"hcp":12,"yards":{"Gold":361,"Blue":335,"Member":335,"White":306,"Senior":291,"Red":261}}],"Cheval Golf & Country Club":[{"h":1,"par":4,"hcp":15,"yards":{"Black":350,"Blue":343,"White":329,"Silver":315,"Green":320,"Orange":310}},{"h":2,"par":4,"hcp":5,"yards":{"Black":387,"Blue":372,"White":349,"Silver":335,"Green":325,"Orange":301}},{"h":3,"par":3,"hcp":11,"yards":{"Black":190,"Blue":174,"White":161,"Silver":148,"Green":148,"Orange":130}},{"h":4,"par":4,"hcp":3,"yards":{"Black":420,"Blue":408,"White":384,"Silver":365,"Green":351,"Orange":339}},{"h":5,"par":5,"hcp":1,"yards":{"Black":540,"Blue":523,"White":497,"Silver":471,"Green":457,"Orange":421}},{"h":6,"par":4,"hcp":13,"yards":{"Black":368,"Blue":351,"White":333,"Silver":310,"Green":305,"Orange":280}},{"h":7,"par":3,"hcp":17,"yards":{"Black":185,"Blue":178,"White":164,"Silver":149,"Green":148,"Orange":120}},{"h":8,"par":5,"hcp":7,"yards":{"Black":540,"Blue":521,"White":495,"Silver":463,"Green":452,"Orange":416}},{"h":9,"par":4,"hcp":9,"yards":{"Black":380,"Blue":365,"White":343,"Silver":322,"Green":314,"Orange":292}},{"h":10,"par":4,"hcp":4,"yards":{"Black":418,"Blue":404,"White":388,"Silver":371,"Green":358,"Orange":334}},{"h":11,"par":4,"hcp":16,"yards":{"Black":347,"Blue":335,"White":320,"Silver":302,"Green":295,"Orange":274}},{"h":12,"par":3,"hcp":12,"yards":{"Black":200,"Blue":188,"White":170,"Silver":156,"Green":155,"Orange":137}},{"h":13,"par":5,"hcp":2,"yards":{"Black":548,"Blue":527,"White":501,"Silver":477,"Green":464,"Orange":427}},{"h":14,"par":4,"hcp":18,"yards":{"Black":349,"Blue":337,"White":319,"Silver":302,"Green":299,"Orange":277}},{"h":15,"par":4,"hcp":6,"yards":{"Black":401,"Blue":388,"White":371,"Silver":355,"Green":341,"Orange":310}},{"h":16,"par":3,"hcp":14,"yards":{"Black":188,"Blue":177,"White":156,"Silver":143,"Green":143,"Orange":121}},{"h":17,"par":4,"hcp":8,"yards":{"Black":398,"Blue":385,"White":365,"Silver":342,"Green":330,"Orange":308}},{"h":18,"par":5,"hcp":10,"yards":{"Black":521,"Blue":506,"White":484,"Silver":459,"Green":445,"Orange":412}}],"USF Claw Golf Course":[{"h":1,"par":4,"hcp":5,"yards":{"Gold":433,"Blue":386,"White":325,"Red":280}},{"h":2,"par":3,"hcp":17,"yards":{"Gold":210,"Blue":181,"White":152,"Red":123}},{"h":3,"par":4,"hcp":11,"yards":{"Gold":401,"Blue":362,"White":315,"Red":264}},{"h":4,"par":5,"hcp":3,"yards":{"Gold":537,"Blue":502,"White":467,"Red":419}},{"h":5,"par":4,"hcp":13,"yards":{"Gold":366,"Blue":338,"White":296,"Red":249}},{"h":6,"par":4,"hcp":7,"yards":{"Gold":400,"Blue":373,"White":327,"Red":278}},{"h":7,"par":3,"hcp":15,"yards":{"Gold":158,"Blue":137,"White":114,"Red":99}},{"h":8,"par":5,"hcp":1,"yards":{"Gold":537,"Blue":510,"White":466,"Red":413}},{"h":9,"par":4,"hcp":9,"yards":{"Gold":397,"Blue":372,"White":326,"Red":263}},{"h":10,"par":4,"hcp":8,"yards":{"Gold":382,"Blue":348,"White":296,"Red":254}},{"h":11,"par":3,"hcp":18,"yards":{"Gold":200,"Blue":170,"White":142,"Red":120}},{"h":12,"par":4,"hcp":2,"yards":{"Gold":440,"Blue":412,"White":370,"Red":305}},{"h":13,"par":4,"hcp":10,"yards":{"Gold":403,"Blue":372,"White":327,"Red":269}},{"h":14,"par":5,"hcp":4,"yards":{"Gold":535,"Blue":497,"White":454,"Red":399}},{"h":15,"par":4,"hcp":6,"yards":{"Gold":394,"Blue":360,"White":317,"Red":263}},{"h":16,"par":3,"hcp":16,"yards":{"Gold":187,"Blue":162,"White":131,"Red":115}},{"h":17,"par":4,"hcp":14,"yards":{"Gold":374,"Blue":346,"White":308,"Red":253}},{"h":18,"par":5,"hcp":12,"yards":{"Gold":521,"Blue":497,"White":453,"Red":390}}],"Tampa Palms Golf & Country Club":[{"h":1,"par":4,"hcp":15,"yards":{"Black":340,"Gold":316,"Blue":288,"White":260,"Green":229}},{"h":2,"par":4,"hcp":7,"yards":{"Black":378,"Gold":356,"Blue":325,"White":296,"Green":246}},{"h":3,"par":3,"hcp":13,"yards":{"Black":175,"Gold":154,"Blue":143,"White":130,"Green":112}},{"h":4,"par":5,"hcp":3,"yards":{"Black":503,"Gold":478,"Blue":442,"White":407,"Green":359}},{"h":5,"par":4,"hcp":9,"yards":{"Black":371,"Gold":351,"Blue":321,"White":292,"Green":246}},{"h":6,"par":3,"hcp":17,"yards":{"Black":165,"Gold":142,"Blue":131,"White":118,"Green":99}},{"h":7,"par":5,"hcp":1,"yards":{"Black":520,"Gold":496,"Blue":460,"White":424,"Green":380}},{"h":8,"par":4,"hcp":11,"yards":{"Black":352,"Gold":326,"Blue":300,"White":273,"Green":229}},{"h":9,"par":4,"hcp":5,"yards":{"Black":387,"Gold":368,"Blue":332,"White":307,"Green":255}},{"h":10,"par":5,"hcp":2,"yards":{"Black":508,"Gold":489,"Blue":460,"White":435,"Green":380}},{"h":11,"par":4,"hcp":14,"yards":{"Black":360,"Gold":340,"Blue":313,"White":289,"Green":241}},{"h":12,"par":3,"hcp":18,"yards":{"Black":178,"Gold":155,"Blue":146,"White":131,"Green":111}},{"h":13,"par":4,"hcp":10,"yards":{"Black":370,"Gold":351,"Blue":320,"White":294,"Green":248}},{"h":14,"par":4,"hcp":4,"yards":{"Black":398,"Gold":381,"Blue":350,"White":325,"Green":272}},{"h":15,"par":3,"hcp":16,"yards":{"Black":168,"Gold":149,"Blue":136,"White":121,"Green":100}},{"h":16,"par":4,"hcp":8,"yards":{"Black":356,"Gold":335,"Blue":308,"White":283,"Green":238}},{"h":17,"par":4,"hcp":6,"yards":{"Black":388,"Gold":367,"Blue":340,"White":310,"Green":264}},{"h":18,"par":5,"hcp":12,"yards":{"Black":497,"Gold":470,"Blue":433,"White":404,"Green":352}}],"Carrollwood Country Club":[{"h":1,"par":4,"hcp":11,"yards":{"Cypress/Meadow Blue":381,"Cypress/Meadow White":359,"Cypress/Meadow Silver":339,"Cypress/Meadow Teal":283,"Cypress/Meadow Red":236}},{"h":2,"par":3,"hcp":17,"yards":{"Cypress/Meadow Blue":176,"Cypress/Meadow White":163,"Cypress/Meadow Silver":149,"Cypress/Meadow Teal":110,"Cypress/Meadow Red":104}},{"h":3,"par":4,"hcp":5,"yards":{"Cypress/Meadow Blue":376,"Cypress/Meadow White":355,"Cypress/Meadow Silver":333,"Cypress/Meadow Teal":282,"Cypress/Meadow Red":254}},{"h":4,"par":5,"hcp":13,"yards":{"Cypress/Meadow Blue":508,"Cypress/Meadow White":481,"Cypress/Meadow Silver":452,"Cypress/Meadow Teal":395,"Cypress/Meadow Red":371}},{"h":5,"par":4,"hcp":3,"yards":{"Cypress/Meadow Blue":392,"Cypress/Meadow White":365,"Cypress/Meadow Silver":345,"Cypress/Meadow Teal":291,"Cypress/Meadow Red":254}},{"h":6,"par":4,"hcp":15,"yards":{"Cypress/Meadow Blue":329,"Cypress/Meadow White":307,"Cypress/Meadow Silver":289,"Cypress/Meadow Teal":247,"Cypress/Meadow Red":221}},{"h":7,"par":3,"hcp":9,"yards":{"Cypress/Meadow Blue":166,"Cypress/Meadow White":153,"Cypress/Meadow Silver":142,"Cypress/Meadow Teal":109,"Cypress/Meadow Red":99}},{"h":8,"par":4,"hcp":7,"yards":{"Cypress/Meadow Blue":364,"Cypress/Meadow White":341,"Cypress/Meadow Silver":320,"Cypress/Meadow Teal":273,"Cypress/Meadow Red":248}},{"h":9,"par":4,"hcp":1,"yards":{"Cypress/Meadow Blue":371,"Cypress/Meadow White":350,"Cypress/Meadow Silver":330,"Cypress/Meadow Teal":278,"Cypress/Meadow Red":249}},{"h":10,"par":4,"hcp":4,"yards":{"Cypress/Meadow Blue":385,"Cypress/Meadow White":364,"Cypress/Meadow Silver":343,"Cypress/Meadow Teal":301,"Cypress/Meadow Red":299}},{"h":11,"par":5,"hcp":10,"yards":{"Cypress/Meadow Blue":498,"Cypress/Meadow White":474,"Cypress/Meadow Silver":449,"Cypress/Meadow Teal":390,"Cypress/Meadow Red":373}},{"h":12,"par":4,"hcp":6,"yards":{"Cypress/Meadow Blue":378,"Cypress/Meadow White":352,"Cypress/Meadow Silver":330,"Cypress/Meadow Teal":278,"Cypress/Meadow Red":252}},{"h":13,"par":3,"hcp":18,"yards":{"Cypress/Meadow Blue":157,"Cypress/Meadow White":143,"Cypress/Meadow Silver":131,"Cypress/Meadow Teal":104,"Cypress/Meadow Red":91}},{"h":14,"par":4,"hcp":14,"yards":{"Cypress/Meadow Blue":348,"Cypress/Meadow White":327,"Cypress/Meadow Silver":307,"Cypress/Meadow Teal":254,"Cypress/Meadow Red":236}},{"h":15,"par":4,"hcp":12,"yards":{"Cypress/Meadow Blue":357,"Cypress/Meadow White":335,"Cypress/Meadow Silver":313,"Cypress/Meadow Teal":261,"Cypress/Meadow Red":241}},{"h":16,"par":3,"hcp":16,"yards":{"Cypress/Meadow Blue":174,"Cypress/Meadow White":155,"Cypress/Meadow Silver":138,"Cypress/Meadow Teal":108,"Cypress/Meadow Red":93}},{"h":17,"par":4,"hcp":2,"yards":{"Cypress/Meadow Blue":379,"Cypress/Meadow White":354,"Cypress/Meadow Silver":333,"Cypress/Meadow Teal":282,"Cypress/Meadow Red":257}},{"h":18,"par":5,"hcp":8,"yards":{"Cypress/Meadow Blue":517,"Cypress/Meadow White":492,"Cypress/Meadow Silver":466,"Cypress/Meadow Teal":407,"Cypress/Meadow Red":386}}],"Hunters Green Country Club":[{"h":1,"par":4,"hcp":13,"yards":{"Gold":323,"Blue":293,"White":281,"Green":233,"Red":228}},{"h":2,"par":4,"hcp":3,"yards":{"Gold":434,"Blue":410,"White":390,"Green":335,"Red":291}},{"h":3,"par":3,"hcp":9,"yards":{"Gold":211,"Blue":190,"White":175,"Green":150,"Red":141}},{"h":4,"par":5,"hcp":5,"yards":{"Gold":526,"Blue":497,"White":483,"Green":422,"Red":395}},{"h":5,"par":4,"hcp":15,"yards":{"Gold":385,"Blue":355,"White":339,"Green":287,"Red":267}},{"h":6,"par":3,"hcp":17,"yards":{"Gold":220,"Blue":197,"White":179,"Green":143,"Red":132}},{"h":7,"par":4,"hcp":7,"yards":{"Gold":395,"Blue":370,"White":355,"Green":300,"Red":270}},{"h":8,"par":4,"hcp":1,"yards":{"Gold":452,"Blue":425,"White":407,"Green":354,"Red":312}},{"h":9,"par":5,"hcp":11,"yards":{"Gold":545,"Blue":517,"White":498,"Green":431,"Red":399}},{"h":10,"par":4,"hcp":10,"yards":{"Gold":395,"Blue":373,"White":358,"Green":302,"Red":271}},{"h":11,"par":4,"hcp":4,"yards":{"Gold":418,"Blue":390,"White":373,"Green":316,"Red":284}},{"h":12,"par":3,"hcp":16,"yards":{"Gold":189,"Blue":170,"White":154,"Green":127,"Red":118}},{"h":13,"par":5,"hcp":2,"yards":{"Gold":533,"Blue":506,"White":486,"Green":421,"Red":392}},{"h":14,"par":4,"hcp":6,"yards":{"Gold":397,"Blue":373,"White":355,"Green":299,"Red":273}},{"h":15,"par":4,"hcp":14,"yards":{"Gold":379,"Blue":354,"White":335,"Green":280,"Red":259}},{"h":16,"par":3,"hcp":18,"yards":{"Gold":196,"Blue":174,"White":160,"Green":133,"Red":116}},{"h":17,"par":4,"hcp":8,"yards":{"Gold":391,"Blue":366,"White":348,"Green":289,"Red":265}},{"h":18,"par":4,"hcp":12,"yards":{"Gold":410,"Blue":380,"White":363,"Green":301,"Red":277}}],"Lexington Oaks Golf Club":[{"h":1,"par":4,"hcp":15,"yards":{"Black":387,"White":370,"Gold":305,"Jade":244}},{"h":2,"par":3,"hcp":17,"yards":{"Black":197,"White":180,"Gold":160,"Jade":133}},{"h":3,"par":5,"hcp":3,"yards":{"Black":539,"White":518,"Gold":441,"Jade":380}},{"h":4,"par":4,"hcp":11,"yards":{"Black":399,"White":384,"Gold":328,"Jade":268}},{"h":5,"par":4,"hcp":7,"yards":{"Black":422,"White":405,"Gold":348,"Jade":286}},{"h":6,"par":3,"hcp":13,"yards":{"Black":222,"White":208,"Gold":179,"Jade":140}},{"h":7,"par":4,"hcp":9,"yards":{"Black":376,"White":360,"Gold":309,"Jade":252}},{"h":8,"par":5,"hcp":1,"yards":{"Black":572,"White":547,"Gold":470,"Jade":406}},{"h":9,"par":4,"hcp":5,"yards":{"Black":413,"White":396,"Gold":337,"Jade":275}},{"h":10,"par":4,"hcp":10,"yards":{"Black":396,"White":376,"Gold":320,"Jade":260}},{"h":11,"par":4,"hcp":16,"yards":{"Black":341,"White":322,"Gold":278,"Jade":225}},{"h":12,"par":3,"hcp":18,"yards":{"Black":182,"White":167,"Gold":143,"Jade":118}},{"h":13,"par":5,"hcp":4,"yards":{"Black":552,"White":527,"Gold":453,"Jade":392}},{"h":14,"par":4,"hcp":6,"yards":{"Black":402,"White":381,"Gold":328,"Jade":266}},{"h":15,"par":3,"hcp":14,"yards":{"Black":209,"White":193,"Gold":167,"Jade":133}},{"h":16,"par":4,"hcp":8,"yards":{"Black":399,"White":381,"Gold":329,"Jade":266}},{"h":17,"par":4,"hcp":12,"yards":{"Black":369,"White":351,"Gold":300,"Jade":240}},{"h":18,"par":4,"hcp":2,"yards":{"Black":426,"White":406,"Gold":347,"Jade":283}}],"Temple Terrace Golf & Country Club":[{"h":1,"par":4,"hcp":11,"yards":{"Blue":378,"White":360,"Green":319,"Red":319}},{"h":2,"par":4,"hcp":5,"yards":{"Blue":393,"White":373,"Green":332,"Red":293}},{"h":3,"par":4,"hcp":13,"yards":{"Blue":349,"White":330,"Green":292,"Red":260}},{"h":4,"par":5,"hcp":1,"yards":{"Blue":519,"White":497,"Green":448,"Red":411}},{"h":5,"par":3,"hcp":17,"yards":{"Blue":175,"White":162,"Green":144,"Red":127}},{"h":6,"par":4,"hcp":9,"yards":{"Blue":377,"White":360,"Green":321,"Red":283}},{"h":7,"par":3,"hcp":15,"yards":{"Blue":177,"White":163,"Green":143,"Red":127}},{"h":8,"par":4,"hcp":7,"yards":{"Blue":384,"White":369,"Green":332,"Red":296}},{"h":9,"par":5,"hcp":3,"yards":{"Blue":484,"White":463,"Green":419,"Red":388}},{"h":10,"par":4,"hcp":2,"yards":{"Blue":410,"White":393,"Green":354,"Red":315}},{"h":11,"par":4,"hcp":10,"yards":{"Blue":358,"White":341,"Green":299,"Red":263}},{"h":12,"par":3,"hcp":16,"yards":{"Blue":158,"White":146,"Green":129,"Red":108}},{"h":13,"par":4,"hcp":6,"yards":{"Blue":388,"White":372,"Green":335,"Red":293}},{"h":14,"par":4,"hcp":12,"yards":{"Blue":374,"White":357,"Green":319,"Red":279}},{"h":15,"par":5,"hcp":4,"yards":{"Blue":499,"White":481,"Green":436,"Red":405}},{"h":16,"par":3,"hcp":18,"yards":{"Blue":164,"White":150,"Green":131,"Red":113}},{"h":17,"par":4,"hcp":8,"yards":{"Blue":368,"White":351,"Green":316,"Red":280}},{"h":18,"par":4,"hcp":14,"yards":{"Blue":362,"White":342,"Green":301,"Red":265}}],"Heritage Isles Golf & Country Club":[{"h":1,"par":4,"hcp":7,"yards":{"Gold":424,"Blue":382,"White":370,"Black":382,"Green":372,"Red":309}},{"h":2,"par":3,"hcp":17,"yards":{"Gold":199,"Blue":181,"White":171,"Black":170,"Green":152,"Red":126}},{"h":3,"par":5,"hcp":5,"yards":{"Gold":546,"Blue":502,"White":474,"Black":488,"Green":442,"Red":406}},{"h":4,"par":4,"hcp":11,"yards":{"Gold":399,"Blue":363,"White":348,"Black":355,"Green":331,"Red":291}},{"h":5,"par":4,"hcp":1,"yards":{"Gold":437,"Blue":410,"White":397,"Black":398,"Green":376,"Red":325}},{"h":6,"par":3,"hcp":15,"yards":{"Gold":203,"Blue":176,"White":160,"Black":166,"Green":149,"Red":124}},{"h":7,"par":5,"hcp":3,"yards":{"Gold":559,"Blue":524,"White":506,"Black":520,"Green":482,"Red":433}},{"h":8,"par":4,"hcp":13,"yards":{"Gold":371,"Blue":344,"White":333,"Black":339,"Green":319,"Red":267}},{"h":9,"par":4,"hcp":9,"yards":{"Gold":400,"Blue":379,"White":366,"Black":369,"Green":348,"Red":296}},{"h":10,"par":4,"hcp":10,"yards":{"Gold":400,"Blue":376,"White":363,"Black":366,"Green":344,"Red":290}},{"h":11,"par":4,"hcp":2,"yards":{"Gold":429,"Blue":406,"White":390,"Black":404,"Green":380,"Red":323}},{"h":12,"par":5,"hcp":12,"yards":{"Gold":521,"Blue":495,"White":477,"Black":487,"Green":454,"Red":405}},{"h":13,"par":3,"hcp":18,"yards":{"Gold":198,"Blue":170,"White":156,"Black":161,"Green":146,"Red":120}},{"h":14,"par":4,"hcp":6,"yards":{"Gold":406,"Blue":385,"White":370,"Black":378,"Green":356,"Red":303}},{"h":15,"par":4,"hcp":4,"yards":{"Gold":430,"Blue":408,"White":392,"Black":399,"Green":377,"Red":319}},{"h":16,"par":3,"hcp":16,"yards":{"Gold":199,"Blue":177,"White":163,"Black":165,"Green":151,"Red":125}},{"h":17,"par":4,"hcp":14,"yards":{"Gold":380,"Blue":356,"White":341,"Black":347,"Green":325,"Red":271}},{"h":18,"par":5,"hcp":8,"yards":{"Gold":576,"Blue":548,"White":531,"Black":540,"Green":513,"Red":455}}],"Saddlebrook Resort":[{"h":1,"par":4,"hcp":12,"yards":{"Gold":346,"Blue":321,"White":307,"Green":301,"Red":284}},{"h":2,"par":5,"hcp":4,"yards":{"Gold":553,"Blue":492,"White":479,"Green":420,"Red":402}},{"h":3,"par":4,"hcp":8,"yards":{"Gold":430,"Blue":395,"White":383,"Green":312,"Red":307}},{"h":4,"par":4,"hcp":6,"yards":{"Gold":439,"Blue":395,"White":382,"Green":334,"Red":324}},{"h":5,"par":3,"hcp":18,"yards":{"Gold":199,"Blue":174,"White":144,"Green":136,"Red":130}},{"h":6,"par":4,"hcp":10,"yards":{"Gold":348,"Blue":312,"White":300,"Green":247,"Red":242}},{"h":7,"par":5,"hcp":2,"yards":{"Gold":558,"Blue":514,"White":448,"Green":421,"Red":405}},{"h":8,"par":3,"hcp":16,"yards":{"Gold":212,"Blue":187,"White":136,"Green":122,"Red":115}},{"h":9,"par":4,"hcp":14,"yards":{"Gold":334,"Blue":312,"White":303,"Green":260,"Red":252}},{"h":10,"par":4,"hcp":7,"yards":{"Gold":422,"Blue":389,"White":302,"Green":298,"Red":292}},{"h":11,"par":5,"hcp":1,"yards":{"Gold":563,"Blue":481,"White":465,"Green":427,"Red":418}},{"h":12,"par":4,"hcp":11,"yards":{"Gold":381,"Blue":362,"White":261,"Green":225,"Red":218}},{"h":13,"par":3,"hcp":15,"yards":{"Gold":235,"Blue":192,"White":146,"Green":136,"Red":123}},{"h":14,"par":4,"hcp":5,"yards":{"Gold":430,"Blue":397,"White":365,"Green":289,"Red":274}},{"h":15,"par":5,"hcp":3,"yards":{"Gold":548,"Blue":504,"White":467,"Green":420,"Red":410}},{"h":16,"par":3,"hcp":17,"yards":{"Gold":249,"Blue":195,"White":146,"Green":138,"Red":129}},{"h":17,"par":4,"hcp":13,"yards":{"Gold":330,"Blue":288,"White":271,"Green":262,"Red":232}},{"h":18,"par":4,"hcp":9,"yards":{"Gold":399,"Blue":326,"White":310,"Green":285,"Red":275}}]};
+
+function _lookupScorecard(courseName) {
+  if (!courseName) return null;
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,'');
+  const n = norm(courseName);
+  // Exact key match first
+  for (const [k,v] of Object.entries(COURSE_SCORECARDS)) {
+    if (norm(k) === n) return {name:k, holes:v};
+  }
+  // Partial match — course name contains key or key contains course name
+  for (const [k,v] of Object.entries(COURSE_SCORECARDS)) {
+    const kn = norm(k);
+    if (n.includes(kn) || kn.includes(n)) return {name:k, holes:v};
+  }
+  // Word overlap — at least 2 significant words match
+  const words = n => n.replace(/golf|country|club|course|resort|&/g,'').split(/\W+/).filter(w=>w.length>3);
+  const qWords = new Set(words(n));
+  let best = null, bestScore = 0;
+  for (const [k,v] of Object.entries(COURSE_SCORECARDS)) {
+    const score = words(norm(k)).filter(w=>qWords.has(w)).length;
+    if (score > bestScore) { bestScore=score; best={name:k,holes:v}; }
+  }
+  return bestScore >= 1 ? best : null;
+}
+
+// ── Convert local scorecard → Ryze API format ────────────────
+function _scorecardToRyzeFormat(name, holes) {
+  if (!holes?.length) return null;
+  // Get all tee names from the first hole
+  const teeNames = Object.keys(holes[0].yards || {});
+  const teeBoxes = teeNames.map(tee => ({
+    tee,
+    slope: null,
+    handicap: null,
+    yards: holes.reduce((s,h) => s + (h.yards?.[tee]||0), 0),
+  }));
+  const scorecard = holes.map(h => ({
+    Hole: h.h,
+    Par: h.par,
+    Handicap: h.hcp,
+    tees: Object.fromEntries(
+      teeNames.map((tee,i) => [`teeBox${i+1}`, {color:tee, yards:h.yards?.[tee]||0}])
+    ),
+  }));
+  return { name, scorecard, teeBoxes, _source: 'local' };
+}
+
+// ── Convert GolfCourseAPI.com → Ryze API format ───────────────
+function _gcapiToRyzeFormat(course) {
+  if (!course) return null;
+  const allTees = [...(course.tees?.male||[]), ...(course.tees?.female||[])];
+  const teeBoxes = allTees.map(t => ({
+    tee: t.tee_name,
+    slope: t.slope_rating,
+    handicap: t.course_rating,
+    yards: t.holes?.reduce((s,h)=>s+(h.yardage||0),0) || 0,
+  }));
+  const t0 = allTees[0];
+  const scorecard = (t0?.holes||[]).map((h,i) => ({
+    Hole: i+1,
+    Par: h.par,
+    Handicap: h.handicap || null,
+    tees: Object.fromEntries(
+      allTees.map((t,ti) => [`teeBox${ti+1}`, {color:t.tee_name, yards:t.holes?.[i]?.yardage||0}])
+    ),
+  }));
+  return { name: course.course_name, scorecard, teeBoxes, _source: 'gcapi' };
+}
+
 window.UI = {
 
   // ── Navigation ──
@@ -746,7 +816,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=95");
+      const { initials, avatarColor } = await import("./ui.js?v=96");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1740,7 +1810,7 @@ window.UI = {
             const _searchQ = _cityQ;
             const _gcFbResp = await fetch(
               `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_searchQ)}`,
-              { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(6000) }
+              { headers:{'Authorization':'Key 2a981a7029msh750d3a47e40b2acp132f2fjsnb867cef35e78'}, signal:AbortSignal.timeout(6000) }
             ).catch(()=>null);
             const _gcFbData = _gcFbResp?.ok ? await _gcFbResp.json().catch(()=>null) : null;
 
@@ -1777,7 +1847,7 @@ window.UI = {
             if (courses.length < 3 && _cityGolfQ !== _searchQ) {
               const _gcFb2 = await fetch(
                 `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_cityGolfQ)}`,
-                { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(5000) }
+                { headers:{'Authorization':'Key 2a981a7029msh750d3a47e40b2acp132f2fjsnb867cef35e78'}, signal:AbortSignal.timeout(5000) }
               ).catch(()=>null);
               const _gcFb2Data = _gcFb2?.ok ? await _gcFb2.json().catch(()=>null) : null;
               for (const c of _gcFb2Data?.courses||[]) _addCourse(c);
@@ -1787,7 +1857,7 @@ window.UI = {
               await new Promise(r=>setTimeout(r,300)); // small delay to avoid 429
               const _gcFb2 = await fetch(
                 `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(_stateQ+' golf')}`,
-                { headers:{'Authorization':'Key Q4EAEMMFI54TY4HEA62GEOH3BI'}, signal:AbortSignal.timeout(6000) }
+                { headers:{'Authorization':'Key 2a981a7029msh750d3a47e40b2acp132f2fjsnb867cef35e78'}, signal:AbortSignal.timeout(6000) }
               ).catch(()=>null);
               const _gcFb2Data = _gcFb2?.ok ? await _gcFb2.json().catch(()=>null) : null;
               for (const c of _gcFb2Data?.courses || []) _addCourse(c);
@@ -1836,6 +1906,8 @@ window.UI = {
       if (label) label.textContent = 'Error loading courses';
     } finally {
       window._coursesLoading = false;
+      // Kick off background Ryze pre-cache 3s after courses load
+      setTimeout(_precacheRyzeCourses, 3000);
     }
   },
 
@@ -2065,24 +2137,31 @@ window.UI = {
   // ── Course Layout ──────────────────────────────────────────────
   // ── Fetch scorecard from Ryze API ────────────────────────────
   async _fetchRyzeCourse(courseName) {
-    const key = 'Q4EAEMMFI54TY4HEA62GEOH3BI';
-    const cacheKey = 'ryze_' + courseName.toLowerCase().replace(/[^a-z0-9]/g,'_');
+    // 1. Local hardcoded data first — instant, zero API calls
+    const local = _lookupScorecard(courseName);
+    if (local) {
+      console.log('[SC] Local scorecard:', local.name);
+      return _scorecardToRyzeFormat(local.name, local.holes);
+    }
+    // 2. GolfCourseAPI.com fallback for any course not in local data
+    const cacheKey = 'gcapi_' + courseName.toLowerCase().replace(/[^a-z0-9]/g,'_');
     try {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) return JSON.parse(cached);
     } catch(_) {}
     try {
       const resp = await fetch(
-        `https://golf-course-api.p.rapidapi.com/search?name=${encodeURIComponent(courseName)}`,
-        { headers: { 'x-rapidapi-host': 'golf-course-api.p.rapidapi.com', 'x-rapidapi-key': key }, signal: AbortSignal.timeout(8000) }
+        `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(courseName)}`,
+        { headers: { 'Authorization': 'Key Q4EAEMMFI54TY4HEA62GEOH3BI' }, signal: AbortSignal.timeout(8000) }
       );
       if (!resp.ok) return null;
       const data = await resp.json();
-      const course = Array.isArray(data) ? data[0] : data;
+      const course = data.courses?.[0];
       if (!course) return null;
-      try { sessionStorage.setItem(cacheKey, JSON.stringify(course)); } catch(_) {}
-      return course;
-    } catch(e) { console.warn('Ryze API:', e.message); return null; }
+      const ryze = _gcapiToRyzeFormat(course);
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(ryze)); } catch(_) {}
+      return ryze;
+    } catch(e) { console.warn('[SC] API fallback failed:', e.message); return null; }
   },
 
   // ── Show tee picker sheet ─────────────────────────────────────
@@ -2429,3 +2508,34 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('[FW]', msg);
   if (msg.includes('permission-denied')) showToast('Permission denied — try signing out and back in');
 });
+
+// ── Pre-cache Ryze scorecard data for all known courses ───────
+// Runs sequentially at startup (1 course / 1.2s) so data is
+// ready before the user ever taps ▶ Play GPS or 📋 Scorecard
+async function _precacheRyzeCourses() {
+  const key = '2a981a7029msh750d3a47e40b2acp132f2fjsnb867cef35e78';
+  const courses = (window._nearbyCourses || []).map(c => c.name);
+  if (!courses.length) return;
+  for (const name of courses) {
+    const cacheKey = 'ryze_' + name.toLowerCase().replace(/[^a-z0-9]/g,'_');
+    try {
+      if (sessionStorage.getItem(cacheKey)) continue; // already cached
+    } catch(_) {}
+    try {
+      const r = await fetch(
+        `https://golf-course-api.p.rapidapi.com/search?name=${encodeURIComponent(name)}`,
+        { headers: { 'x-rapidapi-host': 'golf-course-api.p.rapidapi.com', 'x-rapidapi-key': key }, signal: AbortSignal.timeout(8000) }
+      );
+      if (r.ok) {
+        const data = await r.json();
+        const c = Array.isArray(data) ? data[0] : data;
+        if (c?.name) {
+          try { sessionStorage.setItem(cacheKey, JSON.stringify(c)); } catch(_) {}
+          console.log(`[Ryze] cached: ${c.name} | ${c.scorecard?.length}h | tees: ${c.teeBoxes?.map(t=>t.tee).join(',')}`);
+        }
+      }
+    } catch(e) { /* silent — best effort */ }
+    await new Promise(r => setTimeout(r, 1200)); // 1.2s between calls
+  }
+}
+
