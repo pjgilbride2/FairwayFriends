@@ -31,7 +31,8 @@ app.get("/api/places", (req, res) => {
         // Hard-filter: only return places typed as golf_course or country_club
         // This prevents non-golf businesses from leaking through when quota is hit
         if (data.results && Array.isArray(data.results)) {
-          const reqType = (req.query.type || "").toLowerCase();
+          const reqType    = (req.query.type    || "").toLowerCase();
+          const reqKeyword = (req.query.keyword || "").toLowerCase();
           data.results = data.results.filter(place => {
             const types = place.types || [];
             const name  = (place.name || "").toLowerCase();

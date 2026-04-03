@@ -3,13 +3,13 @@
 //  Tracks: new messages (blue dot), likes, replies, follows
 // ============================================================
 
-import { db } from "./firebase-config.js?v=98";
+import { db } from "./firebase-config.js?v=99";
 import {
   collection, query, where, orderBy, limit,
   onSnapshot, doc, updateDoc, writeBatch,
   serverTimestamp, addDoc, getDocs, getDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { esc, initials, avatarColor } from "./ui.js?v=98";
+import { esc, initials, avatarColor } from "./ui.js?v=99";
 
 let _unsubMessages = null;
 let _unsubNotifs   = null;

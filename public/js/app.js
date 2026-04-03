@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=98";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=98";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=98";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=98";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=98";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=98";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=98";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=98";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=98";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=98";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=98";
-import { buildOnboardScreen } from "./onboard.js?v=98";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=99";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=99";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=99";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=99";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=99";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=99";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=99";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=99";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=99";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=99";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=99";
+import { buildOnboardScreen } from "./onboard.js?v=99";
 
 
 // ── Haversine distance in miles ──
@@ -891,7 +891,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=98");
+      const { initials, avatarColor } = await import("./ui.js?v=99");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1793,13 +1793,13 @@ window.UI = {
 
           // Run each tile search (primary + country_club type)
           for (const [tLat, tLon] of _tileCenters) {
-            for (const _type of ['golf_course', 'country_club']) {
+            for (const _keyword of ['golf course', 'country club golf']) {
               let _gpPageToken = null;
               let _gpPage = 0;
               do {
                 const _gpUrl = _gpPageToken
                   ? `/api/places?pagetoken=${_gpPageToken}&key=${window._googlePlacesKey}`
-                  : `/api/places?location=${tLat.toFixed(5)},${tLon.toFixed(5)}&radius=${_tileRad}&type=${_type}&key=${window._googlePlacesKey}`;
+                  : `/api/places?location=${tLat.toFixed(5)},${tLon.toFixed(5)}&radius=${_tileRad}&keyword=${encodeURIComponent(_keyword)}&key=${window._googlePlacesKey}`;
                 const _gpResp = await fetch(_gpUrl).catch(()=>null);
                 if (!_gpResp?.ok) break;
                 const _gpData = await _gpResp.json().catch(()=>null);
@@ -1852,7 +1852,7 @@ window.UI = {
                     try { localStorage.setItem('fw_' + _pck, _pcp); } catch(_) {}
                   } catch(_) {}
                 }
-                console.log(`Discover: GP tile [${tLat.toFixed(2)},${tLon.toFixed(2)}] ${_type} → ${_gpData.results?.length||0} results, ${_newCount} new`);
+                console.log(`Discover: GP tile [${tLat.toFixed(2)},${tLon.toFixed(2)}] ${_keyword.replace(/ /g,'_')} → ${_gpData.results?.length||0} results, ${_newCount} new`);
 
                 _gpPageToken = _gpData.next_page_token || null;
                 if (_gpPageToken) await new Promise(r => setTimeout(r, 1800));
@@ -2563,7 +2563,7 @@ function showFormError(form, msg) {
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 // Load Google Places API key from localStorage if set
-window._googlePlacesKey = localStorage.getItem('fw_google_places_key') || '';
+window._googlePlacesKey = localStorage.getItem('fw_google_places_key') || 'AIzaSyAQSzxQm7wfeih4X5gAggZiZhCjMLDipjA';
 
 // ── Discover tee times ────────────────────────────────────────────────────────
 function loadDiscoverTeeTimes() {
