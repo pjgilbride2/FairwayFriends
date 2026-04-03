@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=96";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=96";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=96";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=96";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=96";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=96";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=96";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=96";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=96";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=96";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=96";
-import { buildOnboardScreen } from "./onboard.js?v=96";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=97";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=97";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=97";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=97";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=97";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=97";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=97";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=97";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=97";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=97";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=97";
+import { buildOnboardScreen } from "./onboard.js?v=97";
 
 
 // ── Haversine distance in miles ──
@@ -96,6 +96,45 @@ function _gcapiToRyzeFormat(course) {
   }));
   return { name: course.course_name, scorecard, teeBoxes, _source: 'gcapi' };
 }
+
+// ── Scrape foretee.com scorecard for any US golf course ─────
+// Called as last-resort when course not in local data + GolfCourseAPI fails
+async function _scrapeForeteeScorecard(courseName) {
+  // Build foretee search URL
+  const searchUrl = `https://foretee.com/search?q=${encodeURIComponent(courseName)}&type=course`;
+  try {
+    // We can't fetch cross-origin directly — use the server proxy
+    const proxyUrl = `/api/foretee-scorecard?name=${encodeURIComponent(courseName)}`;
+    const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data?.holes?.length >= 9) return data;
+    }
+  } catch(_) {}
+  return null;
+}
+
+// ── Auto-lookup city when ZIP is entered ──────────────────────
+window.handleZipInput = async function(prefix) {
+  const zipEl  = document.getElementById(prefix + '-zip');
+  const cityEl = document.getElementById(prefix + '-city');
+  const stateEl= document.getElementById(prefix + '-state');
+  const zip = zipEl?.value?.trim();
+  if (!zip || zip.length < 5) return;
+  // Debounce: only fire when 5 digits typed
+  if (!/^\d{5}$/.test(zip)) return;
+  try {
+    const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+zip+'&count=5&language=en&format=json&country_code=US')).json();
+    const best = gd.results?.find(r=>r.country_code==='US') || gd.results?.[0];
+    if (best) {
+      if (cityEl && !cityEl.value) cityEl.value = best.name || '';
+      if (stateEl && !stateEl.value) {
+        const STATE_ABBR = {Alabama:'AL',Alaska:'AK',Arizona:'AZ',Arkansas:'AR',California:'CA',Colorado:'CO',Connecticut:'CT',Delaware:'DE',Florida:'FL',Georgia:'GA',Hawaii:'HI',Idaho:'ID',Illinois:'IL',Indiana:'IN',Iowa:'IA',Kansas:'KS',Kentucky:'KY',Louisiana:'LA',Maine:'ME',Maryland:'MD',Massachusetts:'MA',Michigan:'MI',Minnesota:'MN',Mississippi:'MS',Missouri:'MO',Montana:'MT',Nebraska:'NE',Nevada:'NV',"New Hampshire":'NH',"New Jersey":'NJ',"New Mexico":'NM',"New York":'NY',"North Carolina":'NC',"North Dakota":'ND',Ohio:'OH',Oklahoma:'OK',Oregon:'OR',Pennsylvania:'PA',"Rhode Island":'RI',"South Carolina":'SC',"South Dakota":'SD',Tennessee:'TN',Texas:'TX',Utah:'UT',Vermont:'VT',Virginia:'VA',Washington:'WA',"West Virginia":'WV',Wisconsin:'WI',Wyoming:'WY',"District of Columbia":'DC'};
+        stateEl.value = STATE_ABBR[best.admin1] || '';
+      }
+    }
+  } catch(_) {}
+};
 
 window.UI = {
 
@@ -352,7 +391,13 @@ window.UI = {
       if (_cityChanged || _hasNoCoords || _hasNoCourses) {
         if (_cityChanged) {
           window._lastDiscoverCity = _profileCity;
-          window._wxLat = null; window._wxLon = null;
+          // Use saved lat/lon from profile if available, otherwise null for re-geocode
+          if (myProfile.lat && myProfile.lon) {
+            window._wxLat = myProfile.lat;
+            window._wxLon = myProfile.lon;
+          } else {
+            window._wxLat = null; window._wxLon = null;
+          }
           try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc2_')||k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
           window._nearbyCourses = null; window._coursesLoading = false;
         }
@@ -623,25 +668,53 @@ window.UI = {
 
   async saveProfileEdits() {
     const bio       = (document.getElementById("edit-bio")?.value         || "").trim();
+    const zipRaw    = (document.getElementById("edit-zip")?.value         || "").trim();
     const cityRaw   = (document.getElementById("edit-city")?.value        || "").trim();
     const stateRaw  = (document.getElementById("edit-state")?.value       || "").trim().toUpperCase();
     const homeCourse= (document.getElementById("edit-home-course")?.value || "").trim();
-    // Build combined city string BEFORE using it
-    const city = stateRaw ? `${cityRaw}, ${stateRaw}` : cityRaw;
-    // Geocode city to get lat/lon for distance filtering
+    // Build combined city string
+    const city = cityRaw ? (stateRaw ? `${cityRaw}, ${stateRaw}` : cityRaw) : (zipRaw || "");
+    // Geocode to get lat/lon — ZIP first (most precise), then City+State
     let profLat = null, profLon = null;
-    if (city) {
-      const gk = 'geo_' + city.split(',')[0].trim().toLowerCase().replace(/ /g,'_');
-      try {
-        const cached = sessionStorage.getItem(gk);
-        if (cached) { const g=JSON.parse(cached); profLat=g.lat; profLon=g.lon; }
-      } catch(_) {}
+    const _STATE_MAP = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",DC:"District of Columbia"};
+    // Try ZIP code first
+    if (zipRaw && /^\d{5}$/.test(zipRaw)) {
+      const gk = 'geo_zip_' + zipRaw;
+      try { const c=sessionStorage.getItem(gk); if(c){const g=JSON.parse(c); profLat=g.lat; profLon=g.lon;} } catch(_) {}
       if (!profLat) {
         try {
-          const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(city.split(',')[0].trim())+'&count=1&language=en&format=json')).json();
-          if (gd.results?.length) {
-            profLat = gd.results[0].latitude;
-            profLon = gd.results[0].longitude;
+          const gd = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+zipRaw+'&count=5&language=en&format=json&country_code=US')).json();
+          const best = gd.results?.find(r=>r.country_code==='US') || gd.results?.[0];
+          if (best) {
+            profLat=best.latitude; profLon=best.longitude;
+            // Auto-fill city/state if blank
+            if (!cityRaw && best.name) { const ce=document.getElementById("edit-city"); if(ce) ce.value=best.name; }
+            if (!stateRaw && best.admin1) {
+              const stAb = Object.keys(_STATE_MAP).find(k=>_STATE_MAP[k]===best.admin1)||"";
+              const se=document.getElementById("edit-state"); if(se && stAb) se.value=stAb;
+            }
+            sessionStorage.setItem(gk, JSON.stringify({lat:profLat,lon:profLon,ts:Date.now()}));
+          }
+        } catch(_) {}
+      }
+    }
+    // Fall back to City+State geocoding
+    if (!profLat && cityRaw) {
+      const _cityQ = cityRaw;
+      const _stateFull = _STATE_MAP[stateRaw] || stateRaw;
+      const gk = 'geo_' + city.toLowerCase().replace(/[^a-z0-9]/g,'_');
+      try { const c=sessionStorage.getItem(gk); if(c){const g=JSON.parse(c); if(g.ts&&Date.now()-g.ts<86400000){profLat=g.lat; profLon=g.lon;}} } catch(_) {}
+      if (!profLat) {
+        try {
+          const url = 'https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(_cityQ)+'&count=5&language=en&format=json&country_code=US';
+          const gd = await (await fetch(url)).json();
+          let best = gd.results?.[0];
+          if (_stateFull && gd.results?.length > 1) {
+            const match = gd.results.find(r=>r.admin1===_stateFull||r.admin1?.toLowerCase()===_stateFull.toLowerCase());
+            if (match) best = match;
+          }
+          if (best) {
+            profLat=best.latitude; profLon=best.longitude;
             sessionStorage.setItem(gk, JSON.stringify({lat:profLat,lon:profLon,ts:Date.now()}));
           }
         } catch(_) {}
@@ -670,24 +743,26 @@ window.UI = {
       await saveProfileData({ bio, city, homeCourse, handicap, lat: profLat, lon: profLon });
       showToast("Profile saved! ✅");
       window._weatherCity = city;
-      // Sync new location to wx globals so Discover uses it immediately
+      // Set new coords FIRST before clearing caches
       if (profLat) { window._wxLat = profLat; window._wxLon = profLon; }
-      // Clear Discover cache so it reloads with new location
-      try { Object.keys(sessionStorage).filter(k=>k.startsWith('gc2_')||k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k)); } catch(_) {}
-      window._nearbyCourses = null; window._coursesLoading = false; window._lastDiscoverCity = city;
-      // Clear ALL cached location data so new city takes effect immediately
+      // Clear stale course caches so Discover reloads for new location
+      try {
+        Object.keys(sessionStorage)
+          .filter(k=>k.startsWith('gc_')||k.startsWith('gc2_'))
+          .forEach(k=>sessionStorage.removeItem(k));
+        Object.keys(localStorage)
+          .filter(k=>k.startsWith('fw_gc_'))
+          .forEach(k=>localStorage.removeItem(k));
+      } catch(_) {}
+      window._nearbyCourses = null;
+      window._coursesLoading = false;
+      window._lastDiscoverCity = city;
       window._userLat = null;
       window._userLon = null;
-      window._wxLat   = null;
-      window._wxLon   = null;
-      window._coursesLoading = false;
-      // Clear cached courses so new city's courses load fresh
-      try{Object.keys(sessionStorage).filter(k=>k.startsWith('gc_')).forEach(k=>sessionStorage.removeItem(k));Object.keys(localStorage).filter(k=>k.startsWith('fw_gc_')).forEach(k=>localStorage.removeItem(k));}catch(_){}
-      // Refresh weather and courses with new city
+      // If no coords found (city not geocoded), also clear wx so Discover re-geocodes
+      if (!profLat) { window._wxLat = null; window._wxLon = null; }
       UI.refreshWeather();
       goScreen("profile");
-      // Load courses for new city after a short delay
-      setTimeout(() => { window._nearbyCourses = null; }, 100);
     } catch (err) {
       console.error("saveProfileEdits error:", err);
       // Show the actual Firebase error so it is actionable
@@ -816,7 +891,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=96");
+      const { initials, avatarColor } = await import("./ui.js?v=97");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -2143,7 +2218,7 @@ window.UI = {
       console.log('[SC] Local scorecard:', local.name);
       return _scorecardToRyzeFormat(local.name, local.holes);
     }
-    // 2. GolfCourseAPI.com fallback for any course not in local data
+    // 2. GolfCourseAPI.com fallback
     const cacheKey = 'gcapi_' + courseName.toLowerCase().replace(/[^a-z0-9]/g,'_');
     try {
       const cached = sessionStorage.getItem(cacheKey);
@@ -2154,14 +2229,30 @@ window.UI = {
         `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(courseName)}`,
         { headers: { 'Authorization': 'Key Q4EAEMMFI54TY4HEA62GEOH3BI' }, signal: AbortSignal.timeout(8000) }
       );
-      if (!resp.ok) return null;
-      const data = await resp.json();
-      const course = data.courses?.[0];
-      if (!course) return null;
-      const ryze = _gcapiToRyzeFormat(course);
-      try { sessionStorage.setItem(cacheKey, JSON.stringify(ryze)); } catch(_) {}
-      return ryze;
-    } catch(e) { console.warn('[SC] API fallback failed:', e.message); return null; }
+      if (resp.ok) {
+        const data = await resp.json();
+        const course = data.courses?.[0];
+        if (course) {
+          const ryze = _gcapiToRyzeFormat(course);
+          try { sessionStorage.setItem(cacheKey, JSON.stringify(ryze)); } catch(_) {}
+          return ryze;
+        }
+      }
+    } catch(e) { console.warn('[SC] GolfCourseAPI failed:', e.message); }
+    // 3. foretee.com scrape via server proxy (works for any US course)
+    try {
+      const scrapeKey = 'foretee_' + courseName.toLowerCase().replace(/[^a-z0-9]/g,'_');
+      const scrapeCached = sessionStorage.getItem(scrapeKey);
+      if (scrapeCached) return JSON.parse(scrapeCached);
+      const scraped = await _scrapeForeteeScorecard(courseName);
+      if (scraped?.holes?.length >= 9) {
+        const ryze = _scorecardToRyzeFormat(courseName, scraped.holes);
+        try { sessionStorage.setItem(scrapeKey, JSON.stringify(ryze)); } catch(_) {}
+        console.log('[SC] foretee scrape success:', courseName);
+        return ryze;
+      }
+    } catch(e) { console.warn('[SC] foretee scrape failed:', e.message); }
+    return null;
   },
 
   // ── Show tee picker sheet ─────────────────────────────────────

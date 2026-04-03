@@ -90,6 +90,99 @@ app.use(express.static(path.join(__dirname, "public"), {
   }
 }));
 
+
+// ── foretee.com scorecard scraper proxy ──────────────────────────────
+// Fetches scorecard for any US golf course by name
+// Searches foretee.com, finds the course page, scrapes the scorecard table
+app.get('/api/foretee-scorecard', async (req, res) => {
+  const name = (req.query.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'name required' });
+
+  try {
+    // Step 1: Search foretee for the course
+    const searchUrl = `https://foretee.com/search?q=${encodeURIComponent(name)}&type=course`;
+    const searchResp = await new Promise((resolve, reject) => {
+      const mod = require('https');
+      mod.get(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FairwayFriend/1.0)' } }, resolve).on('error', reject);
+    });
+    let searchHtml = '';
+    await new Promise((resolve, reject) => {
+      searchResp.on('data', d => searchHtml += d);
+      searchResp.on('end', resolve);
+      searchResp.on('error', reject);
+    });
+
+    // Extract first scorecard URL from search results
+    const urlMatch = searchHtml.match(/href="(\/golf-course-scorecard\/[^"]+\/(\d+))"/);
+    if (!urlMatch) return res.json({ holes: null, error: 'course not found on foretee' });
+
+    const scorecardPath = urlMatch[1];
+    const courseId = urlMatch[2];
+
+    // Step 2: Fetch the scorecard page
+    const scUrl = `https://foretee.com${scorecardPath}`;
+    const scResp = await new Promise((resolve, reject) => {
+      const mod = require('https');
+      mod.get(scUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FairwayFriend/1.0)' } }, resolve).on('error', reject);
+    });
+    let scHtml = '';
+    await new Promise((resolve, reject) => {
+      scResp.on('data', d => scHtml += d);
+      scResp.on('end', resolve);
+      scResp.on('error', reject);
+    });
+
+    // Step 3: Parse scorecard table using regex
+    // Extract all table rows
+    const tableMatch = scHtml.match(/<table[\s\S]*?<\/table>/i);
+    if (!tableMatch) return res.json({ holes: null, error: 'no table found' });
+
+    const rows = [];
+    const rowRegex = /<tr[\s\S]*?<\/tr>/gi;
+    let rowMatch;
+    while ((rowMatch = rowRegex.exec(tableMatch[0])) !== null) {
+      const cells = [];
+      const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+      let cellMatch;
+      while ((cellMatch = cellRegex.exec(rowMatch[0])) !== null) {
+        cells.push(cellMatch[1].replace(/<[^>]+>/g, '').trim());
+      }
+      if (cells.length > 10) rows.push(cells);
+    }
+
+    if (!rows.length) return res.json({ holes: null, error: 'no rows parsed' });
+
+    // Find par, hcp, tee rows
+    const parRow  = rows.find(r => r[0] === 'PAR');
+    const hcpRow  = rows.find(r => r[0] === 'HDCP' || r[0] === 'Handicap');
+    const holeRow = rows.find(r => r[0] === 'HOME' || r[0] === 'Hole');
+    const teeRows = rows.filter(r => r[0] && !['HOME','PAR','HDCP','LADIES PAR','Hole','Handicap','LADIES HDCP','LADIES HCP'].includes(r[0]) && parseInt(r[1]) > 80);
+
+    if (!parRow) return res.json({ holes: null, error: 'PAR row not found' });
+
+    const holes = [];
+    let hi = 0;
+    for (let ci = 1; ci < parRow.length && hi < 18; ci++) {
+      const label = holeRow?.[ci] || '';
+      if (['OUT','IN','Total'].includes(label)) continue;
+      const par = parseInt(parRow[ci]);
+      if (isNaN(par) || par < 3 || par > 5) continue;
+      const hcp = parseInt(hcpRow?.[ci]) || null;
+      const yards = {};
+      teeRows.forEach(tr => { const y = parseInt(tr[ci]); if (!isNaN(y) && y > 80 && y < 700) yards[tr[0]] = y; });
+      holes.push({ h: hi + 1, par, hcp, yards });
+      hi++;
+    }
+
+    if (holes.length < 9) return res.json({ holes: null, error: `only ${holes.length} holes parsed` });
+
+    res.json({ holes, courseId, scorecardUrl: scUrl, source: 'foretee' });
+  } catch (err) {
+    console.error('[foretee proxy] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
