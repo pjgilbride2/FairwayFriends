@@ -2226,24 +2226,6 @@ window.UI = {
     }
   },
 
-
-    const lat = parseFloat(latStr) || window._wxLat;
-    const lon = parseFloat(lonStr) || window._wxLon;
-    if (!lat) { showToast('Set your location in profile to use GPS'); return; }
-    const scInp = document.getElementById('sc-course-input');
-    if (scInp) scInp.value = courseName;
-    window._pendingGpsCourse = courseName;
-    window._pendingGpsLat    = lat;
-    window._pendingGpsLon    = lon;
-    safeUI('goScreen','scorecard');
-    await new Promise(r => setTimeout(r, 400));
-    const body = document.getElementById('gps-body');
-    if (body) body.style.display = 'block';
-    window._pendingGpsCourse = courseName;
-    safeUI('startGpsTracking');
-    showToast(`▶ GPS started for ${courseName}`);
-  },
-
   async openCourseLayoutScreen() {
     const courseName = document.getElementById('sc-course-input')?.value?.trim()
       || window.myProfile?.homeCourse || '';
