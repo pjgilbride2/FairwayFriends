@@ -670,3 +670,170 @@ body { font-display: swap; }
 #create-group-btn:disabled { opacity: .45; cursor: default; }
 .following-selected { background: var(--green-light) !important; border-radius: 8px; }
 #conv-header-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   HOME FEED — modern golf-green redesign
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Header */
+.feed-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px 8px;
+  background: var(--card-bg);
+  position: sticky; top: 0; z-index: 10;
+  border-bottom: 1px solid var(--border);
+}
+.feed-header-right { display: flex; align-items: center; gap: 10px; }
+.feed-avatar-btn { cursor: pointer; transition: transform .15s; }
+.feed-avatar-btn:hover { transform: scale(1.06); }
+
+/* Logo */
+.app-logo { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+.logo-fairway { color: var(--green); font-weight: 800; }
+.logo-dot { color: var(--green); }
+
+/* Nearby badge */
+.nearby-badge {
+  margin: 8px 16px 0;
+  padding: 6px 14px;
+  background: var(--green-light);
+  border-radius: 20px;
+  font-size: 12px; font-weight: 600; color: var(--green-dark);
+}
+
+/* Section spacing */
+.feed-section { margin: 0 16px; }
+
+/* Section headers */
+.feed-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px 6px;
+}
+.feed-section-title {
+  font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -.1px;
+}
+.feed-see-all {
+  background: none; border: none;
+  font-size: 12px; color: var(--green); font-weight: 600;
+  cursor: pointer; font-family: inherit; padding: 0;
+}
+.feed-see-all:hover { text-decoration: underline; }
+
+/* Nearby players row */
+.nearby-players-row {
+  padding: 0 16px 12px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  display: flex; gap: 10px;
+}
+.nearby-players-row::-webkit-scrollbar { display: none; }
+
+/* Post composer card */
+.post-composer-card {
+  margin: 0 16px 12px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  transition: border-color .15s;
+}
+.post-composer-card:focus-within { border-color: var(--green); }
+
+.composer-row {
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.composer-avatar { flex-shrink: 0; margin-top: 2px; }
+
+.composer-textarea {
+  flex: 1; border: none; background: transparent;
+  font-family: inherit; font-size: 14px; color: var(--text);
+  outline: none; resize: none; line-height: 1.5;
+  min-height: 24px;
+  transition: min-height .2s;
+}
+.composer-textarea::placeholder { color: var(--muted); }
+
+.post-image-remove {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(0,0,0,.55); border: none; color: #fff;
+  border-radius: 50%; width: 22px; height: 22px;
+  cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.composer-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.composer-photo-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  cursor: pointer; font-size: 12px; font-weight: 500;
+  color: var(--muted); padding: 5px 10px;
+  border-radius: 16px;
+  transition: background .12s, color .12s;
+}
+.composer-photo-btn:hover { background: rgba(0,0,0,.05); color: var(--text); }
+
+/* THE main Post button — golf course green */
+.composer-post-btn {
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 7px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: .01em;
+  box-shadow: 0 2px 8px rgba(34,139,34,.25);
+  transition: background .15s, box-shadow .15s, transform .1s;
+}
+.composer-post-btn:hover {
+  background: #1d7a35;
+  box-shadow: 0 3px 12px rgba(34,139,34,.35);
+}
+.composer-post-btn:active { transform: scale(.97); }
+
+/* Community feed list */
+.community-feed-list {
+  padding: 0 16px 100px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* Refresh/loading indicator */
+.feed-loading {
+  text-align: center; padding: 20px; color: var(--muted); font-size: 13px;
+}
+
+/* Player cards in nearby row */
+.nearby-player-card {
+  display: inline-flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 10px 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer; min-width: 80px;
+  transition: box-shadow .15s, border-color .15s;
+  white-space: normal; text-align: center; vertical-align: top;
+}
+.nearby-player-card:hover {
+  box-shadow: 0 2px 10px rgba(0,0,0,.1);
+  border-color: var(--green);
+}
+
+/* Override old post-btn if still referenced */
+.post-btn {
+  padding: 7px 20px;
+  background: var(--green); color: #fff; border: none;
+  border-radius: 20px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  box-shadow: 0 2px 8px rgba(34,139,34,.25);
+  transition: background .15s;
+}
+.post-btn:hover { background: #1d7a35; }
+
