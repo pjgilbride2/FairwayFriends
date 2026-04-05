@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=101";
+import { auth, db } from "./firebase-config.js?v=102";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -20,10 +20,10 @@ import {
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=101";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=101";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=101";
-import { goScreen, hideSplash } from "./ui.js?v=101";
+import { loadUserProfile } from "./profile.js?v=102";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=102";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=102";
+import { goScreen, hideSplash } from "./ui.js?v=102";
 
 let _listenersActive = false;
 
@@ -318,6 +318,9 @@ export function buildAuthScreen() {
 
 // ── Init auth state listener ──────────────────────────────────
 export function initAuth() {
+  // Expose SSO helpers globally so onboard.js can call them without dynamic import
+  window._doGoogleLogin = doGoogleLogin;
+  window._doAppleLogin  = doAppleLogin;
   // Force LOCAL persistence so auth state survives redirect hops
   // (default may be SESSION which gets cleared on redirect in some browsers)
   setPersistence(auth, browserLocalPersistence).catch(e => console.warn('setPersistence:', e.message));
@@ -360,7 +363,15 @@ export function initAuth() {
         hideSplash();
 
         if (needsOnboard) {
-          goScreen("onboard");
+          // Don't re-navigate if already on onboard (e.g. mid-SSO flow)
+          const alreadyOnOnboard = document.querySelector('.screen.active')?.id === 'screen-onboard';
+          if (!alreadyOnOnboard) {
+            goScreen("onboard");
+          } else {
+            // Already on onboard — just let buildOnboardScreen SSO detection handle it
+            // by calling it directly (it will detect SSO and skip to step 2)
+            if (typeof buildOnboardScreen === 'function') buildOnboardScreen();
+          }
         } else {
           goScreen("feed");
           document.getElementById("bottom-nav").style.display = "flex";

@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=101";
+import { db, storage } from "./firebase-config.js?v=102";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=101";
+import { showToast } from "./ui.js?v=102";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -73,8 +73,15 @@ export function buildOnboardScreen() {
       _data.lastName  = parts.slice(1).join(' ') || '';
       _data.email     = window._currentUser.email || '';
       _data.ssoProvider = providerId;
-      // Skip to step 2 (name/dob) after DOM is ready
-      setTimeout(() => _goTo(2), 50);
+      // Skip to step 2 after DOM + _wire() complete
+      // Use requestAnimationFrame to ensure the DOM is fully rendered
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            _goTo(2);
+          });
+        });
+      }, 100);
       return;
     }
   }
@@ -402,53 +409,66 @@ function _wire() {
   // Google → trigger actual Google SSO, then skip to profile setup
   const obGoogleBtn = document.getElementById('ob-google');
   if (obGoogleBtn) obGoogleBtn.onclick = async () => {
-    obGoogleBtn.disabled = true;
-    const orig = obGoogleBtn.innerHTML;
-    obGoogleBtn.innerHTML = '<span style="opacity:.6;font-size:13px">Connecting…</span>';
+    const btn = document.getElementById('ob-google'); // re-query in case DOM rebuilt
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span style="opacity:.6;font-size:13px">Connecting…</span>';
     try {
-      // Import and call doGoogleLogin from auth.js
-      const authMod = await import('./auth.js?v=101');
-      const user = await authMod.doGoogleLogin();
+      // Use window._doGoogleLogin set by initAuth() — avoids circular import timing issues
+      const loginFn = window._doGoogleLogin;
+      if (!loginFn) throw new Error('Google login not initialized yet');
+      const user = await loginFn();
       if (user) {
-        // Signed in — pre-fill name from Google profile
+        // Pre-fill _data — buildOnboardScreen SSO detection will also do this
+        // but set it here as backup in case we race past the rebuild
         const parts = (user.displayName||'').trim().split(/\s+/);
         _data.firstName = parts[0] || '';
         _data.lastName  = parts.slice(1).join(' ') || '';
         _data.email     = user.email || '';
         _data.ssoProvider = 'google.com';
-        _goTo(2); // skip to profile steps
+        // onAuthStateChanged will fire → buildOnboardScreen → _goTo(2)
+        // If we're still on the same DOM, also call _goTo(2) directly
+        if (document.getElementById('ob-google')) {
+          setTimeout(() => { if (_cur < 2) _goTo(2); }, 200);
+        }
       }
       // If user is null, signInWithRedirect was called — page will reload
     } catch(e) {
       console.error('Onboard Google SSO error:', e.code || e.message);
       window.showToast?.('Google sign-in failed. Please try again.');
-      obGoogleBtn.disabled = false;
-      obGoogleBtn.innerHTML = orig;
+      const b2 = document.getElementById('ob-google');
+      if (b2) { b2.disabled = false; b2.innerHTML = orig; }
     }
   };
 
   // Apple → trigger Apple SSO
   const obAppleBtn = document.getElementById('ob-apple');
   if (obAppleBtn) obAppleBtn.onclick = async () => {
-    obAppleBtn.disabled = true;
-    const orig = obAppleBtn.innerHTML;
-    obAppleBtn.innerHTML = '<span style="opacity:.6;font-size:13px">Connecting…</span>';
+    const btn = document.getElementById('ob-apple');
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span style="opacity:.6;font-size:13px">Connecting…</span>';
     try {
-      const authMod = await import('./auth.js?v=101');
-      const user = await authMod.doAppleLogin();
+      const loginFn = window._doAppleLogin;
+      if (!loginFn) throw new Error('Apple login not initialized yet');
+      const user = await loginFn();
       if (user) {
         const parts = (user.displayName||'').trim().split(/\s+/);
         _data.firstName = parts[0] || '';
         _data.lastName  = parts.slice(1).join(' ') || '';
         _data.email     = user.email || '';
         _data.ssoProvider = 'apple.com';
-        _goTo(2);
+        if (document.getElementById('ob-apple')) {
+          setTimeout(() => { if (_cur < 2) _goTo(2); }, 200);
+        }
       }
     } catch(e) {
       console.error('Onboard Apple SSO error:', e.code || e.message);
       window.showToast?.('Apple sign-in failed. Please try again.');
-      obAppleBtn.disabled = false;
-      obAppleBtn.innerHTML = orig;
+      const b2 = document.getElementById('ob-apple');
+      if (b2) { b2.disabled = false; b2.innerHTML = orig; }
     }
   };
 

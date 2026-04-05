@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=101";
+import { db, storage } from "./firebase-config.js?v=102";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=101";
-import { createNotification } from "./notifications.js?v=101";
-import { loadRoundDayForecast } from "./weather.js?v=101";
+import { myProfile, myVibes } from "./profile.js?v=102";
+import { createNotification } from "./notifications.js?v=102";
+import { loadRoundDayForecast } from "./weather.js?v=102";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=101";
+} from "./ui.js?v=102";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -237,48 +237,62 @@ export function renderFeed(posts) {
       const avatarHTML = p.photoURL
         ? `<div ${profileClick} style="width:38px;height:38px;border-radius:50%;background:url(${p.photoURL}) center/cover;flex-shrink:0${canViewProfile?';cursor:pointer':''}"></div>`
         : `<div class="player-avatar ${aColor}" ${profileClick} style="width:38px;height:38px;font-size:13px${canViewProfile?';cursor:pointer':''}">${ini}</div>`;
-      return `<div class="post-card">
+      const replyCount = p.replyCount || 0;
+      const likeCount = (p.helpfuls||[]).length;
+      const isLiked = (p.helpfuls||[]).includes(window._currentUser?.uid);
+      const myAv = avatarColor(window._currentUser?.uid||'');
+      const myIni = initials(window.myProfile?.displayName||'Me');
+      return `<div class="post-card" id="post-card-${p.id}">
         <div class="post-header">
           ${avatarHTML}
-          <div style="flex:1" ${profileClick}>
-            <div style="font-size:13px;font-weight:500;color:var(--text)${canViewProfile?';cursor:pointer':''}">${esc(p.authorName || "Golfer")}</div>
-            <div style="font-size:11px;color:var(--muted)">${timeAgo}</div>
+          <div style="flex:1;min-width:0" ${profileClick}>
+            <div class="post-author-name">${esc(p.authorName || "Golfer")}</div>
+            <div class="post-time">${timeAgo}</div>
           </div>
-          ${isOwn ? `<button onclick="deletePost('${p.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0">×</button>` : ""}
+          ${isOwn ? `<button onclick="safeUI('deletePost','${p.id}')" class="post-delete-btn" title="Delete post">✕</button>` : ""}
         </div>
-        ${p.course ? `<div class="post-course-tag">📍 ${esc(p.course)}</div>` : ""}
+        ${p.course ? `<div class="post-course-tag">⛳ ${esc(p.course)}</div>` : ""}
         ${p.text ? `<div class="post-body">${esc(p.text)}</div>` : ""}
-        ${p.imageURL ? `<img src="${p.imageURL}" alt="Post photo"
-          style="width:100%;border-radius:var(--radius-md);margin:8px 0;object-fit:cover;max-height:360px;display:block">` : ""}
-        ${vibeHtml ? `<div class="player-vibes" style="margin-bottom:10px">${vibeHtml}</div>` : ""}
+        ${p.imageURL ? `<img src="${p.imageURL}" alt="" class="post-image" loading="lazy">` : ""}
+        ${vibeHtml ? `<div class="player-vibes post-vibes">${vibeHtml}</div>` : ""}
         <div class="post-footer">
-          <div class="post-action" onclick="safeUI('toggleReply','${p.id}')" id="reply-btn-${p.id}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-            </svg>Reply <span class="post-action-count" id="reply-count-${p.id}">${(p.replyCount||0)>0?p.replyCount:""}</span>
-          </div>
-          <div class="post-action ${(p.helpfuls||[]).includes(window._currentUser?.uid) ? "post-action-active" : ""}" 
-               onclick="safeUI('toggleLike','${p.id}')" id="helpful-btn-${p.id}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
-            </svg>❤️ Like <span class="post-action-count" id="helpful-count-${p.id}">${(p.helpfuls||[]).length>0?(p.helpfuls||[]).length:""}</span>
+          <button class="post-action-btn ${isLiked ? 'liked' : ''}" onclick="safeUI('toggleLike','${p.id}')" id="helpful-btn-${p.id}">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            <span id="helpful-count-${p.id}">${likeCount > 0 ? likeCount : ''}</span>${likeCount === 1 ? ' Like' : likeCount > 1 ? ' Likes' : ' Like'}
+          </button>
+          <button class="post-action-btn" onclick="safeUI('focusReply','${p.id}')" id="reply-btn-${p.id}">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            Comment${replyCount > 0 ? ` <span class="post-action-count">(${replyCount})</span>` : ''}
+          </button>
+        </div>
+        <div class="post-comments-section">
+          <div id="replies-list-${p.id}" class="replies-list"></div>
+          <div class="reply-composer">
+            <div class="reply-composer-avatar ${myAv}">${myIni}</div>
+            <div class="reply-input-wrap">
+              <textarea id="reply-input-${p.id}" rows="1" placeholder="Add a comment…" class="reply-textarea"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();safeUI('submitReply','${p.id}')}"
+                oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+              <button onclick="safeUI('submitReply','${p.id}')" class="reply-send-btn" id="reply-send-${p.id}" title="Send">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
           </div>
         </div>
-        <div id="reply-box-${p.id}" style="display:none;padding:8px 12px 12px">
-          <div style="display:flex;gap:8px;align-items:flex-end">
-            <textarea id="reply-input-${p.id}" rows="1" placeholder="Write a reply…"
-              style="flex:1;border:0.5px solid var(--border);border-radius:var(--radius-md);
-                     padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:13px;
-                     color:var(--text);background:var(--surface);outline:none;resize:none"></textarea>
-            <button onclick="safeUI('submitReply','${p.id}')"
-              style="background:var(--green);color:white;border:none;border-radius:var(--radius-md);
-                     padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;flex-shrink:0">Send</button>
-          </div>
-        </div>
-        <div id="replies-list-${p.id}" style="padding:0 12px"></div>
       </div>`;
     })
     .join("");
+  // Load replies for all posts (shows existing comments immediately)
+  setTimeout(() => {
+    posts.forEach(p => { if ((p.replyCount||0) > 0) loadReplies(p.id); });
+  }, 100);
+}
+
+export async function deletePostById(postId) {
+  const user = window._currentUser;
+  if (!user) return;
+  const { deleteDoc, doc: firestoreDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+  await deleteDoc(firestoreDoc(db, "posts", postId));
 }
 
 export async function submitPost(text, imageFile) {
@@ -392,22 +406,24 @@ export async function loadReplies(postId) {
   const q = query(
     collection(db, "posts", postId, "replies"),
     orderBy("createdAt", "asc"),
-    limit(20)
+    limit(50)
   );
   const snap = await getDocs(q);
   if (!snap.docs.length) { container.innerHTML = ""; return; }
   container.innerHTML = snap.docs.map(d => {
     const r = d.data();
-    const ini = initials(r.authorName || "Golfer");
-    const col = avatarColor(r.authorId || "");
+    const ini  = initials(r.authorName || "Golfer");
+    const col  = avatarColor(r.authorId || "");
     const time = r.createdAt?.toDate ? relativeTime(r.createdAt.toDate()) : "";
-    return `<div style="display:flex;gap:8px;padding:8px 0;border-top:0.5px solid var(--border)">
-      <div class="avatar-sm ${col}" style="width:28px;height:28px;font-size:10px;flex-shrink:0${r.authorId&&r.authorId!==window._currentUser?.uid?';cursor:pointer':''}"
-        ${r.authorId&&r.authorId!==window._currentUser?.uid?`onclick="safeUI('openPlayerProfile','${r.authorId}')"`:''}>
-        ${ini}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:500;color:var(--text)">${esc(r.authorName||"Golfer")} <span style="color:var(--muted);font-weight:400">${time}</span></div>
-        <div style="font-size:13px;color:var(--text);margin-top:2px">${esc(r.text)}</div>
+    const isMe = r.authorId === window._currentUser?.uid;
+    const canClick = r.authorId && !isMe;
+    const clickAttr = canClick ? `onclick="safeUI('openPlayerProfile','${r.authorId}')" style="cursor:pointer"` : "";
+    return `<div class="reply-item">
+      <div class="avatar-sm ${col}" ${clickAttr} title="${esc(r.authorName||'Golfer')}">${ini}</div>
+      <div class="reply-bubble">
+        <span class="reply-author">${esc(r.authorName||"Golfer")}</span>
+        <span class="reply-text">${esc(r.text)}</span>
+        <span class="reply-time">${time}</span>
       </div>
     </div>`;
   }).join("");
