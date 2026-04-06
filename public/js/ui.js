@@ -131,3 +131,4 @@ export function goScreen(name) {
         .join('');
     }
   }
+}
