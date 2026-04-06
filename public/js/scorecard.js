@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=110";
+import { db } from "./firebase-config.js?v=111";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=110";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=110";
+import { myProfile, myVibes } from "./profile.js?v=111";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=111";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -192,95 +192,160 @@ function _playerTotal(playerIdx) {
 export function addPlayerPrompt() {
   if (players.length >= 4) { showToast("Maximum 4 players"); return; }
 
-  // Build overlay panel
+  document.getElementById("sc-add-player-overlay")?.remove();
+
   const overlay = document.createElement("div");
   overlay.id = "sc-add-player-overlay";
-  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center";
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
 
   const sheet = document.createElement("div");
-  sheet.style.cssText = "background:var(--bg);border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto";
+  sheet.style.cssText = "background:var(--bg);border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-sizing:border-box";
   sheet.innerHTML = `
-    <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
-      Add Player
-      <button onclick="document.getElementById('sc-add-player-overlay').remove()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer">×</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:var(--text)">Add Player (${players.length}/4)</div>
+      <button onclick="document.getElementById('sc-add-player-overlay').remove()"
+        style="background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1;padding:0 4px">×</button>
     </div>
 
-    <!-- Type a name -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">Enter Name</div>
-      <div style="display:flex;gap:8px">
-        <input id="sc-player-name-input" type="text" maxlength="30" placeholder="e.g. Mike, Sarah..."
-          style="flex:1;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;outline:none"
-          oninput="const b=document.getElementById('sc-add-name-btn');b.disabled=!this.value.trim();b.style.opacity=this.value.trim()?'1':'.5'"
-          onkeydown="if(event.key==='Enter'&&this.value.trim())safeUI('addPlayerByName')">
-        <button id="sc-add-name-btn" disabled onclick="safeUI('addPlayerByName')"
-          style="padding:10px 16px;border-radius:10px;background:var(--green);color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;opacity:.5;transition:opacity .15s">
-          Add
+    <!-- Unified search / type name -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:8px;text-transform:uppercase">
+        Type a name or search app users
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="flex:1;position:relative">
+          <input id="sc-player-name-input" type="text" maxlength="30"
+            autocomplete="off" autocorrect="off" spellcheck="false"
+            placeholder="Name or search…"
+            style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:12px;
+                   border:1.5px solid var(--border);background:var(--surface);color:var(--text);
+                   font-size:14px;font-family:inherit;outline:none;transition:border-color .15s"
+            oninput="window._scPlayerInput(this.value)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();window._scAddByName()}"
+            onfocus="this.style.borderColor='var(--green)'"
+            onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <button id="sc-add-name-btn"
+          onclick="window._scAddByName()"
+          style="flex-shrink:0;padding:11px 18px;border-radius:12px;background:var(--green);
+                 color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer;
+                 font-family:inherit;opacity:.45;transition:opacity .15s;white-space:nowrap">
+          + Add
         </button>
       </div>
     </div>
 
-    <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
-      <div style="flex:1;height:1px;background:var(--border)"></div>
-      <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">or link app user</span>
-      <div style="flex:1;height:1px;background:var(--border)"></div>
-    </div>
-
-    <!-- Search app users -->
-    <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:8px;text-transform:uppercase">Search Followers</div>
-    <input id="sc-player-search" type="text" maxlength="40" placeholder="Search by name..."
-      style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;outline:none;margin-bottom:10px"
-      oninput="safeUI('searchPlayersForCard',this.value)">
-    <div id="sc-player-search-results" style="max-height:250px;overflow-y:auto">
-      <div style="font-size:13px;color:var(--muted);padding:8px 0">Type to search your followers…</div>
+    <!-- Live results: app users -->
+    <div id="sc-player-search-results" style="margin-top:4px;max-height:300px;overflow-y:auto;border-radius:12px">
+      <div style="font-size:13px;color:var(--muted);padding:10px 4px;text-align:center">
+        Start typing to search app users, or type any name and press Add
+      </div>
     </div>`;
 
   overlay.appendChild(sheet);
   document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('sc-player-name-input')?.focus(), 80);
 
-  // Enable add button reactively
-  document.getElementById('sc-add-name-btn')?.addEventListener('click', () => {});
+  // ── Unified input handler ──────────────────────────────────────
+  window._scPlayerInput = async (val) => {
+    const btn = document.getElementById('sc-add-name-btn');
+    if (btn) btn.style.opacity = val.trim() ? '1' : '.45';
+
+    const el = document.getElementById('sc-player-search-results');
+    if (!el) return;
+
+    if (!val.trim()) {
+      el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:10px 4px;text-align:center">Start typing to search app users, or type any name and press Add</div>';
+      return;
+    }
+
+    // Show "add as guest" option immediately
+    const guestRow = `<div id="sc-guest-row" style="display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:10px;background:var(--surface);margin-bottom:8px;cursor:pointer"
+      onclick="window._scAddByName()">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--border);color:var(--muted);
+                  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">
+        ${val.trim()[0].toUpperCase()}
+      </div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500;color:var(--text)">${val.trim()}</div>
+        <div style="font-size:11px;color:var(--muted)">Add as guest (not in app)</div>
+      </div>
+      <div style="padding:6px 14px;border-radius:20px;background:var(--green-light,#e8f8f2);
+                  color:var(--green);font-size:12px;font-weight:600;border:1.5px solid var(--green)">Add</div>
+    </div>`;
+
+    el.innerHTML = guestRow + '<div style="font-size:11px;color:var(--muted);margin:4px 8px 8px;text-transform:uppercase;letter-spacing:.4px">App Users</div><div id="sc-app-results"><div style="font-size:13px;color:var(--muted);padding:6px 8px">Searching…</div></div>';
+
+    // Search all users in Firestore by displayName prefix
+    try {
+      const me = window._currentUser;
+      if (!me) return;
+      const q = val.trim().toLowerCase();
+      // Query users where displayName starts with typed text (case-insensitive via prefix)
+      const {collection: col, query: fsQuery, getDocs: fsGetDocs, orderBy, startAt, endAt, limit: fsLimit, getFirestore} =
+        await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const db2 = getFirestore();
+
+      // Fetch up to 50 users and filter client-side for flexibility
+      const snap = await fsGetDocs(fsQuery(col(db2,'users'), orderBy('displayName'), fsLimit(50)));
+      const appEl = document.getElementById('sc-app-results');
+      if (!appEl) return;
+
+      const results = snap.docs
+        .map(d => ({uid: d.id, ...d.data()}))
+        .filter(p =>
+          p.uid !== me.uid &&                                        // not yourself
+          (p.displayName||'').toLowerCase().includes(q)             // name matches
+        )
+        .slice(0, 8);
+
+      if (!results.length) {
+        appEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 8px">No app users found — use Add above</div>';
+        return;
+      }
+
+      appEl.innerHTML = results.map(p => {
+        const ini    = (p.displayName||'?').trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+        const colors = ['pa-green','pa-amber','pa-blue','pa-pink'];
+        let h = 0; for (const c of p.uid||'x') h=(h*31+c.charCodeAt(0))&0xffffffff;
+        const aColor = colors[Math.abs(h)%colors.length];
+        const already = players.some(pl => pl.uid === p.uid);
+        const safeDisplayName = (p.displayName||'Golfer').replace(/'/g,"\'");
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-bottom:0.5px solid var(--border)">
+          <div class="player-avatar ${aColor}" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${ini}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">${p.displayName||'Golfer'}</div>
+            <div style="font-size:11px;color:var(--muted)">${p.city||''}${p.handicap!=null?' · HCP '+p.handicap:''}</div>
+          </div>
+          ${already
+            ? '<span style="font-size:12px;color:var(--muted);flex-shrink:0">Added ✓</span>'
+            : `<button onclick="safeUI('addPlayerByUid','${p.uid}','${safeDisplayName}','${p.photoURL||''}')"
+                style="flex-shrink:0;padding:7px 14px;border-radius:20px;background:var(--green-light,#e8f8f2);
+                       color:var(--green);border:1.5px solid var(--green);font-size:13px;font-weight:600;
+                       cursor:pointer;font-family:inherit">Add</button>`
+          }
+        </div>`;
+      }).join('');
+    } catch(e) {
+      const appEl = document.getElementById('sc-app-results');
+      if (appEl) appEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 8px">Could not search users</div>';
+    }
+  };
+
+  // ── Add by typed name (guest) ──────────────────────────────────
+  window._scAddByName = () => {
+    const input = document.getElementById('sc-player-name-input');
+    const name  = input?.value.trim();
+    if (!name || players.length >= 4) return;
+    safeUI('addPlayerByName');
+  };
 }
 
 export async function searchPlayersForCard(searchText) {
-  const el = document.getElementById("sc-player-search-results");
-  if (!el || !searchText || searchText.trim().length < 2) {
-    if (el) el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Type to search your followers…</div>';
-    return;
-  }
-  el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Searching…</div>';
-  try {
-    const me = window._currentUser;
-    const snap = await getDoc(doc(db, "users", me.uid));
-    const friends = snap.data()?.friends || [];
-    if (!friends.length) { el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">No followers yet</div>'; return; }
-    const profiles = (await Promise.all(friends.slice(0,30).map(async uid => {
-      try { const s = await getDoc(doc(db,"users",uid)); return s.exists() ? {uid,...s.data()} : null; } catch { return null; }
-    }))).filter(Boolean);
-    const q = searchText.toLowerCase();
-    const filtered = profiles.filter(p => (p.displayName||"").toLowerCase().includes(q));
-    if (!filtered.length) { el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">No matches</div>'; return; }
-    el.innerHTML = filtered.map(p => {
-      const ini    = initials(p.displayName||"?");
-      const aColor = avatarColor(p.uid);
-      const already = players.some(pl => pl.uid === p.uid);
-      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border)">
-        <div class="player-avatar ${aColor}" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${ini}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:500;color:var(--text)">${esc(p.displayName||"Golfer")}</div>
-          <div style="font-size:11px;color:var(--muted)">${esc(p.city||"")}${p.handicap!=null?" · HCP "+p.handicap:""}</div>
-        </div>
-        ${already
-          ? '<span style="font-size:12px;color:var(--muted)">Already added</span>'
-          : `<button onclick="safeUI('addPlayerByUid','${p.uid}','${esc(p.displayName||"Golfer")}','${p.photoURL||""}')"
-              style="padding:7px 14px;border-radius:14px;background:var(--green-light);color:var(--green-dark);border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
-              Add
-            </button>`
-        }
-      </div>`;
-    }).join('');
-  } catch(e) {
-    el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Could not load</div>';
+  // Delegate to the unified handler if overlay is open
+  if (document.getElementById('sc-add-player-overlay')) {
+    window._scPlayerInput?.(searchText);
   }
 }
 
