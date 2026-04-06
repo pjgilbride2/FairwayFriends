@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=113";
+import { db, storage } from "./firebase-config.js?v=114";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=113";
+import { showToast } from "./ui.js?v=114";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -842,12 +842,18 @@ async function _launchApp() {
     // Show success then go to feed
     _goTo(9);
     setTimeout(() => {
-      if (typeof goScreen === 'function') {
-        goScreen('feed');
-        document.getElementById('bottom-nav').style.display = 'flex';
-        if (typeof initFeed === 'function') { initFeed(); initNearbyPlayers(); }
-        if (window.UI?.refreshWeather) window.UI.refreshWeather();
-      } else window.location.reload();
+      // Use safeUI (always available) to navigate to feed — it handles
+    // goScreen + initFeed + initNearbyPlayers all in one place
+    if (typeof safeUI === 'function') {
+      safeUI('goScreen', 'feed');
+      document.getElementById('bottom-nav').style.display = 'flex';
+      if (window.UI?.refreshWeather) window.UI.refreshWeather();
+    } else if (typeof goScreen === 'function') {
+      goScreen('feed');
+      document.getElementById('bottom-nav').style.display = 'flex';
+    } else {
+      window.location.reload();
+    }
       showToast('Welcome to Fairway Friend! 🏌️');
     }, 2200);
 
