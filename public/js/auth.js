@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=112";
+import { auth, db } from "./firebase-config.js?v=113";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -20,10 +20,10 @@ import {
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=112";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=112";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=112";
-import { goScreen, hideSplash } from "./ui.js?v=112";
+import { loadUserProfile } from "./profile.js?v=113";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=113";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=113";
+import { goScreen, hideSplash } from "./ui.js?v=113";
 
 let _listenersActive = false;
 
@@ -363,15 +363,22 @@ export function initAuth() {
         hideSplash();
 
         if (needsOnboard) {
-          // Don't re-navigate if already on onboard (e.g. mid-SSO flow)
           const alreadyOnOnboard = document.querySelector('.screen.active')?.id === 'screen-onboard';
-          if (!alreadyOnOnboard) {
+
+          if (window._ssoOnboarding) {
+            // SSO flow is being handled by onboard.js directly — don't interfere
+            // Just make sure we're on the onboard screen
+            window._ssoOnboarding = false;
+            if (!alreadyOnOnboard) goScreen("onboard");
+            // onboard.js _wire() SSO handler will call _goTo(2)
+          } else if (!alreadyOnOnboard) {
+            // Fresh auth (e.g. redirect result after page reload)
             goScreen("onboard");
-          } else {
-            // Already on onboard — just let buildOnboardScreen SSO detection handle it
-            // by calling it directly (it will detect SSO and skip to step 2)
-            if (typeof buildOnboardScreen === 'function') buildOnboardScreen();
+            if (typeof buildOnboardScreen === 'function') {
+              setTimeout(() => buildOnboardScreen(), 100);
+            }
           }
+          // If already on onboard and not ssoOnboarding, don't touch it
         } else {
           goScreen("feed");
           document.getElementById("bottom-nav").style.display = "flex";

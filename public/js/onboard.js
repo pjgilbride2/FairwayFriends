@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=112";
+import { db, storage } from "./firebase-config.js?v=113";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=112";
+import { showToast } from "./ui.js?v=113";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -60,29 +60,22 @@ export function buildOnboardScreen() {
     }
   } catch(_) {}
 
-  // If user is already authenticated via Google/Apple SSO, skip the auth picker (ob-s0)
-  // and email/password step (ob-s1) — go straight to profile setup (ob-s2)
+  // If user is already authenticated via Google/Apple SSO (or redirect result),
+  // skip the auth picker and email step — go straight to profile setup (step 2)
   if (window._currentUser) {
     const providerId = window._currentUser.providerData?.[0]?.providerId || '';
     const isSso = providerId === 'google.com' || providerId === 'apple.com';
     if (isSso) {
-      // Pre-fill name from Google/Apple profile
+      // Pre-fill name from SSO profile
       const fullName = window._currentUser.displayName || '';
       const parts = fullName.trim().split(/\s+/);
-      _data.firstName = parts[0] || '';
-      _data.lastName  = parts.slice(1).join(' ') || '';
-      _data.email     = window._currentUser.email || '';
+      _data.firstName  = _data.firstName || parts[0] || '';
+      _data.lastName   = _data.lastName  || parts.slice(1).join(' ') || '';
+      _data.email      = window._currentUser.email || '';
       _data.ssoProvider = providerId;
-      // Skip to step 2 after DOM + _wire() complete
-      // Use requestAnimationFrame to ensure the DOM is fully rendered
-      setTimeout(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            _goTo(2);
-          });
-        });
-      }, 100);
-      return;
+      // _wire() and _refresh() are called below — _goTo(2) after DOM is ready
+      // Use a single short timeout (DOM renders synchronously after innerHTML set)
+      // Fall through to build the DOM, then navigate
     }
   }
 
@@ -217,6 +210,9 @@ export function buildOnboardScreen() {
 .ob-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
 .ob-back-btn{background:none;border:none;color:rgba(255,255,255,.45);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;padding:7px 0 0;transition:color .2s;}
 .ob-back-btn.hidden{visibility:hidden;}
+.ob-cancel-btn{background:none;border:none;color:rgba(229,62,62,.6);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;padding:7px 0 0;transition:color .2s;}
+.ob-cancel-btn:hover{color:rgba(229,62,62,.9);}
+.ob-cancel-btn.hidden{visibility:hidden;}
 </style>
 
 <div class="ob-page">
@@ -392,11 +388,22 @@ export function buildOnboardScreen() {
 <!-- sticky nav (hidden on step 0) -->
 <div class="ob-nav" id="ob-nav">
   <button class="ob-btn" id="ob-main-btn">Continue</button>
-  <button class="ob-back-btn hidden" id="ob-back-btn">← Back</button>
+  <div style="display:flex;justify-content:space-between;width:100%;max-width:480px;align-items:center">
+    <button class="ob-back-btn hidden" id="ob-back-btn">← Back</button>
+    <button class="ob-cancel-btn hidden" id="ob-cancel-btn">× Cancel setup</button>
+  </div>
 </div>`;
 
   _wire();
   _refresh();
+
+  // If SSO user, navigate to step 2 now that DOM + events are wired
+  if (window._currentUser) {
+    const pid = window._currentUser.providerData?.[0]?.providerId || '';
+    if (pid === 'google.com' || pid === 'apple.com') {
+      setTimeout(() => _goTo(2), 60);
+    }
+  }
 }
 
 // ── Wire all events ───────────────────────────────────────────
@@ -409,34 +416,45 @@ function _wire() {
   // Google → trigger actual Google SSO, then skip to profile setup
   const obGoogleBtn = document.getElementById('ob-google');
   if (obGoogleBtn) obGoogleBtn.onclick = async () => {
-    const btn = document.getElementById('ob-google'); // re-query in case DOM rebuilt
+    const btn = document.getElementById('ob-google');
     if (!btn || btn.disabled) return;
     btn.disabled = true;
     const orig = btn.innerHTML;
     btn.innerHTML = '<span style="opacity:.6;font-size:13px">Connecting…</span>';
     try {
-      // Use window._doGoogleLogin set by initAuth() — avoids circular import timing issues
       const loginFn = window._doGoogleLogin;
-      if (!loginFn) throw new Error('Google login not initialized yet');
+      if (!loginFn) throw new Error('Google login not ready. Please wait a moment and try again.');
+      // Set flag so onAuthStateChanged knows we're in SSO onboarding
+      window._ssoOnboarding = true;
       const user = await loginFn();
       if (user) {
-        // Pre-fill _data — buildOnboardScreen SSO detection will also do this
-        // but set it here as backup in case we race past the rebuild
+        // Pre-fill data from Google profile
         const parts = (user.displayName||'').trim().split(/\s+/);
-        _data.firstName = parts[0] || '';
-        _data.lastName  = parts.slice(1).join(' ') || '';
-        _data.email     = user.email || '';
+        _data.firstName  = parts[0] || '';
+        _data.lastName   = parts.slice(1).join(' ') || '';
+        _data.email      = user.email || '';
         _data.ssoProvider = 'google.com';
-        // onAuthStateChanged will fire → buildOnboardScreen → _goTo(2)
-        // If we're still on the same DOM, also call _goTo(2) directly
-        if (document.getElementById('ob-google')) {
-          setTimeout(() => { if (_cur < 2) _goTo(2); }, 200);
+        window._currentUser = user;
+        // Navigate to step 2 directly — most reliable path
+        // Build screen if not already built
+        const screen = document.getElementById('screen-onboard');
+        if (!screen?.dataset.built) {
+          if (typeof buildOnboardScreen === 'function') buildOnboardScreen();
+          setTimeout(() => _goTo(2), 150);
+        } else {
+          _goTo(2);
         }
       }
-      // If user is null, signInWithRedirect was called — page will reload
+      // null means redirect flow — page will reload and onAuthStateChanged handles it
     } catch(e) {
+      window._ssoOnboarding = false;
       console.error('Onboard Google SSO error:', e.code || e.message);
-      window.showToast?.('Google sign-in failed. Please try again.');
+      const msg = e.code === 'auth/popup-closed-by-user'
+        ? 'Sign-in cancelled.'
+        : e.code === 'auth/popup-blocked'
+        ? 'Popup blocked — please allow popups for this site.'
+        : 'Google sign-in failed. Please try again.';
+      window.showToast?.(msg);
       const b2 = document.getElementById('ob-google');
       if (b2) { b2.disabled = false; b2.innerHTML = orig; }
     }
@@ -452,21 +470,30 @@ function _wire() {
     btn.innerHTML = '<span style="opacity:.6;font-size:13px">Connecting…</span>';
     try {
       const loginFn = window._doAppleLogin;
-      if (!loginFn) throw new Error('Apple login not initialized yet');
+      if (!loginFn) throw new Error('Apple login not ready. Please wait a moment and try again.');
+      window._ssoOnboarding = true;
       const user = await loginFn();
       if (user) {
         const parts = (user.displayName||'').trim().split(/\s+/);
-        _data.firstName = parts[0] || '';
-        _data.lastName  = parts.slice(1).join(' ') || '';
-        _data.email     = user.email || '';
+        _data.firstName  = parts[0] || '';
+        _data.lastName   = parts.slice(1).join(' ') || '';
+        _data.email      = user.email || '';
         _data.ssoProvider = 'apple.com';
-        if (document.getElementById('ob-apple')) {
-          setTimeout(() => { if (_cur < 2) _goTo(2); }, 200);
+        window._currentUser = user;
+        const screen = document.getElementById('screen-onboard');
+        if (!screen?.dataset.built) {
+          if (typeof buildOnboardScreen === 'function') buildOnboardScreen();
+          setTimeout(() => _goTo(2), 150);
+        } else {
+          _goTo(2);
         }
       }
     } catch(e) {
+      window._ssoOnboarding = false;
       console.error('Onboard Apple SSO error:', e.code || e.message);
-      window.showToast?.('Apple sign-in failed. Please try again.');
+      const msg = e.code === 'auth/popup-closed-by-user' ? 'Sign-in cancelled.'
+        : 'Apple sign-in failed. Please try again.';
+      window.showToast?.(msg);
       const b2 = document.getElementById('ob-apple');
       if (b2) { b2.disabled = false; b2.innerHTML = orig; }
     }
@@ -583,6 +610,7 @@ function _wire() {
   // Nav buttons
   document.getElementById('ob-main-btn')?.addEventListener('click', _continue);
   document.getElementById('ob-back-btn')?.addEventListener('click', () => { if (_cur > 1) _goTo(_cur - 1); });
+  document.getElementById('ob-cancel-btn')?.addEventListener('click', _abort);
 }
 
 // ── Refresh UI ────────────────────────────────────────────────
@@ -632,6 +660,11 @@ function _refresh() {
   if (backBtn) {
     backBtn.className = (_cur > 1 && !isSuccess) ? 'ob-back-btn' : 'ob-back-btn hidden';
   }
+  const cancelBtn = document.getElementById('ob-cancel-btn');
+  if (cancelBtn) {
+    // Show cancel on steps 2-8 (not on success, not on landing/email step)
+    cancelBtn.className = (_cur >= 2 && !isSuccess) ? 'ob-cancel-btn' : 'ob-cancel-btn hidden';
+  }
 }
 
 function _goTo(n) {
@@ -664,8 +697,8 @@ async function _continue() {
   // Step 9 = success → go to feed (save already done)
   if (_cur === 9) { _launchApp(); return; }
 
-  // Step 8 → trigger save immediately, show success screen simultaneously
-  if (_cur === 8) { _goTo(9); _launchApp(); return; }
+  // Step 8 → save profile then show success screen
+  if (_cur === 8) { await _launchApp(); return; }
 
   // Step 1: create Firebase account
   if (_cur === 1) {
@@ -682,11 +715,9 @@ async function _continue() {
       const { getAuth, createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
       const cred = await createUserWithEmailAndPassword(getAuth(), email, pass);
       window._currentUser = cred.user;
-      // Create minimal Firestore doc so auth listener doesn't route to wrong place
-      await setDoc(doc(db, 'users', cred.user.uid), {
-        uid: cred.user.uid, email, displayName: 'Golfer',
-        onboardComplete: false, joinedAt: serverTimestamp(),
-      });
+      // Do NOT write to Firestore here — save only when onboarding is complete
+      // Store uid+email in _data so _launchApp() can use it
+      _data.uid = cred.user.uid;
       if (errEl) errEl.style.display = 'none';
       _goTo(2);
     } catch(e) {
@@ -718,6 +749,46 @@ function _showErr(el, msg) {
   if (!el) { showToast(msg); return; }
   el.textContent = msg;
   el.style.display = 'block';
+}
+
+// ── Abort / cancel onboarding ───────────────────────────────
+async function _abort() {
+  const confirmed = window.confirm(
+    'Cancel account setup?\nThis will sign you out and discard your progress.'
+  );
+  if (!confirmed) return;
+
+  try {
+    sessionStorage.removeItem('_ob_step');
+    sessionStorage.removeItem('_ob_data');
+    _reset();
+
+    const user = window._currentUser;
+    if (user) {
+      // Delete any partial Firestore doc
+      try {
+        const { getFirestore, doc: fsDoc, deleteDoc } =
+          await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        await deleteDoc(fsDoc(getFirestore(), 'users', user.uid));
+      } catch(_) {}
+      // Delete the Firebase Auth account itself so they can start fresh
+      try { await user.delete(); } catch(_) {}
+      // Sign out
+      try {
+        const { getAuth, signOut } =
+          await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+        await signOut(getAuth());
+      } catch(_) {}
+    }
+    window._currentUser = null;
+  } catch(e) {
+    console.warn('Abort error:', e.message);
+  }
+
+  // Return to auth screen
+  if (typeof goScreen === 'function') goScreen('auth');
+  else if (typeof safeUI === 'function') safeUI('goScreen', 'auth');
+  else window.location.reload();
 }
 
 // ── Save profile to Firestore ─────────────────────────────────
