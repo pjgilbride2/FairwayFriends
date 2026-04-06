@@ -3,14 +3,14 @@
 //  Handles: loading, saving, photo upload, UI rendering
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=105";
+import { db, storage } from "./firebase-config.js?v=106";
 import {
   doc, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=105";
+import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=106";
 
 export let myProfile = {};
 export let myVibes   = [];
@@ -243,13 +243,21 @@ export function updateProfileUI() {
 
   const elVibes = document.getElementById("profile-vibes-display");
   if (elVibes) {
-    elVibes.innerHTML = (myProfile.vibes || []).map((v) => {
-      // Sanitize: only allow alphanumeric + basic chars for vibe keys
-      const vSafe = String(v).replace(/[^a-zA-Z0-9_-]/g, '');
-      const m = VIBE_META[vSafe]; if (!m) return "";
-      return `<span class="vibe-toggle ${m.cls} selected" style="font-size:12px;padding:6px 12px;margin-bottom:4px">
-        <span class="vt-icon">${m.icon}</span>${m.label}</span>`;
-    }).join("");
+    const vibes = myProfile.vibes || [];
+    const placeholder = document.getElementById('_vibe_placeholder');
+    if (vibes.length === 0) {
+      elVibes.innerHTML = "";
+      if (placeholder) placeholder.style.display = 'block';
+    } else {
+      if (placeholder) placeholder.style.display = 'none';
+      elVibes.innerHTML = vibes.map((v) => {
+        const vSafe = String(v).replace(/[^a-zA-Z0-9_-]/g, '');
+        const m = VIBE_META[vSafe]; if (!m) return "";
+        return `<span class="vibe-toggle ${m.cls} selected" style="font-size:12px;padding:6px 12px;margin-bottom:4px;cursor:pointer"
+          onclick="safeUI('goScreen','vibes')">
+          <span class="vt-icon">${m.icon}</span>${m.label}</span>`;
+      }).join("");
+    }
   }
 
   document.querySelectorAll("[data-vibe]").forEach((el) => {
@@ -286,7 +294,7 @@ export async function downgradeSubscription() {
     if (window.myProfile) window.myProfile.plan = 'free';
     showToast('Downgraded to Free plan');
     // Refresh profile UI to reflect new plan
-    const { updateProfileUI } = await import('./profile.js?v=105');
+    const { updateProfileUI } = await import('./profile.js?v=106');
     updateProfileUI();
   } catch(e) {
     showToast('Could not update plan');

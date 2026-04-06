@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=105";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=105";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=105";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=105";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=105";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=105";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=105";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=105";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=105";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=105";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=105";
-import { buildOnboardScreen } from "./onboard.js?v=105";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=106";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=106";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=106";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=106";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=106";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=106";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=106";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=106";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=106";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=106";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=106";
+import { buildOnboardScreen } from "./onboard.js?v=106";
 
 
 // ── Haversine distance in miles ──
@@ -891,7 +891,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=105");
+      const { initials, avatarColor } = await import("./ui.js?v=106");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1517,14 +1517,22 @@ window.UI = {
   async handleSaveVibes() {
     const selected = [...document.querySelectorAll("#screen-vibes .vibe-chip.selected, #screen-vibes [data-vibe].selected")]
       .map((el) => el.dataset.vibe);
-    await saveVibes(selected);
-    // FIX: single feedback path — show msg div then navigate
-    const msg = document.getElementById("vibes-saved-msg");
-    if (msg) {
-      msg.style.display = "block";
-      setTimeout(() => { msg.style.display = "none"; goScreen("profile"); }, 1200);
+    const btn = document.querySelector("#screen-vibes button[onclick*='handleSaveVibes']");
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      await saveVibes(selected);
+      // Update profile display immediately
+      if (window.myProfile) window.myProfile.vibes = selected;
+      if (window.updateProfileUI) updateProfileUI();
+      showToast("Vibes saved! ✅");
+      const msg = document.getElementById("vibes-saved-msg");
+      if (msg) { msg.style.display = "block"; setTimeout(() => { msg.style.display = "none"; }, 1200); }
+      setTimeout(() => goScreen("profile"), 800);
+    } catch(e) {
+      showToast("Could not save vibes");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save my vibe'; }
     }
-    showToast("Vibes saved! ✅");
   },
 
   // ── Feed ──
@@ -1603,7 +1611,7 @@ window.UI = {
   async deletePost(postId) {
     if (!confirm("Delete this post?")) return;
     try {
-      const { deletePostById } = await import("./feed.js?v=105");
+      const { deletePostById } = await import("./feed.js?v=106");
       await deletePostById(postId);
       const card = document.getElementById("post-card-" + postId);
       if (card) card.remove();

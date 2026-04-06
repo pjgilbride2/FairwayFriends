@@ -271,6 +271,9 @@
   .vibe-section-title { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
   .vibe-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .vibe-toggle { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 24px; border: 0.5px solid var(--border); cursor: pointer; font-size: 13px; font-weight: 500; color: var(--muted); background: var(--card-bg); transition: all .15s; user-select: none; font-family: 'DM Sans', sans-serif; }
+  .vibe-chip { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:24px; border:1.5px solid var(--border); cursor:pointer; font-size:13px; font-weight:500; color:var(--muted); background:var(--card-bg); transition:all .15s; user-select:none; font-family:'DM Sans',sans-serif; }
+  .vibe-chip.selected { color:var(--green); border-color:var(--green); background:var(--green-light,#e8f8f2); font-weight:600; }
+  .vibe-chip:hover:not(.selected) { border-color:var(--green); color:var(--text); }
   .vibe-toggle .vt-icon { font-size: 16px; }
   .vibe-toggle.selected { color: var(--text); border-width: 1.5px; }
   .vt-trophy.selected   { background: #FAEEDA; border-color: #EF9F27; color: #633806; }
