@@ -19,6 +19,10 @@ export const VIBE_META = {
   improve:     { label:"Working on game",    icon:"📈", cls:"vt-unwind"   },
   newplayers:  { label:"Meet people",        icon:"👋", cls:"vt-social"   },
   regular:     { label:"Find regular group", icon:"📅", cls:"vt-scramble" },
+  sober:       { label:"Sober",              icon:"🥤", cls:"vt-unwind"   },
+  newintown:   { label:"New in town",        icon:"🗺️", cls:"vt-social"   },
+  worktrip:    { label:"Work trip",          icon:"💼", cls:"vt-scramble" },
+  retired:     { label:"Retired",            icon:"🏖️", cls:"vt-early"    },
 };
 
 // ── Render a vibe pill badge ──
