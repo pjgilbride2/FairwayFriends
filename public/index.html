@@ -9,7 +9,7 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-  <link rel="stylesheet" href="/css/app.css?v=33" />
+  <link rel="stylesheet" href="/css/app.css?v=105" />
 </head>
 <body>
 
@@ -24,7 +24,10 @@
   <!-- Header -->
   <div class="feed-header">
     <div class="app-logo">
-      <span class="logo-fairway">Fairway</span>&nbsp;Friend<span class="logo-dot">·</span>
+      <div class="app-logo-icon">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="white"><path d="M4 14V2l8 4-8 4" opacity=".9"/><rect x="3.5" y="1.5" width="1" height="13" rx=".5"/></svg>
+      </div>
+      <div><span class="logo-fairway">Fairway</span> Friend<span class="logo-dot">·</span></div>
     </div>
     <div class="feed-header-right">
       <div id="feed-avatar" class="avatar-sm avatar-green feed-avatar-btn" onclick="safeUI('goScreen','profile')"></div>
@@ -70,8 +73,8 @@
   </div>
 
   <!-- Community feed -->
-  <div class="feed-section-header">
-    <span class="feed-section-title">Community</span>
+  <div class="feed-section-header feed-community-header">
+    <span class="feed-section-title">Community Feed</span>
   </div>
   <div id="community-feed" class="community-feed-list"></div>
 </div>
@@ -506,7 +509,7 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=103"></script>
+<script type="module" src="/js/app.js?v=105"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->

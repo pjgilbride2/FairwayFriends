@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=103";
+import { db, storage } from "./firebase-config.js?v=105";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=103";
-import { createNotification } from "./notifications.js?v=103";
-import { loadRoundDayForecast } from "./weather.js?v=103";
+import { myProfile, myVibes } from "./profile.js?v=105";
+import { createNotification } from "./notifications.js?v=105";
+import { loadRoundDayForecast } from "./weather.js?v=105";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=103";
+} from "./ui.js?v=105";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -240,8 +240,6 @@ export function renderFeed(posts) {
       const replyCount = p.replyCount || 0;
       const likeCount = (p.helpfuls||[]).length;
       const isLiked = (p.helpfuls||[]).includes(window._currentUser?.uid);
-      const myAv = avatarColor(window._currentUser?.uid||'');
-      const myIni = initials(window.myProfile?.displayName||'Me');
       return `<div class="post-card" id="post-card-${p.id}">
         <div class="post-header">
           ${avatarHTML}
@@ -268,7 +266,6 @@ export function renderFeed(posts) {
         <div class="post-comments-section">
           <div id="replies-list-${p.id}" class="replies-list"></div>
           <div class="reply-composer">
-            <div class="reply-composer-avatar ${myAv}">${myIni}</div>
             <div class="reply-input-wrap">
               <textarea id="reply-input-${p.id}" rows="1" placeholder="Add a comment…" class="reply-textarea"
                 onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();safeUI('submitReply','${p.id}')}"

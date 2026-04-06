@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=103";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=103";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=103";
-import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=103";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=103";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=103";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=103";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=103";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=103";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=103";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=103";
-import { buildOnboardScreen } from "./onboard.js?v=103";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=105";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=105";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=105";
+import { buildScoreTable, onScoreChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=105";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=105";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=105";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=105";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=105";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=105";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=105";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=105";
+import { buildOnboardScreen } from "./onboard.js?v=105";
 
 
 // ── Haversine distance in miles ──
@@ -891,7 +891,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=103");
+      const { initials, avatarColor } = await import("./ui.js?v=105");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1603,7 +1603,7 @@ window.UI = {
   async deletePost(postId) {
     if (!confirm("Delete this post?")) return;
     try {
-      const { deletePostById } = await import("./feed.js?v=103");
+      const { deletePostById } = await import("./feed.js?v=105");
       await deletePostById(postId);
       const card = document.getElementById("post-card-" + postId);
       if (card) card.remove();
@@ -2159,8 +2159,6 @@ window.UI = {
       const _bdg  = ACCESS_BADGE[_ac] || ACCESS_BADGE['public'];
       const _sg   = _supremeGolfUrl(c);
       const _prv  = _ac === 'private';
-      const bUrl  = _prv ? (c.website || maps) : _sg;
-      const bLbl  = _prv ? (c.website ? '🌐 Website' : '🗓 Find tee times') : '🏌️ Book on Supreme Golf';
       const sn    = c.name.replace(/"/g, '&quot;');
       return `<div class="course-card" data-ckey="${sn}">
         <div class="course-card-top"><div style="flex:1">
@@ -2173,8 +2171,7 @@ window.UI = {
         <div class="course-actions">
           <button class="course-btn course-btn-gps" data-cname="${sn}" data-clat="${c.lat||''}" data-clon="${c.lon||''}" onclick="safeUI('launchGpsForCourse',this.dataset.cname,this.dataset.clat,this.dataset.clon)" style="background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">▶ Play GPS</button>
           <button class="course-btn" data-cname="${sn}" onclick="safeUI('openScorecardForCourse',this.dataset.cname)" style="background:var(--surface);color:var(--text);border:1.5px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">📋 Scorecard</button>
-          <a href="${bUrl}" target="_blank" rel="noopener" class="course-btn course-btn-tee">${bLbl}</a>
-          <a href="${_sg}" target="_blank" rel="noopener" class="course-btn" style="background:#1a6b3a;color:#fff;border-color:#1a6b3a">⛳ Tee Times</a>
+
           <a href="${maps}" target="_blank" rel="noopener" class="course-btn course-btn-map">📍 Directions</a>
           ${c.phone   ? `<a href="tel:${c.phone}" class="course-btn">📞 Call</a>`   : ''}
           ${c.website ? `<a href="${c.website}" target="_blank" rel="noopener" class="course-btn">🌐 Website</a>` : ''}
