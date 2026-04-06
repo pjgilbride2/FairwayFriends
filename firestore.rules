@@ -4,9 +4,14 @@ service cloud.firestore {
 
     // ── USERS ──
     match /users/{userId} {
+      // Any authenticated user can read profiles (social app)
       allow read:   if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
+      // Only the user can create/update their own profile
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId;  // uid field must match
+      allow update: if request.auth != null
+        && request.auth.uid == userId;
       allow delete: if false;
     }
 
@@ -16,9 +21,21 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.authorId == request.auth.uid;
       allow update: if request.auth != null
-        && resource.data.authorId == request.auth.uid;
+        && (resource.data.authorId == request.auth.uid
+            || request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['replyCount','helpfuls','helpfulCount']));
       allow delete: if request.auth != null
         && resource.data.authorId == request.auth.uid;
+
+      // ── REPLIES (comments on posts) ──
+      match /replies/{replyId} {
+        allow read:   if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.authorId == request.auth.uid;
+        allow update: if false;
+        allow delete: if request.auth != null
+          && resource.data.authorId == request.auth.uid;
+      }
     }
 
     // ── TEE TIMES ──
@@ -34,7 +51,11 @@ service cloud.firestore {
 
     // ── ROUNDS ──
     match /rounds/{roundId} {
-      allow read:   if request.auth != null
+      // Only the round owner can read, write, update or delete their own rounds
+      // list() is also restricted — collection queries only return own rounds
+      allow get:    if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow list:   if request.auth != null
         && resource.data.uid == request.auth.uid;
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid;
