@@ -860,4 +860,40 @@ body { font-display: swap; }
   transition: background .15s;
 }
 .post-btn:hover { background: #1d7a35; }
+  /* ── Scorecard Game Mode Buttons ─────────────────────────── */
+  .game-mode-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 7px 12px; border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--bg); color: var(--text);
+    font-size: 13px; font-weight: 400;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all .15s;
+  }
+  .game-mode-btn:hover {
+    border-color: var(--green); color: var(--green);
+  }
+  .game-mode-active, .game-mode-btn.game-mode-active {
+    border-color: var(--green) !important;
+    background: var(--green-light, #e8f8f2) !important;
+    color: var(--green-dark, #1a7a40) !important;
+    font-weight: 600 !important;
+  }
 
+  /* ── BBB (Bingo Bango Bongo) Input ──────────────────────── */
+  .bbb-input {
+    max-width: 38px !important;
+    text-align: center;
+    color: var(--green) !important;
+    font-weight: 600 !important;
+    border: 1.5px solid var(--green-light, #e8f8f2) !important;
+    border-radius: 6px;
+    background: var(--green-light, #e8f8f2);
+  }
+  .bbb-input:focus {
+    border-color: var(--green) !important;
+    outline: none;
+  }
+  /* Prevent spin buttons on BBB input */
+  .bbb-input::-webkit-outer-spin-button,
+  .bbb-input::-webkit-inner-spin-button { -webkit-appearance: none; }

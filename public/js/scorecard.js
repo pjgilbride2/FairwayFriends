@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=109";
+import { db } from "./firebase-config.js?v=110";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=109";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=109";
+import { myProfile, myVibes } from "./profile.js?v=110";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=110";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -18,11 +18,15 @@ let currentMode     = "stroke";
 // Players array: index 0 = "you", indices 1-3 = up to 3 others
 // { name, uid|null, scores[], color }
 let players = [];
+// Bingo Bango Bongo: per-hole winners, each cell = player index (1-4) or ""
+// "1"=first on green, "2"=closest to pin, "3"=first to hole out, "4"=all three (optional)
+let bbbScores = new Array(18).fill("");
 
 function _initPlayers() {
   players = [
     { name: myProfile.displayName || "You", uid: window._currentUser?.uid || null, scores: new Array(18).fill(""), color: "var(--green)" },
   ];
+  bbbScores = new Array(18).fill("");
 }
 
 export const PLAYER_COLORS = ["var(--green)", "#3b82f6", "#f59e0b", "#ef4444"];
@@ -42,6 +46,7 @@ let SLOPE_RATING  = 113;
 export function resetScores() {
   _initPlayers();
   myScores = players[0].scores;
+  bbbScores = new Array(18).fill("");
 }
 
 // ── Apply real course data from API ──────────────────────────
@@ -206,10 +211,10 @@ export function addPlayerPrompt() {
       <div style="display:flex;gap:8px">
         <input id="sc-player-name-input" type="text" maxlength="30" placeholder="e.g. Mike, Sarah..."
           style="flex:1;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;outline:none"
-          oninput="document.getElementById('sc-add-name-btn').disabled=!this.value.trim()">
+          oninput="const b=document.getElementById('sc-add-name-btn');b.disabled=!this.value.trim();b.style.opacity=this.value.trim()?'1':'.5'"
+          onkeydown="if(event.key==='Enter'&&this.value.trim())safeUI('addPlayerByName')">
         <button id="sc-add-name-btn" disabled onclick="safeUI('addPlayerByName')"
-          style="padding:10px 16px;border-radius:10px;background:var(--green);color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;opacity:.5"
-          onmouseover="if(!this.disabled)this.style.opacity=1" onmouseout="this.style.opacity=this.disabled?.5:1">
+          style="padding:10px 16px;border-radius:10px;background:var(--green);color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;opacity:.5;transition:opacity .15s">
           Add
         </button>
       </div>
@@ -237,9 +242,9 @@ export function addPlayerPrompt() {
   document.getElementById('sc-add-name-btn')?.addEventListener('click', () => {});
 }
 
-export async function searchPlayersForCard(query) {
+export async function searchPlayersForCard(searchText) {
   const el = document.getElementById("sc-player-search-results");
-  if (!el || !query || query.trim().length < 2) {
+  if (!el || !searchText || searchText.trim().length < 2) {
     if (el) el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Type to search your followers…</div>';
     return;
   }
@@ -252,7 +257,7 @@ export async function searchPlayersForCard(query) {
     const profiles = (await Promise.all(friends.slice(0,30).map(async uid => {
       try { const s = await getDoc(doc(db,"users",uid)); return s.exists() ? {uid,...s.data()} : null; } catch { return null; }
     }))).filter(Boolean);
-    const q = query.toLowerCase();
+    const q = searchText.toLowerCase();
     const filtered = profiles.filter(p => (p.displayName||"").toLowerCase().includes(q));
     if (!filtered.length) { el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">No matches</div>'; return; }
     el.innerHTML = filtered.map(p => {
@@ -382,6 +387,18 @@ export function buildScoreTable() {
         </td>`;
       }).join('');
 
+      // BBB cell — accepts 1,2,3,4 only; validate on input
+      const bbbVal = bbbScores[gi] || "";
+      const bbbCell = `<td style="border-left:2px solid var(--border)">
+        <input class="score-input bbb-input"
+          type="number" min="1" max="4"
+          value="${bbbVal}"
+          data-hole="${gi}"
+          placeholder="-"
+          oninput="window._onBbbChange(this)"
+          style="color:var(--green);font-weight:600;max-width:38px">
+      </td>`;
+
       // Result cell for certain modes
       let resultCell = "";
       if (currentMode === "stableford") {
@@ -421,7 +438,7 @@ export function buildScoreTable() {
         `<td style="color:var(--muted);font-size:11px">${hole.par}</td>` +
         `<td style="color:var(--muted);font-size:10px">${hole.hcp}</td>` +
         yardsTd +
-        playerCells + resultCell;
+        playerCells + resultCell + bbbCell;
       tbody.appendChild(tr);
     });
   });
@@ -440,6 +457,7 @@ export function buildScoreTable() {
       ${hasYards ? '<th style="color:var(--muted);font-size:10px">Yds</th>' : ''}
       ${playerHeaders}
       ${needsResult ? `<th>${_resultHdr()}</th>` : ""}
+      <th style="color:var(--green);border-left:2px solid var(--border);font-size:10px" title="Bingo Bango Bongo">BBB</th>
     </tr>`;
   });
 
@@ -454,6 +472,20 @@ function _resultHdr() {
   if (currentMode==="skins")      return "Skin";
   if (currentMode==="bestball")   return "Best";
   return "";
+}
+
+// ── BBB change handler ───────────────────────────────────────
+export function onBbbChange(input) {
+  const gi  = parseInt(input.dataset.hole);
+  let val   = input.value.trim();
+  // Only allow 1, 2, 3, or 4
+  if (val !== "" && !["1","2","3","4"].includes(val)) {
+    // Clamp to valid range
+    const n = parseInt(val);
+    val = isNaN(n) ? "" : String(Math.min(4, Math.max(1, n)));
+    input.value = val;
+  }
+  bbbScores[gi] = val;
 }
 
 // ── Score change handler ──────────────────────────────────────
