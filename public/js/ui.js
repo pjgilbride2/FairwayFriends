@@ -67,6 +67,12 @@ export function esc(str) {
     .replace(/\//g, "&#x2F;");
 }
 
+// ── Toggle a chip/pill selected state ──
+export function toggleChip(el) {
+  if (!el) return;
+  el.classList.toggle("selected");
+}
+
 // ── Toast notification ──
 let _toastTimer = null;
 export function showToast(msg) {
