@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=111";
+import { db } from "./firebase-config.js?v=112";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=111";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=111";
+import { myProfile, myVibes } from "./profile.js?v=112";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=112";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -90,17 +90,18 @@ export function resetHolesToDefault() {
 
 // ── Game modes ───────────────────────────────────────────────
 export const MODES = {
-  stroke:     {label:"Stroke Play",  icon:"🏌️", desc:"Count every shot — lowest total wins"},
-  match:      {label:"Match Play",   icon:"⚔️",  desc:"Win holes vs par — most holes won wins"},
-  stableford: {label:"Stableford",   icon:"🎯",  desc:"Points per hole: Eagle=4 Birdie=3 Par=2 Bogey=1"},
-  scramble:   {label:"Scramble",     icon:"🤝",  desc:"Team picks best shot each time"},
-  skins:      {label:"Skins",        icon:"💰",  desc:"Beat other players hole-by-hole to win the skin"},
-  bestball:   {label:"Best Ball",    icon:"⭐",  desc:"Each plays own ball — best score per hole counts"},
+  stroke:     {label:"Stroke Play",      icon:"🏌️", desc:"Count every shot — lowest total wins"},
+  match:      {label:"Match Play",       icon:"⚔️",  desc:"Win holes vs par — most holes won wins"},
+  stableford: {label:"Stableford",       icon:"🎯",  desc:"Points per hole: Eagle=4 Birdie=3 Par=2 Bogey=1"},
+  scramble:   {label:"Scramble",         icon:"🤝",  desc:"Team picks best shot each time"},
+  skins:      {label:"Skins",            icon:"💰",  desc:"Beat other players hole-by-hole to win the skin"},
+  bestball:   {label:"Best Ball",        icon:"⭐",  desc:"Each plays own ball — best score per hole counts"},
+  bingo:      {label:"Bingo Bango Bongo",icon:"🎪", desc:"1=first on green, 2=closest to pin, 3=first to hole out"},
 };
 
 // ── Set game mode ─────────────────────────────────────────────
 export function setGameMode(mode) {
-  const _valid = ['stroke','match','stableford','scramble','skins','bestball'];
+  const _valid = ['stroke','match','stableford','scramble','skins','bestball','bingo'];
   currentMode = _valid.includes(mode) ? mode : 'stroke';
   document.querySelectorAll(".game-mode-btn").forEach(b => {
     const active = b.dataset.mode === currentMode;
@@ -452,9 +453,9 @@ export function buildScoreTable() {
         </td>`;
       }).join('');
 
-      // BBB cell — accepts 1,2,3,4 only; validate on input
+      // BBB cell — only rendered in Bingo Bango Bongo mode
       const bbbVal = bbbScores[gi] || "";
-      const bbbCell = `<td style="border-left:2px solid var(--border)">
+      const bbbCell = currentMode === 'bingo' ? `<td style="border-left:2px solid var(--border)">
         <input class="score-input bbb-input"
           type="number" min="1" max="4"
           value="${bbbVal}"
@@ -462,7 +463,7 @@ export function buildScoreTable() {
           placeholder="-"
           oninput="window._onBbbChange(this)"
           style="color:var(--green);font-weight:600;max-width:38px">
-      </td>`;
+      </td>` : '';
 
       // Result cell for certain modes
       let resultCell = "";
@@ -522,7 +523,7 @@ export function buildScoreTable() {
       ${hasYards ? '<th style="color:var(--muted);font-size:10px">Yds</th>' : ''}
       ${playerHeaders}
       ${needsResult ? `<th>${_resultHdr()}</th>` : ""}
-      <th style="color:var(--green);border-left:2px solid var(--border);font-size:10px" title="Bingo Bango Bongo">BBB</th>
+      ${currentMode === 'bingo' ? '<th style="color:var(--green);border-left:2px solid var(--border);font-size:10px" title="Bingo Bango Bongo">BBB</th>' : ''}
     </tr>`;
   });
 

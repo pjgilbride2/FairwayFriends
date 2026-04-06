@@ -897,3 +897,22 @@ body { font-display: swap; }
   /* Prevent spin buttons on BBB input */
   .bbb-input::-webkit-outer-spin-button,
   .bbb-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  /* ── Player Filter Pills ─────────────────────────────────── */
+  .player-filter-pill {
+    display: inline-flex; align-items: center; flex-shrink: 0;
+    padding: 5px 14px; border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--card-bg); color: var(--muted);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    white-space: nowrap; transition: all .15s;
+  }
+  .player-filter-pill:hover { border-color: var(--green); color: var(--green); }
+  .player-filter-pill.active {
+    background: var(--green); color: #fff;
+    border-color: var(--green); font-weight: 600;
+  }
+  /* hide scrollbar on pill rows */
+  #player-filter-pills::-webkit-scrollbar,
+  #feed-player-filter-pills::-webkit-scrollbar { display: none; }

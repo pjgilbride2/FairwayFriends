@@ -9,7 +9,7 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-  <link rel="stylesheet" href="/css/app.css?v=111" />
+  <link rel="stylesheet" href="/css/app.css?v=112" />
 </head>
 <body>
 
@@ -48,12 +48,19 @@
     <span class="feed-section-title">Golfers near you</span>
     <button class="feed-see-all" onclick="safeUI('goScreen','players')">See all</button>
   </div>
+  <!-- Filter pills on home feed -->
+  <div id="feed-player-filter-pills" style="display:flex;gap:6px;overflow-x:auto;padding:0 16px 10px;scrollbar-width:none">
+    <button class="player-filter-pill active" data-filter="all"      onclick="safeUI('setPlayerDistFilter','all')">Everyone</button>
+    <button class="player-filter-pill"         data-filter="followers" onclick="safeUI('setPlayerDistFilter','followers')">Followers</button>
+    <button class="player-filter-pill"         data-filter="10"      onclick="safeUI('setPlayerDistFilter','10')">10 mi</button>
+    <button class="player-filter-pill"         data-filter="25"      onclick="safeUI('setPlayerDistFilter','25')">25 mi</button>
+    <button class="player-filter-pill"         data-filter="50"      onclick="safeUI('setPlayerDistFilter','50')">50 mi</button>
+  </div>
   <div id="nearby-players-feed" class="nearby-players-row"></div>
 
   <!-- Post composer -->
   <div class="post-composer-card">
     <div class="composer-row">
-      <div id="feed-post-avatar" class="avatar-sm avatar-green composer-avatar"></div>
       <textarea id="post-text" placeholder="Share a round, tip, or tee time…" maxlength="500" rows="1"
         class="composer-textarea"
         onfocus="this.rows=3;this.classList.add('focused')" onblur="if(!this.value)this.rows=1;this.classList.remove('focused')"></textarea>
@@ -237,14 +244,21 @@
       <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:6px">Golfers near you</span>
     </div>
   </div>
-  <div style="padding:8px 16px">
-    <div style="position:relative">
+  <div style="padding:8px 16px 4px">
+    <div style="position:relative;margin-bottom:10px">
       <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none">🔍</span>
       <input id="player-search" type="search" placeholder="Search players…" oninput="safeUI('filterPlayers',this.value)"
         style="width:100%;box-sizing:border-box;padding:8px 10px 8px 34px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;background:var(--card-bg);color:var(--text);font-family:inherit;outline:none" />
     </div>
+    <!-- Filter pills: Everyone / Followers / distance -->
+    <div id="player-filter-pills" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none">
+      <button class="player-filter-pill active" data-filter="all"    onclick="safeUI('setPlayerDistFilter','all')">Everyone</button>
+      <button class="player-filter-pill"         data-filter="followers" onclick="safeUI('setPlayerDistFilter','followers')">Followers</button>
+      <button class="player-filter-pill"         data-filter="10"    onclick="safeUI('setPlayerDistFilter','10')">Within 10 mi</button>
+      <button class="player-filter-pill"         data-filter="25"    onclick="safeUI('setPlayerDistFilter','25')">Within 25 mi</button>
+      <button class="player-filter-pill"         data-filter="50"    onclick="safeUI('setPlayerDistFilter','50')">Within 50 mi</button>
+    </div>
   </div>
-  <input type="hidden" id="miles-filter" value="9999" />
   <div id="players-list-main" style="padding:0 16px 100px"></div>
 </div>
 
@@ -513,7 +527,7 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=111"></script>
+<script type="module" src="/js/app.js?v=112"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->
