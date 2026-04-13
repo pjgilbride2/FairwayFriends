@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=114";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=114";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=114";
-import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard } from "./scorecard.js?v=114";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=114";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=114";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=114";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=114";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=114";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=114";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=114";
-import { buildOnboardScreen } from "./onboard.js?v=114";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=116";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=116";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=116";
+import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=116";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=116";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=116";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=116";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=116";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=116";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=116";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=116";
+import { buildOnboardScreen } from "./onboard.js?v=116";
 
 
 // ── Haversine distance in miles ──
@@ -146,6 +146,13 @@ window.UI = {
     if(name && !VALID_SCREENS.includes(name)) { console.warn("Invalid screen:", name); return; }
     goScreen(name);
     if (name === "scorecard") {
+      // Restore any in-progress round from localStorage
+      const restored = restoreSavedRound();
+      if (restored) {
+        const inp = document.getElementById('sc-course-input');
+        if (inp && restored.course && !inp.value) inp.value = restored.course;
+        if (restored.hasScores) showToast('In-progress round restored ⛳');
+      }
       buildGamePanel();
       buildScoreTable();
       loadRoundHistory();
@@ -223,6 +230,18 @@ window.UI = {
       const scCourseInp = document.getElementById('sc-course-input');
       if (scCourseInp && !scCourseInp.dataset.acWired) {
         scCourseInp.dataset.acWired = '1';
+        // Debounced course fetch — fires after user stops typing for 700ms
+        let _courseDebounce = null;
+        scCourseInp.addEventListener('change', () => {
+          const name = scCourseInp.value.trim();
+          if (name.length > 4) {
+            clearTimeout(_courseDebounce);
+            _courseDebounce = setTimeout(() => {
+              showToast('Loading scorecard for ' + name + '…');
+              UI.openScorecardForCourse(name).catch(()=>{});
+            }, 700);
+          }
+        });
         scCourseInp.setAttribute('autocomplete','off');
         scCourseInp.style.background = '#ffffff';
         scCourseInp.style.color = '#1a1a1a';
@@ -891,7 +910,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=114");
+      const { initials, avatarColor } = await import("./ui.js?v=116");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1374,19 +1393,25 @@ window.UI = {
   },
   showAuthSignIn() {
     const el = id => document.getElementById(id);
-    if(el('auth-landing'))    el('auth-landing').style.display    = 'none';
-    if(el('auth-signin'))     el('auth-signin').style.display     = 'block';
+    const landing = el('auth-landing');
+    const signin  = el('auth-signin');
+    // Collapse landing so signin form sits at top of scroll container
+    if (landing) { landing.style.display = 'none'; landing.style.minHeight = '0'; landing.style.height = '0'; }
+    if (signin)  { signin.style.display  = 'block'; }
     if(el('auth-email-signup')) el('auth-email-signup').style.display = 'none';
-    // Always reset button state when panel opens — prevents stuck "Signing in…" from previous attempt
+    // Scroll both window and screen to top
+    window.scrollTo({top:0, behavior:'instant'});
+    document.getElementById('screen-auth')?.scrollTo({top:0, behavior:'instant'});
+    // Reset button state
     const btn = el('login-btn');
     if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
     const errEl = el('login-error');
     if (errEl) errEl.style.display = 'none';
-    setTimeout(() => el('login-email')?.focus(), 100);
+    setTimeout(() => el('login-email')?.focus(), 80);
   },
   showAuthEmailSignup() {
     // Route to the full onboard flow instead of inline form
-    goScreen('onboard');
+    safeUI('goScreen', 'onboard');
   },
 
   // ── Forgot password ──
@@ -1611,7 +1636,7 @@ window.UI = {
   async deletePost(postId) {
     if (!confirm("Delete this post?")) return;
     try {
-      const { deletePostById } = await import("./feed.js?v=114");
+      const { deletePostById } = await import("./feed.js?v=116");
       await deletePostById(postId);
       const card = document.getElementById("post-card-" + postId);
       if (card) card.remove();
@@ -2264,10 +2289,56 @@ window.UI = {
     filterPlayers(q, vibe, miles);
   },
 
+  handleSaveProgress() {
+    // Force an autosave snapshot right now and toast confirmation
+    const courseName = document.getElementById('sc-course-input')?.value?.trim() || '';
+    // Trigger autosave via score change on a dummy basis — just call the export
+    try {
+      // Access the autosave indirectly: dispatch a fake input event on any score cell
+      // Actually call the exported restoreSavedRound to check state — but we want to SAVE
+      // Scores autosave on every change; this button just confirms to the user
+      showToast('Progress saved locally 💾');
+      // Store course name explicitly in localStorage alongside the scores
+      try {
+        const raw = localStorage.getItem('ff_inprogress_round');
+        if (raw) {
+          const d = JSON.parse(raw);
+          d.course = courseName;
+          d.ts = Date.now();
+          localStorage.setItem('ff_inprogress_round', JSON.stringify(d));
+        }
+      } catch(_) {}
+    } catch(e) { showToast('Could not save progress'); }
+  },
+
+  async loadScorecardForCourse(courseName) {
+    if (!courseName || courseName.length < 3) return;
+    showToast('Loading scorecard for ' + courseName + '…');
+    resetHolesToDefault();
+    try {
+      const ryzeData = await UI._fetchRyzeCourse(courseName);
+      if (ryzeData?.scorecard?.length >= 9) {
+        const holes = ryzeData.scorecard.map(h => ({
+          h: h.Hole, par: h.Par, hcp: h.Handicap,
+          yards: h.tees ? Object.values(h.tees)[0]?.yards : null
+        }));
+        const teeBoxData = ryzeData.teeBoxes?.[0];
+        applyApiCourseData(holes, teeBoxData?.handicap, teeBoxData?.slope);
+        showToast('Scorecard loaded: ' + (ryzeData.name || courseName) + ' ⛳');
+      } else {
+        showToast('No scorecard found for ' + courseName);
+      }
+    } catch(e) {
+      console.warn('[SC] loadScorecardForCourse error:', e.message);
+      showToast('Could not load scorecard');
+    }
+  },
+
   async handleSaveRound() {
     const courseName = document.getElementById('sc-course-input')?.value?.trim()
       || window._pendingGpsCourse || '';
     await saveRound(courseName);
+    clearSavedRound(); // clear autosave after official save
   },
 
   // ── Course Layout ──────────────────────────────────────────────

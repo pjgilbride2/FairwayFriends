@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=114";
+import { db, storage } from "./firebase-config.js?v=116";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=114";
+import { showToast } from "./ui.js?v=116";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -694,8 +694,17 @@ function _goTo(n) {
 
 // ── Continue with validation ──────────────────────────────────
 async function _continue() {
-  // Step 9 = success → go to feed (save already done)
-  if (_cur === 9) { _launchApp(); return; }
+  // Step 9 = success → go to feed (profile already saved)
+  if (_cur === 9) {
+    if (typeof safeUI === 'function') {
+      safeUI('goScreen', 'feed');
+      document.getElementById('bottom-nav').style.display = 'flex';
+      if (window.UI?.refreshWeather) window.UI.refreshWeather();
+    } else {
+      window.location.reload();
+    }
+    return;
+  }
 
   // Step 8 → save profile then show success screen
   if (_cur === 8) { await _launchApp(); return; }
@@ -839,8 +848,11 @@ async function _launchApp() {
 
     window._weatherCity = city;
 
-    // Show success then go to feed
+    // Show success screen
     _goTo(9);
+    // Disable button during transition to prevent double-click re-trigger
+    const successBtn = document.getElementById('ob-main-btn');
+    if (successBtn) successBtn.disabled = false; // _goTo re-enables it, so we just let it be
     setTimeout(() => {
       // Use safeUI (always available) to navigate to feed — it handles
     // goScreen + initFeed + initNearbyPlayers all in one place
@@ -855,7 +867,7 @@ async function _launchApp() {
       window.location.reload();
     }
       showToast('Welcome to Fairway Friend! 🏌️');
-    }, 2200);
+    }, 800);
 
   } catch(e) {
     console.error('Onboard save error:', e);

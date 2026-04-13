@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=114";
+import { db } from "./firebase-config.js?v=116";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=114";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=114";
+import { myProfile, myVibes } from "./profile.js?v=116";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=116";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -21,6 +21,45 @@ let players = [];
 // Bingo Bango Bongo: per-hole winners, each cell = player index (1-4) or ""
 // "1"=first on green, "2"=closest to pin, "3"=first to hole out, "4"=all three (optional)
 let bbbScores = new Array(18).fill("");
+
+// ── Autosave: persist in-progress scores to localStorage ─────
+const _SAVE_KEY = 'ff_inprogress_round';
+function _autosaveScores() {
+  try {
+    const data = {
+      players: players.map(p => ({ name: p.name, uid: p.uid, scores: [...p.scores], color: p.color })),
+      bbbScores: [...bbbScores],
+      mode: currentMode,
+      course: document.getElementById('sc-course-input')?.value || '',
+      holes: HOLES.map(h => ({...h})),
+      ts: Date.now()
+    };
+    localStorage.setItem(_SAVE_KEY, JSON.stringify(data));
+  } catch(e) {}
+}
+export function restoreSavedRound() {
+  try {
+    const raw = localStorage.getItem(_SAVE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    // Only restore if saved within the last 24h
+    if (!data.ts || Date.now() - data.ts > 86400000) { localStorage.removeItem(_SAVE_KEY); return false; }
+    if (data.players?.length) {
+      players.length = 0;
+      data.players.forEach(p => players.push({ name: p.name, uid: p.uid||null, scores: [...p.scores], color: p.color, photoURL: null }));
+    }
+    if (data.bbbScores) bbbScores = [...data.bbbScores];
+    if (data.mode) currentMode = data.mode;
+    if (data.holes?.length === 18) {
+      data.holes.forEach((h, i) => { HOLES[i] = {...h}; });
+    }
+    myScores = players[0]?.scores || new Array(18).fill('');
+    return { course: data.course || '', hasScores: players[0]?.scores.some(s => s !== '') };
+  } catch(e) { return false; }
+}
+export function clearSavedRound() {
+  try { localStorage.removeItem(_SAVE_KEY); } catch(e) {}
+}
 
 function _initPlayers() {
   players = [
@@ -54,7 +93,12 @@ export function resetScores() {
 // holes: array of {h, par, hcp, yards} (18 items)
 // courseRating, slopeRating: for differential
 export function applyApiCourseData(holes, courseRating, slopeRating) {
-  if (!holes || holes.length < 18) return;
+  if (!holes || holes.length < 9) return; // accept 9+ holes
+  // Pad to 18 if only 9 provided
+  if (holes.length < 18) {
+    const front = holes.slice(0, 9);
+    for (let i = holes.length; i < 18; i++) holes.push({...front[i-9], h: i+1});
+  }
   // Update HOLES in-place so all existing references stay valid
   for (let i = 0; i < 18; i++) {
     if (holes[i]) {
@@ -564,6 +608,7 @@ export function onScoreChange(input) {
   input.className = "score-input " + scoreClass(parseInt(val), HOLES[gi].par);
   input.style.color = players[playerIdx]?.color || "var(--text)";
   buildScoreTable();
+  _autosaveScores(); // persist after every score entry
 }
 
 function sumArr(arr,a,b) {
