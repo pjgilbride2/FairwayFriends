@@ -9,7 +9,7 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-  <link rel="stylesheet" href="/css/app.css?v=116" />
+  <link rel="stylesheet" href="/css/app.css?v=117" />
 </head>
 <body>
 
@@ -164,18 +164,7 @@
   </div>
   <div id="game-panel" style="padding:0 16px 8px"></div>
   <div id="game-mode-desc" style="padding:0 16px 6px;font-size:12px;color:var(--muted)"></div>
-  <div id="sc-players-list" style="padding:0 16px 8px"></div>
-  <button id="sc-add-name-btn" onclick="safeUI('addPlayerPrompt')"
-    style="width:calc(100%-32px);margin:0 16px 10px;padding:11px;border:1.5px dashed var(--border);
-      border-radius:14px;background:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;display:block">
-    + Add Player (1/4)
-  </button>
-  <div id="sc-add-player-overlay" style="display:none;padding:0 16px 10px">
-    <input id="sc-player-name-input" type="text" placeholder="Search players or enter name…" oninput="safeUI('searchPlayersForCard',this.value)"
-      style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid var(--green);border-radius:10px;
-        font-size:14px;background:var(--card-bg);color:var(--text);font-family:inherit;outline:none" />
-    <div id="sc-player-search-results" style="max-height:180px;overflow-y:auto;margin-top:6px;border-radius:10px;border:0.5px solid var(--border)"></div>
-  </div>
+
   <div style="padding:0 16px 10px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <div style="font-size:12px;font-weight:600;color:var(--muted)">Round day forecast</div>
@@ -529,7 +518,7 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=116"></script>
+<script type="module" src="/js/app.js?v=117"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->
@@ -555,5 +544,10 @@ async function handleZipInput(ctx) {
     </button>
   </div>
 </div>
+<!-- Toast notification -->
+<div id="toast" style="position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.82);color:#fff;padding:10px 20px;border-radius:24px;
+  font-size:14px;font-weight:500;z-index:9999;opacity:0;transition:opacity .25s;
+  pointer-events:none;white-space:nowrap;max-width:320px;text-align:center"></div>
 </body>
 </html>

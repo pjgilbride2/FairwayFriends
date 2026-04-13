@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=116";
+import { db } from "./firebase-config.js?v=117";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=116";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=116";
+import { myProfile, myVibes } from "./profile.js?v=117";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=117";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -114,7 +114,7 @@ export function applyApiCourseData(holes, courseRating, slopeRating) {
   if (slopeRating)  SLOPE_RATING  = parseFloat(slopeRating);
   buildScoreTable();
   updateTotals();
-  console.log('[SC] Applied API course data — par:', HOLES.slice(0,9).map(h=>h.par).join(','));
+  console.log('[SC] Applied API course data —', HOLES.length, 'holes, pars:', HOLES.map(h=>h.par).join(','));
 }
 
 // ── Reset HOLES to generic defaults ──────────────────────────
