@@ -564,11 +564,11 @@ function _geocodePlayerCity(p) {
         const lat=d.results[0].latitude, lon=d.results[0].longitude;
         sessionStorage.setItem(gk, JSON.stringify({lat,lon,ts:Date.now()}));
         // Re-apply current filters now that we have coords
-        const vibeFilter  = window._playerVibeFilter  || 'all';
-        const milesFilter = window._playerMilesFilter || 'all';
-        if (milesFilter !== 'all') {
-          const q = document.getElementById('players-search')?.value || '';
-          filterPlayers(q, vibeFilter, milesFilter);
+        const vibeFilter  = window._pf_vibe || 'all';
+        const milesFilter = window._pf_dist || 'all';
+        if (milesFilter !== 'all' && milesFilter !== 'followers') {
+          const q = document.getElementById('player-search')?.value || '';
+          filterPlayers(q, vibeFilter, milesFilter, null);
         }
       }
     })

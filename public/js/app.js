@@ -313,46 +313,60 @@ window.UI = {
       UI.loadScorecardWeather();
     }
     if (name === "players") {
-      // Inject vibe + location filter dropdowns if not present
+      // ── Unified filter state ─────────────────────────────
+      // Single source of truth — all three inputs (pills, vibe dropdown, distance dropdown)
+      // read and write ONLY these two globals
+      window._pf_vibe  = window._pf_vibe  || 'all'; // vibe filter
+      window._pf_dist  = window._pf_dist  || 'all'; // distance filter ('all','followers','5','10','25','50')
+
+      // Inject vibe + distance dropdowns once
       const pList = document.getElementById('players-list-main');
       if (pList && !document.getElementById('players-vibe-bar')) {
         const ALL_VIBES = ['Competitive','Casual','Drinker','Sober','420 Friendly','Music on Cart',
           'Fast Pace','Walker','Cart Only','Early Bird','Twilight','Social Poster','Low Key',
           'Score Keeper','Course Explorer'];
-        // Build unique city list from allPlayers for location filter
-        const cities = [...new Set((allPlayers||[]).map(p=>(p.city||'').split(',')[0].trim()).filter(Boolean))].sort();
+        const chevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")`;
+        const selectStyle = `flex:1;min-width:0;padding:9px 30px 9px 12px;border-radius:10px;
+          border:1.5px solid var(--border);background:var(--surface);color:var(--text);
+          font-size:13px;font-family:inherit;cursor:pointer;outline:none;
+          -webkit-appearance:none;appearance:none;
+          background-image:${chevron};background-repeat:no-repeat;background-position:right 10px center`;
         const pbar = document.createElement('div');
         pbar.id = 'players-vibe-bar';
-        pbar.style.cssText = 'display:flex;gap:10px;padding:10px 16px 10px;border-bottom:0.5px solid var(--border);';
+        pbar.style.cssText = 'display:flex;gap:8px;padding:8px 16px 10px;border-bottom:0.5px solid var(--border)';
         pbar.innerHTML = `
-          <select id="player-vibe-select"
-            onchange="window._playerVibeFilter=this.value;safeUI('applyPlayerFilters')"
-            style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);
-              background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;
-              cursor:pointer;outline:none;appearance:none;
-              background-image:url('data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\'><path d=\'M1 1l5 5 5-5\' fill=\'none\' stroke=\'%23888\' stroke-width=\'1.5\'/></svg>');
-              background-repeat:no-repeat;background-position:right 10px center;padding-right:28px">
+          <select id="player-vibe-select" style="${selectStyle}"
+            onchange="window._pf_vibe=this.value;safeUI('_applyPlayerFilters')">
             <option value="all">🏌️ All Vibes</option>
             ${ALL_VIBES.map(v=>`<option value="${v}">${v}</option>`).join('')}
           </select>
-          <select id="player-loc-select"
-            onchange="window._playerMilesFilter=this.value;safeUI('applyPlayerFilters')"
-            style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);
-              background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;
-              cursor:pointer;outline:none;appearance:none;
-              background-image:url('data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\'><path d=\'M1 1l5 5 5-5\' fill=\'none\' stroke=\'%23888\' stroke-width=\'1.5\'/></svg>');
-              background-repeat:no-repeat;background-position:right 10px center;padding-right:28px">
+          <select id="player-loc-select" style="${selectStyle}"
+            onchange="window._pf_dist=this.value;safeUI('_applyPlayerFilters')">
             <option value="all">📍 Any distance</option>
-            <option value="5">Within 5 miles</option>
-            <option value="10">Within 10 miles</option>
-            <option value="25">Within 25 miles</option>
-            <option value="50">Within 50 miles</option>
-          </select>
-        `;
+            <option value="followers">👥 Followers only</option>
+            <option value="5">Within 5 mi</option>
+            <option value="10">Within 10 mi</option>
+            <option value="25">Within 25 mi</option>
+            <option value="50">Within 50 mi</option>
+          </select>`;
         pList.parentNode.insertBefore(pbar, pList);
       }
-      window._playerVibeFilter  = 'all';
-      window._playerMilesFilter = 'all';
+
+      // Sync dropdowns to current state
+      const vibeEl = document.getElementById('player-vibe-select');
+      const locEl  = document.getElementById('player-loc-select');
+      if (vibeEl) vibeEl.value = window._pf_vibe;
+      if (locEl)  locEl.value  = window._pf_dist;
+
+      // Sync pills to current dist state
+      document.querySelectorAll('#player-filter-pills .player-filter-pill').forEach(p => {
+        const pf = p.dataset.filter;
+        // Map pill filters: 'all','followers','10','25','50' → _pf_dist values
+        p.classList.toggle('active', pf === window._pf_dist);
+      });
+
+      // Run filter with current state on every screen open
+      UI._applyPlayerFilters();
     }
     if (name === "profile") {
       updateProfileUI(); UI.loadProfileActivity();
@@ -2245,48 +2259,55 @@ window.UI = {
     safeUI('bookTeeTime', courseName, '');
   },
 
+  // ── Players filter — single unified path ─────────────────
+  // All filter inputs (search box, pills, dropdowns) call _applyPlayerFilters.
+  // State lives ONLY in window._pf_vibe and window._pf_dist.
+
+  _applyPlayerFilters() {
+    const q    = (document.getElementById('player-search')?.value || '').trim();
+    const vibe = window._pf_vibe || 'all';
+    const dist = window._pf_dist || 'all';
+    if (dist === 'followers') {
+      filterPlayers(q, vibe, 'all', window.myProfile?.friends || []);
+    } else {
+      filterPlayers(q, vibe, dist === 'all' ? 'all' : dist, null);
+    }
+  },
+
+  // Called by search input oninput
   filterPlayers(q) {
-    const vibeFilter  = window._activeVibeFilter   || 'all';
-    const distFilter  = window._playerDistFilter   || 'all';
-    if (distFilter === 'followers') {
-      filterPlayers(q, vibeFilter, 'all', window.myProfile?.friends || []);
-    } else {
-      filterPlayers(q, vibeFilter, distFilter === 'all' ? 'all' : distFilter, null);
-    }
+    window._pf_vibe = window._pf_vibe || 'all';
+    window._pf_dist = window._pf_dist || 'all';
+    this._applyPlayerFilters();
   },
 
+  // Called by distance pills (Everyone / Followers / 10mi / 25mi / 50mi)
   setPlayerDistFilter(filter) {
-    window._playerDistFilter = filter;
-    // Update active pill on both the players screen and home feed
-    document.querySelectorAll('.player-filter-pill').forEach(p => {
-      const isActive = p.dataset.filter === filter;
-      p.classList.toggle('active', isActive);
+    window._pf_dist = filter;
+    // Sync pills active state
+    document.querySelectorAll('#player-filter-pills .player-filter-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.filter === filter);
     });
-    // Apply filter
-    const q = document.getElementById('player-search')?.value || '';
-    const vibeFilter = window._activeVibeFilter || 'all';
-    if (filter === 'followers') {
-      // Show only users the current user follows
-      const friends = window.myProfile?.friends || [];
-      filterPlayers(q, vibeFilter, 'all', friends);
-    } else {
-      filterPlayers(q, vibeFilter, filter === 'all' ? 'all' : filter, null);
+    // Sync distance dropdown if it exists
+    const locEl = document.getElementById('player-loc-select');
+    if (locEl) {
+      // Map pill values to dropdown option values
+      const pillToDropdown = { all:'all', followers:'followers', '10':'10', '25':'25', '50':'50' };
+      locEl.value = pillToDropdown[filter] || 'all';
     }
+    this._applyPlayerFilters();
   },
 
+  // Legacy — keep for any calls still using old name
   setPlayerVibeFilter(vibe) {
-    window._activeVibeFilter = (window._activeVibeFilter === vibe) ? '' : vibe;
-    document.querySelectorAll('.vibe-filter-chip').forEach(c => {
-      c.classList.toggle('active', c.dataset.vibe === window._activeVibeFilter);
-    });
-    this.applyPlayerFilters();
+    window._pf_vibe = vibe;
+    const vibeEl = document.getElementById('player-vibe-select');
+    if (vibeEl) vibeEl.value = vibe;
+    this._applyPlayerFilters();
   },
 
   applyPlayerFilters() {
-    const q = document.getElementById('player-search')?.value || '';
-    const vibe = window._activeVibeFilter || '';
-    const miles = parseFloat(document.getElementById('miles-filter')?.value || 9999);
-    filterPlayers(q, vibe, miles);
+    this._applyPlayerFilters();
   },
 
   handleSaveProgress() {
