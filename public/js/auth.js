@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=117";
+import { auth, db } from "./firebase-config.js?v=119";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -20,10 +20,10 @@ import {
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=117";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=117";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=117";
-import { goScreen, hideSplash } from "./ui.js?v=117";
+import { loadUserProfile } from "./profile.js?v=119";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=119";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=119";
+import { goScreen, hideSplash } from "./ui.js?v=119";
 
 let _listenersActive = false;
 
@@ -223,7 +223,7 @@ export function buildAuthScreen() {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         Create account with Email
       </button>
-      <p class="au-terms">By continuing you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a></p>
+      <p class="au-terms">By continuing you agree to our <a href="/terms.html" target="_blank">Terms</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a></p>
       <div class="au-signin-link">
         Already have an account?
         <button onclick="safeUI('showAuthSignIn')">Sign in</button>

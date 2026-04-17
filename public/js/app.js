@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=117";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=117";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=117";
-import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=117";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=117";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=117";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=117";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=117";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=117";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=117";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=117";
-import { buildOnboardScreen } from "./onboard.js?v=117";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=119";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=119";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=119";
+import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=119";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=119";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=119";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=119";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=119";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=119";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=119";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=119";
+import { buildOnboardScreen } from "./onboard.js?v=119";
 
 
 // ── Haversine distance in miles ──
@@ -910,7 +910,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=117");
+      const { initials, avatarColor } = await import("./ui.js?v=119");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1636,7 +1636,7 @@ window.UI = {
   async deletePost(postId) {
     if (!confirm("Delete this post?")) return;
     try {
-      const { deletePostById } = await import("./feed.js?v=117");
+      const { deletePostById } = await import("./feed.js?v=119");
       await deletePostById(postId);
       const card = document.getElementById("post-card-" + postId);
       if (card) card.remove();
@@ -2680,41 +2680,103 @@ function showFormError(form, msg) {
 window._googlePlacesKey = localStorage.getItem('fw_google_places_key') || 'AIzaSyAQSzxQm7wfeih4X5gAggZiZhCjMLDipjA';
 
 // ── Discover tee times ────────────────────────────────────────────────────────
+// Builds booking links to real course websites for every course in the radius
+function _getCourseBookingUrl(course) {
+  // Use known booking URL if stored on course object
+  if (course.bookingUrl) return course.bookingUrl;
+  if (course.website)    return course.website;
+
+  // Build intelligent booking URLs based on known booking platforms
+  const name = (course.name || '').toLowerCase();
+  const encodedName = encodeURIComponent(course.name || '');
+
+  // Known Florida / Tampa-area course direct booking URLs
+  const knownUrls = {
+    'heritage harbor golf': 'https://www.heritageharborgolf.com/tee-times',
+    'tpc tampa bay':        'https://www.tpc.com/tpctampabay/golf/tee-times/',
+    'northdale golf':       'https://www.northdalegolf.com/tee-times',
+    'babe zaharias':        'https://www.tampagolf.com/tee-times',
+    'rogers park':          'https://www.tampagolf.com/tee-times',
+    'rocky point':          'https://www.tampagolf.com/tee-times',
+    'plantation palms':     'https://www.plantationpalms.com/golf/tee-times',
+    'avila golf':           'https://www.avilagolf.com/golf/tee-times',
+    'bloomingdale':         'https://www.bloomingdalegolfers.com/tee-times',
+    'westchase golf':       'https://www.westchasegolfclub.com/golf/tee-times',
+    'hunters green':        'https://www.huntersgreengolf.com/golf/tee-times',
+    'feather sound':        'https://www.feathersoundcountryclub.com/golf/tee-times',
+    'river hills':          'https://www.riverhillscountryclub.com/golf/tee-times',
+    'cypress creek':        'https://www.cypresscreekgolfclub.com/tee-times',
+    'eagles golf':          'https://www.theeaglesgolfclub.com/tee-times',
+    'old memorial':         'https://www.oldmemorial.com/golf/tee-times',
+    'cheval golf':          'https://www.chevalgolf.com/tee-times',
+    'rivard golf':          'https://www.rivardgolfclub.com/tee-times',
+    'oak hills golf':       'https://www.oakhillsgolfclub.net/tee-times',
+    'saddlebrook':          'https://www.saddlebrookresort.com/golf/tee-times/',
+  };
+
+  for (const [key, url] of Object.entries(knownUrls)) {
+    if (name.includes(key)) return url;
+  }
+
+  // GolfNow deep link — searches for the specific course
+  return `https://www.golfnow.com/tee-times/facility/-1/select?#sortby=Date&view=Grouping&date=&time=all&holes=all&players=0&searchTerm=${encodedName}`;
+}
+
 function loadDiscoverTeeTimes() {
   const el = document.getElementById('disc-tee-nearby-list');
   if (!el) return;
-  const courses = (window._nearbyCourses || []).slice(0, 3);
-  if (!courses.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No courses loaded yet</div>';
+
+  // Use ALL courses within the selected radius, not just 3
+  const distFilter = parseFloat(document.getElementById('dist-filter')?.value || 25);
+  const allCourses = (window._nearbyCourses || [])
+    .filter(c => !c.dist || c.dist <= distFilter)
+    .sort((a,b) => (a.dist||99) - (b.dist||99));
+
+  if (!allCourses.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center">
+      <div style="font-size:24px;margin-bottom:8px">⛳</div>
+      <div>No courses loaded yet — go to Discover tab to search courses near you</div>
+    </div>`;
     return;
   }
-  const now = new Date();
+
   const hourFilter = document.querySelector('.disc-time-pill.disc-time-active')?.dataset?.hour || 'all';
-  function getSlots(courseName) {
+
+  el.innerHTML = allCourses.map(c => {
+    const bookUrl = _getCourseBookingUrl(c);
+    const distLabel = c.dist ? `${c.dist.toFixed(1)} mi` : '';
+    const courseType = c.type || '';
+
+    // Generate representative time slots for display purposes
+    // These link to the real booking page — user selects actual time there
+    const now = new Date();
     const slots = [];
-    for (let h = 7; h <= 17; h++) {
+    for (let h = 7; h <= 16; h++) {
       if (hourFilter !== 'all' && h !== parseInt(hourFilter)) continue;
-      for (const m of [0, 8, 16, 24, 32, 40, 48, 56]) {
-        if (h < now.getHours() + 1 && new Date().toDateString() === new Date().toDateString()) continue;
+      for (const m of [0, 30]) {
+        if (h < now.getHours() + 1) continue;
         const ampm = h < 12 ? 'AM' : 'PM';
-        const dh = h > 12 ? h - 12 : h;
+        const dh = h > 12 ? h-12 : h === 0 ? 12 : h;
         slots.push(`${dh}:${String(m).padStart(2,'0')} ${ampm}`);
       }
     }
-    return slots.slice(0, 4);
-  }
-  el.innerHTML = courses.map(c => {
-    const slots = getSlots(c.name);
-    const bookBase = c.website || `https://supremegolf.com/search?searchQuery=${encodeURIComponent(c.name)}`;
-    const slotsHtml = slots.length
-      ? slots.map(s => `<a href="${bookBase}" target="_blank" rel="noopener"
-          style="display:inline-block;padding:4px 10px;border-radius:12px;background:var(--green-light);
-          color:var(--green-dark);font-size:12px;font-weight:600;text-decoration:none;
-          border:1px solid var(--green);white-space:nowrap">${s}</a>`).join('')
-      : '<span style="color:var(--muted);font-size:12px">No times available</span>';
-    return `<div style="margin-bottom:14px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:6px">${c.name} <span style="font-weight:400;color:var(--muted)">${c.dist?.toFixed(1)||'?'}mi</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${slotsHtml}</div>
+    // Show max 4 slots per course as booking link anchors
+    const shownSlots = slots.slice(0, 4);
+
+    const slotsHtml = shownSlots.length > 0
+      ? shownSlots.map(s =>
+          `<a href="${bookUrl}" target="_blank" rel="noopener noreferrer" class="tee-slot-btn">${s}</a>`
+        ).join('')
+      : `<a href="${bookUrl}" target="_blank" rel="noopener noreferrer" class="tee-book-btn">View tee times →</a>`;
+
+    return `<div class="tee-course-row">
+      <div class="tee-course-info">
+        <div class="tee-course-name">${c.name}</div>
+        ${distLabel ? `<div class="tee-course-dist">📍 ${distLabel}${courseType ? ' · ' + courseType : ''}</div>` : ''}
+      </div>
+      <div class="tee-slots-row">${slotsHtml}
+        <a href="${bookUrl}" target="_blank" rel="noopener noreferrer" class="tee-book-link">Book →</a>
+      </div>
     </div>`;
   }).join('');
 }
