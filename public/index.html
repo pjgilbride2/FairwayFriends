@@ -40,7 +40,7 @@
   <meta name="twitter:image" content="/icons/icon-512.png" />
 
   <!-- ── Stylesheet ── -->
-  <link rel="stylesheet" href="/css/app.css?v=122" />
+  <link rel="stylesheet" href="/css/app.css?v=123" />
 </head>
 <body>
 
@@ -390,6 +390,7 @@
   <div style="padding:12px 16px;border-bottom:0.5px solid var(--border)">
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Details</div>
     <div style="font-size:13px;color:var(--text);display:flex;flex-direction:column;gap:5px">
+      <div><span style="color:var(--muted)">Gender</span>&nbsp;<span id="profile-gender">—</span></div>
       <div><span style="color:var(--muted)">Age range</span>&nbsp;<span id="profile-age-range">—</span></div>
       <div><span style="color:var(--muted)">City</span>&nbsp;<span id="profile-city">—</span></div>
       <div><span style="color:var(--muted)">Home course</span>&nbsp;<span id="profile-home-course">—</span></div>
@@ -428,6 +429,15 @@
           style="width:100%;box-sizing:border-box;resize:none;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-family:inherit;font-size:13px;background:var(--card-bg);color:var(--text);outline:none"
           oninput="var c=document.getElementById('bio-count');if(c)c.textContent=(160-this.value.length)+' left'"></textarea>
         <div id="bio-count" style="font-size:10px;color:var(--muted);text-align:right">160 left</div>
+      </div>
+      <div>
+        <div class="field-label">Gender <span style="font-weight:400;color:var(--muted)">(shown on profile)</span></div>
+        <select id="edit-gender-select" style="flex:1;width:100%;box-sizing:border-box;padding:11px 36px 11px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 12px center" onchange="window._editGender=this.value">
+          <option value="">Select gender…</option>
+          <option value="Man">♂ Man</option>
+          <option value="Woman">♀ Woman</option>
+          <option value="Non-binary">⚧ Non-binary / Prefer not to say</option>
+        </select>
       </div>
       <div>
         <div class="field-label">Age range <span style="font-weight:400;color:var(--muted)">(shown on profile)</span></div>
@@ -596,7 +606,7 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=122"></script>
+<script type="module" src="/js/app.js?v=123"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->

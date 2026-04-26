@@ -3,14 +3,14 @@
 //  Handles: loading, saving, photo upload, UI rendering
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=122";
+import { db, storage } from "./firebase-config.js?v=123";
 import {
   doc, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=122";
+import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=123";
 
 export let myProfile = {};
 export let myVibes   = [];
@@ -120,7 +120,7 @@ export async function saveOnboardingData({ handicap, city, homeCourse, vibes }) 
 }
 
 // ── Save edited profile fields ──
-export async function saveProfileData({ bio, city, homeCourse, handicap, ageRange, lat, lon }) {
+export async function saveProfileData({ bio, gender, city, homeCourse, handicap, ageRange, lat, lon }) {
   const user = window._currentUser;
   if (!user) throw new Error("Not signed in.");
 
@@ -130,6 +130,7 @@ export async function saveProfileData({ bio, city, homeCourse, handicap, ageRang
     ...(lat && lon ? { lat, lon } : {}),
     homeCourse: homeCourse || "",
     handicap:   Number(handicap) || 18,
+    ...(gender   ? { gender }   : {}),
     ...(ageRange ? { ageRange } : {}),
     updatedAt:  serverTimestamp(),
   };
@@ -223,6 +224,7 @@ export function updateProfileUI() {
   set("profile-friends",     String((myProfile.friends || []).length));
   set("profile-city",        myProfile.city       || "—");
   set("profile-home-course", myProfile.homeCourse || "—");
+  set("profile-gender",     myProfile.gender     || "—");
   set("profile-age-range",  myProfile.ageRange   || "—");
   set("feed-city",           myProfile.city       || "Your area");
   set("hcp-label",           myProfile.handicap != null ? `HCP ${myProfile.handicap}` : "HCP —");
@@ -296,7 +298,7 @@ export async function downgradeSubscription() {
     if (window.myProfile) window.myProfile.plan = 'free';
     showToast('Downgraded to Free plan');
     // Refresh profile UI to reflect new plan
-    const { updateProfileUI } = await import('./profile.js?v=122');
+    const { updateProfileUI } = await import('./profile.js?v=123');
     updateProfileUI();
   } catch(e) {
     showToast('Could not update plan');
