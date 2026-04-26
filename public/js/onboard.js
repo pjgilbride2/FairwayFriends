@@ -4,12 +4,12 @@
 //  Flow: Landing → Email/Password → 8 profile steps → Feed
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=120";
+import { db, storage } from "./firebase-config.js?v=121";
 import {
   doc, setDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { showToast } from "./ui.js?v=120";
+import { showToast } from "./ui.js?v=121";
 
 // ── State ────────────────────────────────────────────────────
 let _cur = 0;   // 0=landing, 1=email/pw, 2=gender … 9=success
@@ -209,33 +209,7 @@ export function buildOnboardScreen() {
 .ob-btn.green{background:#3d7a52;box-shadow:0 4px 20px rgba(61,122,82,.3);}
 .ob-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
 
-/* ── Age range selector ── */
-.ob-age-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 4px;
-}
-.ob-age-btn {
-  padding: 10px 6px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all .15s;
-  text-align: center;
-}
-.ob-age-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-light); }
-.ob-age-btn.active {
-  border-color: var(--green);
-  background: var(--green);
-  color: #fff;
-  font-weight: 700;
-}
+
 .ob-back-btn{background:none;border:none;color:rgba(255,255,255,.45);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;padding:7px 0 0;transition:color .2s;}
 .ob-back-btn.hidden{visibility:hidden;}
 .ob-cancel-btn{background:none;border:none;color:rgba(229,62,62,.6);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;padding:7px 0 0;transition:color .2s;}
@@ -337,11 +311,15 @@ export function buildOnboardScreen() {
       </div>
       <div class="ob-f">
         <label>Age Range <span style="font-weight:400;color:var(--muted)">(shown on profile)</span></label>
-        <div class="ob-age-grid" id="ob-age-grid">
-          ${['18–24','25–30','31–35','36–45','46–55','55+'].map(r =>
-            `<button class="ob-age-btn" data-range="${r}">${r}</button>`
-          ).join('')}
-        </div>
+        <select id="ob-age-select" style="flex:1;width:100%;box-sizing:border-box;padding:11px 36px 11px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center">
+          <option value="">Select your age range…</option>
+          <option value="18–24">18–24</option>
+          <option value="25–30">25–30</option>
+          <option value="31–35">31–35</option>
+          <option value="36–45">36–45</option>
+          <option value="46–55">46–55</option>
+          <option value="55+">55+</option>
+        </select>
       </div>
     </div>
 
@@ -566,16 +544,13 @@ function _wire() {
       const age = (Date.now() - new Date(e.target.value)) / (365.25*24*3600*1000);
       const range = age < 25 ? '18–24' : age < 31 ? '25–30' : age < 36 ? '31–35' : age < 46 ? '36–45' : age < 56 ? '46–55' : '55+';
       _data.ageRange = range;
-      document.querySelectorAll('.ob-age-btn').forEach(b => b.classList.toggle('active', b.dataset.range === range));
+      const ageSelEl = document.getElementById('ob-age-select');
+      if (ageSelEl) ageSelEl.value = range;
     }
   });
-  // Age range buttons
-  document.querySelectorAll('.ob-age-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _data.ageRange = btn.dataset.range;
-      document.querySelectorAll('.ob-age-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    });
+  // Age range select
+  document.getElementById('ob-age-select')?.addEventListener('change', e => {
+    _data.ageRange = e.target.value;
   });
 
   // Step 4: reasons

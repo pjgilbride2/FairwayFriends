@@ -40,7 +40,7 @@
   <meta name="twitter:image" content="/icons/icon-512.png" />
 
   <!-- ── Stylesheet ── -->
-  <link rel="stylesheet" href="/css/app.css?v=120" />
+  <link rel="stylesheet" href="/css/app.css?v=121" />
 </head>
 <body>
 
@@ -406,19 +406,15 @@
       </div>
       <div>
         <div class="field-label">Age range <span style="font-weight:400;color:var(--muted)">(shown on profile)</span></div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px" id="edit-age-grid">
-          ${['18–24','25–30','31–35','36–45','46–55','55+'].map(r =>
-            `<button class="edit-age-btn" data-range="${r}"
-              style="padding:9px 4px;border:1.5px solid var(--border);border-radius:10px;
-                     background:var(--surface);color:var(--text);font-size:13px;font-weight:500;
-                     font-family:inherit;cursor:pointer;transition:all .15s;text-align:center"
-              onclick="document.querySelectorAll('.edit-age-btn').forEach(b=>{b.style.background='var(--surface)';b.style.color='var(--text)';b.style.borderColor='var(--border)'});
-                       this.style.background='var(--green)';this.style.color='#fff';this.style.borderColor='var(--green)';
-                       window._editAgeRange=this.dataset.range">
-              ${r}
-            </button>`
-          ).join('')}
-        </div>
+        <select id="edit-age-select" style="flex:1;width:100%;box-sizing:border-box;padding:11px 36px 11px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 12px center" onchange="window._editAgeRange=this.value">
+          <option value="">Select age range…</option>
+          <option value="18–24">18–24</option>
+          <option value="25–30">25–30</option>
+          <option value="31–35">31–35</option>
+          <option value="36–45">36–45</option>
+          <option value="46–55">46–55</option>
+          <option value="55+">55+</option>
+        </select>
       </div>
       <div>
         <div class="field-label">Location (anywhere in the US)</div>
@@ -575,7 +571,7 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=120"></script>
+<script type="module" src="/js/app.js?v=121"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->

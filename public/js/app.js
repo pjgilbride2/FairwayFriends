@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=120";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=120";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=120";
-import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=120";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=120";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=120";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=120";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=120";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=120";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=120";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=120";
-import { buildOnboardScreen } from "./onboard.js?v=120";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=121";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=121";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=121";
+import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=121";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=121";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=121";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=121";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=121";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=121";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=121";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=121";
+import { buildOnboardScreen } from "./onboard.js?v=121";
 
 
 // ── Haversine distance in miles ──
@@ -658,14 +658,10 @@ window.UI = {
     }
     if (elHdcp)   elHdcp.value   = p.handicap   != null ? p.handicap : 18;
     if (elCount)  elCount.textContent = (160 - (p.bio || "").length) + " left";
-    // Pre-select saved age range in the edit grid
+    // Pre-select saved age range in the edit dropdown
     window._editAgeRange = p.ageRange || '';
-    document.querySelectorAll('.edit-age-btn').forEach(b => {
-      const isActive = b.dataset.range === p.ageRange;
-      b.style.background   = isActive ? 'var(--green)' : 'var(--surface)';
-      b.style.color        = isActive ? '#fff'         : 'var(--text)';
-      b.style.borderColor  = isActive ? 'var(--green)' : 'var(--border)';
-    });
+    const ageEditSel = document.getElementById('edit-age-select');
+    if (ageEditSel) ageEditSel.value = p.ageRange || '';
     const errEl = document.getElementById("edit-profile-error");
     if (errEl) errEl.style.display = "none";
     const locStatus = document.getElementById("edit-location-status");
@@ -933,7 +929,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=120");
+      const { initials, avatarColor } = await import("./ui.js?v=121");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1660,7 +1656,7 @@ window.UI = {
   async deletePost(postId) {
     if (!confirm("Delete this post?")) return;
     try {
-      const { deletePostById } = await import("./feed.js?v=120");
+      const { deletePostById } = await import("./feed.js?v=121");
       await deletePostById(postId);
       const card = document.getElementById("post-card-" + postId);
       if (card) card.remove();
