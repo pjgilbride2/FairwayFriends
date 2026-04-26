@@ -592,9 +592,17 @@ export function filterPlayers(q, vibeFilter, milesFilter, followersOnly, genderF
   if (vibeFilter && vibeFilter !== 'all') {
     filtered = filtered.filter(p => (p.vibes||[]).includes(vibeFilter));
   }
-  // Apply gender filter
+  // Apply gender filter — normalize for legacy lowercase + 'nonbinary' variants
   if (genderFilter && genderFilter !== 'all') {
-    filtered = filtered.filter(p => p.gender === genderFilter);
+    const _normGender = g => {
+      if (!g) return '';
+      const l = g.toLowerCase().replace(/[^a-z]/g,'');
+      if (l === 'man' || l === 'male') return 'man';
+      if (l === 'woman' || l === 'female') return 'woman';
+      return 'nonbinary'; // covers 'nonbinary','non-binary','nb', etc.
+    };
+    const gfNorm = _normGender(genderFilter);
+    filtered = filtered.filter(p => _normGender(p.gender) === gfNorm);
   }
   // Apply age range filter
   if (ageFilter && ageFilter !== 'all') {

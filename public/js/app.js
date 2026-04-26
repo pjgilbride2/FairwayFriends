@@ -359,7 +359,7 @@ window.UI = {
             <option value="all">⚧ Any gender</option>
             <option value="Man">♂ Men</option>
             <option value="Woman">♀ Women</option>
-            <option value="Non-binary / Prefer not to say">⚧ Non-binary</option>
+            <option value="Non-binary">⚧ Non-binary</option>
           </select>
           <select id="player-age-select" style="${ss}"
             onchange="window._pf_age=this.value;safeUI('_applyPlayerFilters')">

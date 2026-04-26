@@ -526,7 +526,7 @@ function _wire() {
   document.getElementById('ob-pw-inp')?.addEventListener('keydown', e => { if(e.key==='Enter') _continue(); });
 
   // Step 2: gender
-  [['ob-g-man','man'],['ob-g-woman','woman'],['ob-g-nb','nonbinary']].forEach(([id,val]) => {
+  [['ob-g-man','Man'],['ob-g-woman','Woman'],['ob-g-nb','Non-binary']].forEach(([id,val]) => {
     document.getElementById(id)?.addEventListener('click', () => {
       document.querySelectorAll('#ob-s2 .ob-tog').forEach(b => b.classList.remove('sel'));
       document.getElementById(id)?.classList.add('sel');
