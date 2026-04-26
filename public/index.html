@@ -40,7 +40,7 @@
   <meta name="twitter:image" content="/icons/icon-512.png" />
 
   <!-- ── Stylesheet ── -->
-  <link rel="stylesheet" href="/css/app.css?v=121" />
+  <link rel="stylesheet" href="/css/app.css?v=122" />
 </head>
 <body>
 
@@ -85,12 +85,37 @@
         <span class="feed-block-title">Golfers near you</span>
         <button class="feed-see-all" onclick="safeUI('goScreen','players')">See all →</button>
       </div>
+      <!-- Row 1: Distance pills -->
       <div class="feed-pills-row" id="feed-player-filter-pills">
         <button class="player-filter-pill active" data-filter="all"       onclick="safeUI('setPlayerDistFilter','all')">Everyone</button>
         <button class="player-filter-pill"         data-filter="followers" onclick="safeUI('setPlayerDistFilter','followers')">Followers</button>
         <button class="player-filter-pill"         data-filter="10"       onclick="safeUI('setPlayerDistFilter','10')">10 mi</button>
         <button class="player-filter-pill"         data-filter="25"       onclick="safeUI('setPlayerDistFilter','25')">25 mi</button>
         <button class="player-filter-pill"         data-filter="50"       onclick="safeUI('setPlayerDistFilter','50')">50 mi</button>
+      </div>
+      <!-- Row 2: Gender + Age pills -->
+      <div class="feed-pills-row" id="feed-gender-age-pills" style="padding-bottom:6px">
+        <button class="player-filter-pill active" data-type="gender" data-value="all"
+          onclick="safeUI('setPlayerGenderFilter','all')">⚧ All</button>
+        <button class="player-filter-pill" data-type="gender" data-value="Man"
+          onclick="safeUI('setPlayerGenderFilter','Man')">♂ Men</button>
+        <button class="player-filter-pill" data-type="gender" data-value="Woman"
+          onclick="safeUI('setPlayerGenderFilter','Woman')">♀ Women</button>
+        <span class="feed-pill-divider"></span>
+        <button class="player-filter-pill active" data-type="age" data-value="all"
+          onclick="safeUI('setPlayerAgeFilter','all')">🎂 All ages</button>
+        <button class="player-filter-pill" data-type="age" data-value="18–24"
+          onclick="safeUI('setPlayerAgeFilter','18–24')">18–24</button>
+        <button class="player-filter-pill" data-type="age" data-value="25–30"
+          onclick="safeUI('setPlayerAgeFilter','25–30')">25–30</button>
+        <button class="player-filter-pill" data-type="age" data-value="31–35"
+          onclick="safeUI('setPlayerAgeFilter','31–35')">31–35</button>
+        <button class="player-filter-pill" data-type="age" data-value="36–45"
+          onclick="safeUI('setPlayerAgeFilter','36–45')">36–45</button>
+        <button class="player-filter-pill" data-type="age" data-value="46–55"
+          onclick="safeUI('setPlayerAgeFilter','46–55')">46–55</button>
+        <button class="player-filter-pill" data-type="age" data-value="55+"
+          onclick="safeUI('setPlayerAgeFilter','55+')">55+</button>
       </div>
       <div id="nearby-players-feed" class="nearby-players-row"></div>
     </div>
@@ -571,7 +596,7 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=121"></script>
+<script type="module" src="/js/app.js?v=122"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->

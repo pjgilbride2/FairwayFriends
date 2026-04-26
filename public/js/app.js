@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=121";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=121";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=121";
-import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=121";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=121";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=121";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=121";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=121";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=121";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=121";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=121";
-import { buildOnboardScreen } from "./onboard.js?v=121";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=122";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=122";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=122";
+import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=122";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=122";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=122";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=122";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=122";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=122";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=122";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=122";
+import { buildOnboardScreen } from "./onboard.js?v=122";
 
 
 // ── Haversine distance in miles ──
@@ -313,34 +313,33 @@ window.UI = {
       UI.loadScorecardWeather();
     }
     if (name === "players") {
-      // ── Unified filter state ─────────────────────────────
-      // Single source of truth — all three inputs (pills, vibe dropdown, distance dropdown)
-      // read and write ONLY these two globals
-      window._pf_vibe  = window._pf_vibe  || 'all'; // vibe filter
-      window._pf_dist  = window._pf_dist  || 'all'; // distance filter ('all','followers','5','10','25','50')
+      // ── Unified filter state ─────────────────────────────────────────────
+      // All filter inputs read/write ONLY these four globals
+      window._pf_vibe   = window._pf_vibe   || 'all'; // vibe
+      window._pf_dist   = window._pf_dist   || 'all'; // distance / relationship
+      window._pf_gender = window._pf_gender || 'all'; // gender
+      window._pf_age    = window._pf_age    || 'all'; // age range
 
-      // Inject vibe + distance dropdowns once
+      // Inject filter dropdowns once
       const pList = document.getElementById('players-list-main');
       if (pList && !document.getElementById('players-vibe-bar')) {
         const ALL_VIBES = ['Competitive','Casual','Drinker','Sober','420 Friendly','Music on Cart',
           'Fast Pace','Walker','Cart Only','Early Bird','Twilight','Social Poster','Low Key',
           'Score Keeper','Course Explorer'];
         const chevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")`;
-        const selectStyle = `flex:1;min-width:0;padding:9px 30px 9px 12px;border-radius:10px;
-          border:1.5px solid var(--border);background:var(--surface);color:var(--text);
-          font-size:13px;font-family:inherit;cursor:pointer;outline:none;
-          -webkit-appearance:none;appearance:none;
-          background-image:${chevron};background-repeat:no-repeat;background-position:right 10px center`;
+        const ss = `flex:1;min-width:0;padding:9px 30px 9px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;background-image:${chevron};background-repeat:no-repeat;background-position:right 10px center`;
+
+        // Row 1: Vibe + Distance
         const pbar = document.createElement('div');
         pbar.id = 'players-vibe-bar';
-        pbar.style.cssText = 'display:flex;gap:8px;padding:8px 16px 10px;border-bottom:0.5px solid var(--border)';
+        pbar.style.cssText = 'display:flex;gap:8px;padding:8px 16px 0;';
         pbar.innerHTML = `
-          <select id="player-vibe-select" style="${selectStyle}"
+          <select id="player-vibe-select" style="${ss}"
             onchange="window._pf_vibe=this.value;safeUI('_applyPlayerFilters')">
             <option value="all">🏌️ All Vibes</option>
             ${ALL_VIBES.map(v=>`<option value="${v}">${v}</option>`).join('')}
           </select>
-          <select id="player-loc-select" style="${selectStyle}"
+          <select id="player-loc-select" style="${ss}"
             onchange="window._pf_dist=this.value;safeUI('_applyPlayerFilters')">
             <option value="all">📍 Any distance</option>
             <option value="followers">👥 Followers only</option>
@@ -349,20 +348,55 @@ window.UI = {
             <option value="25">Within 25 mi</option>
             <option value="50">Within 50 mi</option>
           </select>`;
-        pList.parentNode.insertBefore(pbar, pList);
+
+        // Row 2: Gender + Age Range
+        const pbar2 = document.createElement('div');
+        pbar2.id = 'players-filter-bar2';
+        pbar2.style.cssText = 'display:flex;gap:8px;padding:8px 16px 10px;border-bottom:0.5px solid var(--border);';
+        pbar2.innerHTML = `
+          <select id="player-gender-select" style="${ss}"
+            onchange="window._pf_gender=this.value;safeUI('_applyPlayerFilters')">
+            <option value="all">⚧ Any gender</option>
+            <option value="Man">♂ Men</option>
+            <option value="Woman">♀ Women</option>
+            <option value="Non-binary / Prefer not to say">⚧ Non-binary</option>
+          </select>
+          <select id="player-age-select" style="${ss}"
+            onchange="window._pf_age=this.value;safeUI('_applyPlayerFilters')">
+            <option value="all">🎂 Any age</option>
+            <option value="18–24">18–24</option>
+            <option value="25–30">25–30</option>
+            <option value="31–35">31–35</option>
+            <option value="36–45">36–45</option>
+            <option value="46–55">46–55</option>
+            <option value="55+">55+</option>
+          </select>`;
+
+        pList.parentNode.insertBefore(pbar2, pList);
+        pList.parentNode.insertBefore(pbar, pbar2);
       }
 
-      // Sync dropdowns to current state
-      const vibeEl = document.getElementById('player-vibe-select');
-      const locEl  = document.getElementById('player-loc-select');
-      if (vibeEl) vibeEl.value = window._pf_vibe;
-      if (locEl)  locEl.value  = window._pf_dist;
+      // Sync all four dropdowns to current state
+      const vibeEl   = document.getElementById('player-vibe-select');
+      const locEl    = document.getElementById('player-loc-select');
+      const genderEl = document.getElementById('player-gender-select');
+      const ageEl    = document.getElementById('player-age-select');
+      if (vibeEl)   vibeEl.value   = window._pf_vibe;
+      if (locEl)    locEl.value    = window._pf_dist;
+      if (genderEl) genderEl.value = window._pf_gender;
+      if (ageEl)    ageEl.value    = window._pf_age;
 
-      // Sync pills to current dist state
+      // Sync distance pills
       document.querySelectorAll('#player-filter-pills .player-filter-pill').forEach(p => {
-        const pf = p.dataset.filter;
-        // Map pill filters: 'all','followers','10','25','50' → _pf_dist values
-        p.classList.toggle('active', pf === window._pf_dist);
+        p.classList.toggle('active', p.dataset.filter === window._pf_dist);
+      });
+      // Sync home feed gender pills
+      document.querySelectorAll('#feed-gender-age-pills .player-filter-pill[data-type="gender"]').forEach(b => {
+        b.classList.toggle('active', b.dataset.value === (window._pf_gender||'all'));
+      });
+      // Sync home feed age pills
+      document.querySelectorAll('#feed-gender-age-pills .player-filter-pill[data-type="age"]').forEach(b => {
+        b.classList.toggle('active', b.dataset.value === (window._pf_age||'all'));
       });
 
       // Run filter with current state on every screen open
@@ -929,7 +963,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=121");
+      const { initials, avatarColor } = await import("./ui.js?v=122");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1656,7 +1690,7 @@ window.UI = {
   async deletePost(postId) {
     if (!confirm("Delete this post?")) return;
     try {
-      const { deletePostById } = await import("./feed.js?v=121");
+      const { deletePostById } = await import("./feed.js?v=122");
       await deletePostById(postId);
       const card = document.getElementById("post-card-" + postId);
       if (card) card.remove();
@@ -2270,14 +2304,14 @@ window.UI = {
   // State lives ONLY in window._pf_vibe and window._pf_dist.
 
   _applyPlayerFilters() {
-    const q    = (document.getElementById('player-search')?.value || '').trim();
-    const vibe = window._pf_vibe || 'all';
-    const dist = window._pf_dist || 'all';
-    if (dist === 'followers') {
-      filterPlayers(q, vibe, 'all', window.myProfile?.friends || []);
-    } else {
-      filterPlayers(q, vibe, dist === 'all' ? 'all' : dist, null);
-    }
+    const q      = (document.getElementById('player-search')?.value || '').trim();
+    const vibe   = window._pf_vibe   || 'all';
+    const dist   = window._pf_dist   || 'all';
+    const gender = window._pf_gender || 'all';
+    const age    = window._pf_age    || 'all';
+    const followers = dist === 'followers' ? (window.myProfile?.friends || []) : null;
+    const miles  = dist === 'followers' || dist === 'all' ? 'all' : dist;
+    filterPlayers(q, vibe, miles, followers, gender, age);
   },
 
   // Called by search input oninput
@@ -2309,6 +2343,30 @@ window.UI = {
     window._pf_vibe = vibe;
     const vibeEl = document.getElementById('player-vibe-select');
     if (vibeEl) vibeEl.value = vibe;
+    this._applyPlayerFilters();
+  },
+
+  setPlayerGenderFilter(gender) {
+    window._pf_gender = gender;
+    // Sync Players screen dropdown
+    const el = document.getElementById('player-gender-select');
+    if (el) el.value = gender;
+    // Sync home feed gender pills
+    document.querySelectorAll('#feed-gender-age-pills .player-filter-pill[data-type="gender"]').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === gender);
+    });
+    this._applyPlayerFilters();
+  },
+
+  setPlayerAgeFilter(age) {
+    window._pf_age = age;
+    // Sync Players screen dropdown
+    const el = document.getElementById('player-age-select');
+    if (el) el.value = age;
+    // Sync home feed age pills
+    document.querySelectorAll('#feed-gender-age-pills .player-filter-pill[data-type="age"]').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === age);
+    });
     this._applyPlayerFilters();
   },
 

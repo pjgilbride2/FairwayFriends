@@ -990,3 +990,14 @@ body { font-display: swap; }
 
 /* player filter pills — already exists but ensure it works in feed-pills-row */
 .feed-pills-row .player-filter-pill { flex-shrink: 0; }
+
+/* Feed pill divider between gender and age groups */
+.feed-pill-divider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+  align-self: center;
+}

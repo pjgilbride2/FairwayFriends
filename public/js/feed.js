@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=121";
+import { db, storage } from "./firebase-config.js?v=122";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=121";
-import { createNotification } from "./notifications.js?v=121";
-import { loadRoundDayForecast } from "./weather.js?v=121";
+import { myProfile, myVibes } from "./profile.js?v=122";
+import { createNotification } from "./notifications.js?v=122";
+import { loadRoundDayForecast } from "./weather.js?v=122";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=121";
+} from "./ui.js?v=122";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -568,14 +568,14 @@ function _geocodePlayerCity(p) {
         const milesFilter = window._pf_dist || 'all';
         if (milesFilter !== 'all' && milesFilter !== 'followers') {
           const q = document.getElementById('player-search')?.value || '';
-          filterPlayers(q, vibeFilter, milesFilter, null);
+          filterPlayers(q, vibeFilter, milesFilter, null, window._pf_gender||'all', window._pf_age||'all');
         }
       }
     })
     .catch(()=>{});
 }
 
-export function filterPlayers(q, vibeFilter, milesFilter, followersOnly) {
+export function filterPlayers(q, vibeFilter, milesFilter, followersOnly, genderFilter, ageFilter) {
   const lower = (q||'').toLowerCase().trim();
   let filtered = lower
     ? allPlayers.filter(p =>
@@ -591,6 +591,14 @@ export function filterPlayers(q, vibeFilter, milesFilter, followersOnly) {
   // Apply vibe dropdown filter
   if (vibeFilter && vibeFilter !== 'all') {
     filtered = filtered.filter(p => (p.vibes||[]).includes(vibeFilter));
+  }
+  // Apply gender filter
+  if (genderFilter && genderFilter !== 'all') {
+    filtered = filtered.filter(p => p.gender === genderFilter);
+  }
+  // Apply age range filter
+  if (ageFilter && ageFilter !== 'all') {
+    filtered = filtered.filter(p => p.ageRange === ageFilter);
   }
   // Apply mileage filter using haversine
   if (milesFilter && milesFilter !== 'all') {
@@ -620,6 +628,9 @@ export function filterPlayers(q, vibeFilter, milesFilter, followersOnly) {
     });
   } catch(_) {}
   renderNearbyPlayers(filtered, "players-list-main");
+  // Also refresh the home feed card row with the same filters (top 3)
+  const homeFeed = document.getElementById("nearby-players-feed");
+  if (homeFeed) renderNearbyPlayers(filtered.slice(0,3), "nearby-players-feed");
 }
 
 export async function toggleFollow(btn, targetUid) {
