@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=119";
+import { db, storage } from "./firebase-config.js?v=120";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=119";
-import { createNotification } from "./notifications.js?v=119";
-import { loadRoundDayForecast } from "./weather.js?v=119";
+import { myProfile, myVibes } from "./profile.js?v=120";
+import { createNotification } from "./notifications.js?v=120";
+import { loadRoundDayForecast } from "./weather.js?v=120";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=119";
+} from "./ui.js?v=120";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -496,7 +496,7 @@ export function renderNearbyPlayers(players, containerId) {
               ${esc(p.displayName || "Golfer")}
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--muted);flex-shrink:0"><polyline points="9,18 15,12 9,6"/></svg>
             </div>
-            <div class="player-meta">${p.newToArea ? "🆕 New to area · " : ""}HCP ${p.handicap || "?"}</div>
+            <div class="player-meta">${p.newToArea ? "🆕 New to area · " : ""}HCP ${p.handicap || "?"}${p.ageRange ? " · " + p.ageRange : ""}</div>
           </div>
           ${myVibes.length ? `<span class="match-pct ${cls}">${pct}%</span>` : `<span class="player-hdcp">HCP ${p.handicap || "?"}</span>`}
           <div style="display:flex;gap:6px;align-items:center">

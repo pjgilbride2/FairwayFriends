@@ -40,7 +40,7 @@
   <meta name="twitter:image" content="/icons/icon-512.png" />
 
   <!-- ── Stylesheet ── -->
-  <link rel="stylesheet" href="/css/app.css?v=119" />
+  <link rel="stylesheet" href="/css/app.css?v=120" />
 </head>
 <body>
 
@@ -365,6 +365,7 @@
   <div style="padding:12px 16px;border-bottom:0.5px solid var(--border)">
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Details</div>
     <div style="font-size:13px;color:var(--text);display:flex;flex-direction:column;gap:5px">
+      <div><span style="color:var(--muted)">Age range</span>&nbsp;<span id="profile-age-range">—</span></div>
       <div><span style="color:var(--muted)">City</span>&nbsp;<span id="profile-city">—</span></div>
       <div><span style="color:var(--muted)">Home course</span>&nbsp;<span id="profile-home-course">—</span></div>
       <div><span style="color:var(--muted)">Member since</span>&nbsp;<span id="profile-joined">—</span></div>
@@ -402,6 +403,22 @@
           style="width:100%;box-sizing:border-box;resize:none;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-family:inherit;font-size:13px;background:var(--card-bg);color:var(--text);outline:none"
           oninput="var c=document.getElementById('bio-count');if(c)c.textContent=(160-this.value.length)+' left'"></textarea>
         <div id="bio-count" style="font-size:10px;color:var(--muted);text-align:right">160 left</div>
+      </div>
+      <div>
+        <div class="field-label">Age range <span style="font-weight:400;color:var(--muted)">(shown on profile)</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px" id="edit-age-grid">
+          ${['18–24','25–30','31–35','36–45','46–55','55+'].map(r =>
+            `<button class="edit-age-btn" data-range="${r}"
+              style="padding:9px 4px;border:1.5px solid var(--border);border-radius:10px;
+                     background:var(--surface);color:var(--text);font-size:13px;font-weight:500;
+                     font-family:inherit;cursor:pointer;transition:all .15s;text-align:center"
+              onclick="document.querySelectorAll('.edit-age-btn').forEach(b=>{b.style.background='var(--surface)';b.style.color='var(--text)';b.style.borderColor='var(--border)'});
+                       this.style.background='var(--green)';this.style.color='#fff';this.style.borderColor='var(--green)';
+                       window._editAgeRange=this.dataset.range">
+              ${r}
+            </button>`
+          ).join('')}
+        </div>
       </div>
       <div>
         <div class="field-label">Location (anywhere in the US)</div>
@@ -558,7 +575,7 @@ async function handleZipInput(ctx) {
   } catch(e) { if(statusEl){statusEl.style.display='block';statusEl.textContent='ZIP not found - please type your city';statusEl.style.color='#A32D2D';} }
 }
 </script>
-<script type="module" src="/js/app.js?v=119"></script>
+<script type="module" src="/js/app.js?v=120"></script>
 <script src="/js/tests.js"></script>
 
 <!-- TEE-TIME DETAIL SHEET — opened by feed.js openTeeSheet() -->
