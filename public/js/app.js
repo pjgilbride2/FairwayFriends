@@ -2761,7 +2761,8 @@ function loadDiscoverTeeTimes() {
     return;
   }
 
-  const hourFilter = document.querySelector('.disc-time-pill.disc-time-active')?.dataset?.hour || 'all';
+  // Use stored filter value first (set by pill onclick), then fall back to DOM
+  const hourFilter = window._teeSectionFilter || document.querySelector('.disc-time-pill.disc-time-active')?.dataset?.hour || 'all';
 
   el.innerHTML = allCourses.map(c => {
     const bookUrl = _getCourseBookingUrl(c);
