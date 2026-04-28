@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=120";
+import { auth, db } from "./firebase-config.js?v=125";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -20,10 +20,10 @@ import {
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=120";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=120";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=120";
-import { goScreen, hideSplash } from "./ui.js?v=120";
+import { loadUserProfile } from "./profile.js?v=125";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=125";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=125";
+import { goScreen, hideSplash } from "./ui.js?v=125";
 
 let _listenersActive = false;
 
@@ -381,20 +381,14 @@ export function initAuth() {
           }
           // If already on onboard and not ssoOnboarding, don't touch it
         } else {
-          // Respect deep-link hash on login; fall back to feed
-          (function(){
-            const _h = location.hash.replace('#','');
-            const _ok = ['feed','players','discover','scorecard','messages','alerts','profile'];
-            goScreen(_ok.includes(_h) ? _h : 'feed');
-          })();
+          goScreen("feed");
           document.getElementById("bottom-nav").style.display = "flex";
           if (!_listenersActive) {
             _listenersActive = true;
             initFeed();
+            initNearbyPlayers();
             initNotifications(user.uid);
           }
-          // Always re-sync the players list (safe: initNearbyPlayers tears down old listener)
-          initNearbyPlayers();
           if (window.UI?.refreshWeather) window.UI.refreshWeather();
         }
       } catch (err) {

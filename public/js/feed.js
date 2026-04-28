@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=124";
+import { db, storage } from "./firebase-config.js?v=125";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=124";
-import { createNotification } from "./notifications.js?v=124";
-import { loadRoundDayForecast } from "./weather.js?v=124";
+import { myProfile, myVibes } from "./profile.js?v=125";
+import { createNotification } from "./notifications.js?v=125";
+import { loadRoundDayForecast } from "./weather.js?v=125";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=124";
+} from "./ui.js?v=125";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -479,6 +479,8 @@ function _startPlayersListener() {
 
     // Mark players as loaded so empty-state message is accurate
     window._playersLoaded = true;
+    // Expose on window so other module instances can access same data
+    window._allPlayersCache = allPlayers;
 
     const nc = document.getElementById("feed-nearby-count");
     if (nc) nc.textContent = `${allPlayers.length} golfer${allPlayers.length !== 1 ? "s" : ""} in the community`;
@@ -602,14 +604,17 @@ function _geocodePlayerCity(p) {
 }
 
 export function filterPlayers(q, vibeFilter, milesFilter, followersOnly, genderFilter, ageFilter) {
+  // Fall back to shared window cache if this module's allPlayers is empty
+  // (handles the case where two feed.js versions are loaded simultaneously)
+  const _players = allPlayers.length > 0 ? allPlayers : (window._allPlayersCache || []);
   const lower = (q||'').toLowerCase().trim();
   let filtered = lower
-    ? allPlayers.filter(p =>
+    ? _players.filter(p =>
         (p.displayName||'').toLowerCase().includes(lower) ||
         (p.city||'').toLowerCase().includes(lower) ||
         (p.vibes||[]).some(v=>v.toLowerCase().includes(lower))
       )
-    : [...allPlayers];
+    : [..._players];
   // Apply followers-only filter
   if (followersOnly && Array.isArray(followersOnly)) {
     filtered = filtered.filter(p => followersOnly.includes(p.uid));
