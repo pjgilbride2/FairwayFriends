@@ -2,7 +2,7 @@
 //  FAIRWAY FRIEND — Authentication
 // ============================================================
 
-import { auth, db } from "./firebase-config.js?v=119";
+import { auth, db } from "./firebase-config.js?v=120";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -20,10 +20,10 @@ import {
 import {
   doc, setDoc, getDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { loadUserProfile } from "./profile.js?v=119";
-import { initNotifications, teardownNotifications } from "./notifications.js?v=119";
-import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=119";
-import { goScreen, hideSplash } from "./ui.js?v=119";
+import { loadUserProfile } from "./profile.js?v=120";
+import { initNotifications, teardownNotifications } from "./notifications.js?v=120";
+import { initFeed, initNearbyPlayers, teardownListeners } from "./feed.js?v=120";
+import { goScreen, hideSplash } from "./ui.js?v=120";
 
 let _listenersActive = false;
 
@@ -381,7 +381,9 @@ export function initAuth() {
           }
           // If already on onboard and not ssoOnboarding, don't touch it
         } else {
-          goScreen("feed");
+          const _hashTarget = location.hash.replace('#','');
+          const _validScreens = ['feed','players','discover','scorecard','messages','alerts','profile'];
+          goScreen(_validScreens.includes(_hashTarget) ? _hashTarget : 'feed');
           document.getElementById("bottom-nav").style.display = "flex";
           if (!_listenersActive) {
             _listenersActive = true;

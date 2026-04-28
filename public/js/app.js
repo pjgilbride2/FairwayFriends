@@ -399,9 +399,15 @@ window.UI = {
         b.classList.toggle('active', b.dataset.value === (window._pf_age||'all'));
       });
 
-      // Run filter with current state on every screen open
-      UI._applyPlayerFilters();
+    // Run filter with current state on every screen open
+    UI._applyPlayerFilters();
+    // If list is still empty (e.g. deep-linked directly to #players before feed loaded),
+    // re-trigger the nearby players listener so the list populates
+    if ((document.getElementById('players-list-main')?.children.length ?? 0) <= 1) {
+      import('./js/feed.js?v=120').then(m => { if (m.initNearbyPlayers) m.initNearbyPlayers(); });
     }
+  }
+  if (name === "profile") {
     if (name === "profile") {
       updateProfileUI(); UI.loadProfileActivity();
       // Inject account-management section (with brief delay to let screen render)

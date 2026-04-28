@@ -12,7 +12,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 import { VIBE_META, initials, avatarColor, showToast } from "./ui.js?v=123";
 
-export let myProfile = {};
+if (!window.myProfile || !window.myProfile.uid) window.myProfile = {};
+export let myProfile = window.myProfile;
 export let myVibes   = [];
 
 // ── Load profile from Firestore ──
