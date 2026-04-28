@@ -381,16 +381,20 @@ export function initAuth() {
           }
           // If already on onboard and not ssoOnboarding, don't touch it
         } else {
-          const _hashTarget = location.hash.replace('#','');
-          const _validScreens = ['feed','players','discover','scorecard','messages','alerts','profile'];
-          goScreen(_validScreens.includes(_hashTarget) ? _hashTarget : 'feed');
+          // Respect deep-link hash on login; fall back to feed
+          (function(){
+            const _h = location.hash.replace('#','');
+            const _ok = ['feed','players','discover','scorecard','messages','alerts','profile'];
+            goScreen(_ok.includes(_h) ? _h : 'feed');
+          })();
           document.getElementById("bottom-nav").style.display = "flex";
           if (!_listenersActive) {
             _listenersActive = true;
             initFeed();
-            initNearbyPlayers();
             initNotifications(user.uid);
           }
+          // Always re-sync the players list (safe: initNearbyPlayers tears down old listener)
+          initNearbyPlayers();
           if (window.UI?.refreshWeather) window.UI.refreshWeather();
         }
       } catch (err) {

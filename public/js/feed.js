@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=123";
+import { db, storage } from "./firebase-config.js?v=124";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=123";
-import { createNotification } from "./notifications.js?v=123";
-import { loadRoundDayForecast } from "./weather.js?v=123";
+import { myProfile, myVibes } from "./profile.js?v=124";
+import { createNotification } from "./notifications.js?v=124";
+import { loadRoundDayForecast } from "./weather.js?v=124";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=123";
+} from "./ui.js?v=124";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -47,6 +47,8 @@ export function teardownListeners() {
   if (_unsubFeed)     _unsubFeed();
   if (_unsubTeeTimes) _unsubTeeTimes();
   if (_unsubPlayers)  _unsubPlayers();
+  window._playersLoaded = false; // reset on sign-out
+  allPlayers = [];               // clear player cache
 }
 
 // ─────────────────────────────────────────
@@ -459,9 +461,24 @@ function _startPlayersListener() {
     allPlayers = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
       .filter((p) => p.uid !== window._currentUser?.uid);
+    console.log('[FW] Players loaded:', allPlayers.length, 'users');
 
-    renderNearbyPlayers(allPlayers.slice(0, 3), "nearby-players-feed");
-    renderNearbyPlayers(allPlayers, "players-list-main");
+    // Always apply current filters after snapshot updates.
+    // This fixes two issues:
+    //  1. Filters are respected even after a fresh Firestore update
+    //  2. Race condition: if goScreen ran before data arrived,
+    //     this re-runs and shows the players correctly
+    const vibe       = window._pf_vibe   || 'all';
+    const dist       = window._pf_dist   || 'all';
+    const gender     = window._pf_gender || 'all';
+    const age        = window._pf_age    || 'all';
+    const followers  = dist === 'followers' ? (window.myProfile?.friends || []) : null;
+    const miles      = dist === 'followers' || dist === 'all' ? 'all' : dist;
+    const sq = document.getElementById('player-search')?.value?.trim() || '';
+    filterPlayers(sq, vibe, miles, followers, gender, age);
+
+    // Mark players as loaded so empty-state message is accurate
+    window._playersLoaded = true;
 
     const nc = document.getElementById("feed-nearby-count");
     if (nc) nc.textContent = `${allPlayers.length} golfer${allPlayers.length !== 1 ? "s" : ""} in the community`;
@@ -472,7 +489,16 @@ export function renderNearbyPlayers(players, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!players.length) {
-    el.innerHTML = `<div class="empty-state">No other golfers yet — invite some friends! 🏌️</div>`;
+    // Show skeleton/loading if Firestore hasn't returned yet
+    // Only show empty state once we know data has arrived
+    if (!window._playersLoaded) {
+      el.innerHTML = `<div class="empty-state" style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">
+        <div style="font-size:24px;margin-bottom:6px">⛳</div>
+        Loading golfers near you…
+      </div>`;
+    } else {
+      el.innerHTML = `<div class="empty-state">No golfers match your filters — try widening your search 🏌️</div>`;
+    }
     return;
   }
   el.innerHTML = players
