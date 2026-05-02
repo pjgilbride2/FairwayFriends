@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=127";
+import { db } from "./firebase-config.js?v=128";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=127";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=127";
+import { myProfile, myVibes } from "./profile.js?v=128";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=128";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -830,30 +830,22 @@ export async function saveRound(courseName) {
   const courseLabel   = courseName ? `📍 ${courseName}` : "📍 Unknown course";
   const dateLine      = new Date().toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
 
-  const scorecardText =
-    `${modeEmoji} ${modeName} round — ${courseLabel}
-` +
-    `${dateLine}${playerNames ? " · " + playerNames.trim().slice(5) : ""}
-
-` +
-    `FRONT 9  [${playerHeaders}]
-` +
-    frontLines.join("
-") + `
-Out: ${frontTotals}
-
-` +
-    `BACK 9   [${playerHeaders}]
-` +
-    backLines.join("
-") + `
-In: ${backTotals}
-
-` +
-    `TOTAL:  ${grandTotals}
-` +
-    (currentMode==="stroke"||currentMode==="scramble"?`Differential: ${diff}`:"")
-;
+    const nl = "\n";
+  const scorecardText = [
+    `${modeEmoji} ${modeName} round — ${courseLabel}`,
+    `${dateLine}${playerNames ? " · " + playerNames.trim().slice(5) : ""}`,
+    "",
+    `FRONT 9  [${playerHeaders}]`,
+    ...frontLines,
+    `Out: ${frontTotals}`,
+    "",
+    `BACK 9   [${playerHeaders}]`,
+    ...backLines,
+    `In: ${backTotals}`,
+    "",
+    `TOTAL:  ${grandTotals}`,
+    (currentMode==="stroke"||currentMode==="scramble" ? `Differential: ${diff}` : ""),
+  ].join(nl);
 
   await addDoc(collection(db,"posts"),{
     text: scorecardText,
