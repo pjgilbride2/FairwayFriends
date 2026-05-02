@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=125";
+import { db } from "./firebase-config.js?v=126";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=125";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=125";
+import { myProfile, myVibes } from "./profile.js?v=126";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=126";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -573,7 +573,58 @@ export function buildScoreTable() {
 
   // Sync myScores to player[0].scores for backwards compat
   myScores = players[0].scores;
+
+  // ── Rebuild Out / In / Total footer rows for all players ──
+  _rebuildTotalsFooters();
   updateTotals();
+}
+
+// ── Rebuild Out / In / Total rows to match current player count ──
+function _rebuildTotalsFooters() {
+  const needsResult = ["stableford","match","skins","bestball"].includes(currentMode);
+  const hasBbb      = currentMode === "bingo";
+  const hasYards    = HOLES.some(h => h.yards);
+
+  // Helper: build one totals tfoot row
+  function footRow(label, labelColor, parTotal, playerIdPrefix) {
+    const parPad = hasYards ? "<td></td>" : "";
+    const playerCells = players.map((p, pi) => {
+      const border = pi === 0 ? "" : "border-left:1px solid var(--border)";
+      return `<td id="${playerIdPrefix}${pi}"
+        style="padding:6px 4px;text-align:center;font-weight:700;color:${p.color||"var(--text)"};${border}">—</td>`;
+    }).join("");
+    const resultCell = (needsResult || hasBbb) ? "<td></td>" : "";
+    return `<tr style="border-top:1.5px solid var(--border);font-weight:600">
+      <td style="padding:6px 4px;color:${labelColor}">${label}</td>
+      <td style="padding:6px 4px;text-align:center;color:var(--muted)">${parTotal}</td>
+      <td style="padding:6px 4px;text-align:center;color:var(--muted)">—</td>
+      ${parPad}
+      ${playerCells}${resultCell}
+    </tr>`;
+  }
+
+  // Front 9 par total
+  const frontPar = HOLES.slice(0,9).reduce((s,h)=>s+h.par,0);
+  const backPar  = HOLES.slice(9).reduce((s,h)=>s+h.par,0);
+
+  const frontFoot = document.getElementById("sc-front-foot");
+  if (frontFoot) frontFoot.innerHTML = footRow("Out","var(--muted)",frontPar,"ft-p");
+
+  const backFoot = document.getElementById("sc-back-foot");
+  if (backFoot) backFoot.innerHTML = footRow("In","var(--muted)",backPar,"bt-p");
+
+  // Totals row
+  const totalsPlayers = document.getElementById("sc-totals-players");
+  if (totalsPlayers) {
+    totalsPlayers.innerHTML = players.map((p, pi) => `
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:52px;flex:1">
+        <div style="font-size:10px;color:${p.color||"var(--muted)"};font-weight:600;margin-bottom:2px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px"
+          title="${p.name}">${pi === 0 ? "You" : p.name.split(" ")[0]}</div>
+        <div id="tt-p${pi}" style="font-size:18px;font-weight:700;color:${p.color||"var(--text)"}">—</div>
+        <div id="tt-vspar${pi}" style="font-size:10px;color:var(--muted);margin-top:1px"></div>
+      </div>`).join("");
+  }
 }
 
 function _resultHdr() {
@@ -667,6 +718,47 @@ export function updateTotals() {
     set("sc-vs-par",total===null?"—":total-72>0?"+"+(total-72):total-72===0?"E":String(total-72));
     set("sc-summary-label",currentMode==="scramble"?"Scramble Team Score":"Gross Score");
   }
+
+  // ── Per-player scores in Out / In / Total footer cells ──────
+  players.forEach((p, pi) => {
+    const sc     = p.scores;
+    const hasAny = sc.some(s => s !== "");
+    const fTotal = sumArr(sc, 0, 9);
+    const bTotal = sumArr(sc, 9, 18);
+    const grand  = hasAny ? fTotal + bTotal : null;
+
+    const set2 = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    if (currentMode === "stableford") {
+      const fPts = HOLES.slice(0,9).reduce((s,h,i)=>s+(stablefordPts(parseInt(sc[i]),h.par)||0),0);
+      const bPts = HOLES.slice(9).reduce((s,h,i)=>s+(stablefordPts(parseInt(sc[i+9]),h.par)||0),0);
+      set2(`ft-p${pi}`, hasAny ? fPts + "pt" : "—");
+      set2(`bt-p${pi}`, hasAny ? bPts + "pt" : "—");
+      set2(`tt-p${pi}`, hasAny ? (fPts + bPts) + "pt" : "—");
+      set2(`tt-vspar${pi}`, "");
+    } else if (currentMode === "match" || currentMode === "skins") {
+      set2(`ft-p${pi}`, ""); set2(`bt-p${pi}`, ""); set2(`tt-p${pi}`, "");
+    } else {
+      // Stroke Play, Scramble, Best Ball, Nassau, BBB — show raw totals
+      set2(`ft-p${pi}`, hasAny ? fTotal : "—");
+      set2(`bt-p${pi}`, hasAny ? bTotal : "—");
+      if (grand !== null) {
+        set2(`tt-p${pi}`, grand);
+        const vp = grand - (HOLES.reduce((s,h)=>s+h.par,0));
+        set2(`tt-vspar${pi}`, vp > 0 ? "+" + vp : vp === 0 ? "E" : String(vp));
+      } else {
+        set2(`tt-p${pi}`, "—");
+        set2(`tt-vspar${pi}`, "");
+      }
+    }
+
+    // Legacy compat: keep ft-you / bt-you / tt-you in sync with player 0
+    if (pi === 0) {
+      set2("ft-you", hasAny ? (currentMode==="stableford" ? sumArr(sc,0,9)+"pt" : fTotal) : "—");
+      set2("bt-you", hasAny ? (currentMode==="stableford" ? sumArr(sc,9,18)+"pt" : bTotal) : "—");
+      set2("tt-you", grand ?? "—");
+    }
+  });
 
   // Update player totals in the players list
   _refreshPlayersUI();
