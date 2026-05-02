@@ -3,13 +3,13 @@
 //  Players can be linked app users OR typed names
 // ============================================================
 
-import { db } from "./firebase-config.js?v=126";
+import { db } from "./firebase-config.js?v=127";
 import {
   collection, addDoc, query, where, orderBy, limit,
   getDocs, doc, getDoc, setDoc, increment, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=126";
-import { showToast, initials, avatarColor, esc } from "./ui.js?v=126";
+import { myProfile, myVibes } from "./profile.js?v=127";
+import { showToast, initials, avatarColor, esc } from "./ui.js?v=127";
 
 // ── State ────────────────────────────────────────────────────
 export let myScores = new Array(18).fill("");
@@ -796,19 +796,76 @@ export async function saveRound(courseName) {
 
   await setDoc(doc(db,"users",user.uid),{roundCount:increment(1)},{merge:true});
 
-  const modeEmoji = MODES[currentMode]?.icon||"⛳";
-  const modeText  = currentMode==="stableford"
-    ? HOLES.reduce((s,h,i)=>s+(stablefordPts(parseInt(p0.scores[i]),h.par)||0),0)+" Stableford pts"
-    : currentMode==="match"
-      ? p0.scores.filter((s,i)=>s&&parseInt(s)<HOLES[i].par).length+" holes won"
-      : `shot ${total} (${total-72>0?"+"+(total-72):total-72===0?"E":String(total-72)} vs par)`;
+  const modeEmoji  = MODES[currentMode]?.icon||"⛳";
+  const playerNames = players.length > 1
+    ? " with " + players.slice(1).map(p=>p.name.split(" ")[0]).join(", ")
+    : "";
+  const vsParLabel = total-72>0?"+"+( total-72):total-72===0?"E":String(total-72);
 
-  const playerNames = players.length > 1 ? " with " + players.slice(1).map(p=>p.name.split(" ")[0]).join(", ") : "";
+  // ── Build a full scorecard table for the feed post ───────────
+  function _scoreRow(h, gi, pArr) {
+    const cells = pArr.map(p => {
+      const s = p.scores[gi];
+      if (!s && s !== 0) return "—";
+      const d = parseInt(s) - h.par;
+      const mark = d <= -2 ? "🦅" : d === -1 ? "🐦" : d === 0 ? "" : d === 1 ? "·" : d === 2 ? "··" : "···";
+      return s + mark;
+    }).join(" | ");
+    return `${h.h} (${h.par}) — ${cells}`;
+  }
+
+  const frontLines = HOLES.slice(0,9).map((h,i) => _scoreRow(h, i, players));
+  const backLines  = HOLES.slice(9).map((h,i) => _scoreRow(h, i+9, players));
+
+  const frontTotals = players.map(p => sumArr(p.scores,0,9)).join(" | ");
+  const backTotals  = players.map(p => sumArr(p.scores,9,18)).join(" | ");
+  const grandTotals = players.map(p => {
+    const t = sumArr(p.scores,0,18);
+    const par = HOLES.reduce((s,h)=>s+h.par,0);
+    const vp  = t-par;
+    return t ? `${t} (${vp>0?"+"+vp:vp===0?"E":vp})` : "—";
+  }).join(" | ");
+
+  const playerHeaders = players.map((p,i) => i===0?"You":p.name.split(" ")[0]).join(" | ");
+  const courseLabel   = courseName ? `📍 ${courseName}` : "📍 Unknown course";
+  const dateLine      = new Date().toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+
+  const scorecardText =
+    `${modeEmoji} ${modeName} round — ${courseLabel}
+` +
+    `${dateLine}${playerNames ? " · " + playerNames.trim().slice(5) : ""}
+
+` +
+    `FRONT 9  [${playerHeaders}]
+` +
+    frontLines.join("
+") + `
+Out: ${frontTotals}
+
+` +
+    `BACK 9   [${playerHeaders}]
+` +
+    backLines.join("
+") + `
+In: ${backTotals}
+
+` +
+    `TOTAL:  ${grandTotals}
+` +
+    (currentMode==="stroke"||currentMode==="scramble"?`Differential: ${diff}`:"")
+;
 
   await addDoc(collection(db,"posts"),{
-    text: `Played a ${modeName} round${playerNames} — ${modeText} ${modeEmoji}. Differential: ${diff}`,
+    text: scorecardText,
     authorId: user.uid, authorName: myProfile.displayName||"Golfer",
-    vibes: myVibes, type: "round", createdAt: serverTimestamp(),
+    vibes: myVibes, type: "round",
+    roundData: {
+      course: courseName||"Unknown",
+      gameMode: currentMode,
+      scores: players.map(p=>({name:p.name, scores:[...p.scores], total:sumArr(p.scores,0,18)})),
+      total, differential: diff,
+    },
+    createdAt: serverTimestamp(),
   });
 
   myProfile.roundCount=(myProfile.roundCount||0)+1;

@@ -2,18 +2,18 @@
 //  FAIRWAY FRIEND — Main App Entry Point
 // ============================================================
 
-import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=125";
-import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=125";
-import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=125";
-import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=125";
-import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=125";
-import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=125";
-import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=125";
-import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=125";
-import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=125";
-import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=125";
-import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=125";
-import { buildOnboardScreen } from "./onboard.js?v=125";
+import { initAuth, setListenersActive, doLogin, doSignup, doSignOut, buildAuthScreen, friendlyError } from "./auth.js?v=127";
+import { saveVibes, saveOnboardingData, saveProfileData, updateProfileUI, uploadProfilePhoto, myProfile, myVibes, deleteAccount, downgradeSubscription } from "./profile.js?v=127";
+import { initFeed, initNearbyPlayers, submitPost, openTeeSheet, filterPlayers, toggleFollow, deletePost, toggleLike, submitReply, loadReplies, allPlayers } from "./feed.js?v=127";
+import { buildScoreTable, onScoreChange, onBbbChange, saveRound, loadRoundHistory, resetScores, applyApiCourseData, resetHolesToDefault, buildGamePanel, setGameMode, updateTotals, MODES, addPlayerPrompt, addPlayerByName, addPlayerByUid, removePlayer, searchPlayersForCard, restoreSavedRound, clearSavedRound } from "./scorecard.js?v=127";
+import { startGpsRound, stopGpsRound, logShot, nextHole, prevHole, gpsIsActive, fetchCourseHoles } from "./gps.js?v=127";
+import { openCourseLayout, closeCourseLayout, selectLayoutHole } from "./course-layout.js?v=127";
+import { goScreen, showToast, toggleChip, initials, avatarColor, esc } from "./ui.js?v=127";
+import { loadWeather, loadWeatherForCity, loadRoundDayForecast, startLocationWatch, stopLocationWatch } from "./weather.js?v=127";
+import { getOrCreateConversation, createGroupConversation, sendMessage, listenToMessages, stopListeningMessages, listenToConversations, teardownMessaging, renderConversationsList, renderMessages, loadFollowing, renderFollowingForSearch, blockUser } from "./messages.js?v=127";
+import { loadUserActivity, renderActivity, deleteActivityItem, toggleHideItem } from "./activity.js?v=127";
+import { initNotifications, teardownNotifications, markAllNotifsRead, openNotif, loadNotificationsScreen, markConversationRead, createNotification } from "./notifications.js?v=127";
+import { buildOnboardScreen } from "./onboard.js?v=127";
 
 
 // ── Haversine distance in miles ──
@@ -78,18 +78,26 @@ function _scorecardToRyzeFormat(name, holes) {
 // ── Convert GolfCourseAPI.com → Ryze API format ───────────────
 function _gcapiToRyzeFormat(course) {
   if (!course) return null;
-  const allTees = [...(course.tees?.male||[]), ...(course.tees?.female||[])];
+  // Prefer men's tees; include women's only if no men's available
+  const maleTees   = course.tees?.male   || [];
+  const femaleTees = course.tees?.female || [];
+  const allTees    = maleTees.length ? maleTees : femaleTees;
+
   const teeBoxes = allTees.map(t => ({
+    color: t.tee_name,          // display color name
     tee: t.tee_name,
     slope: t.slope_rating,
-    handicap: t.course_rating,
+    courseRating: t.course_rating,
+    handicap: t.course_rating,  // kept for compat
     yards: t.holes?.reduce((s,h)=>s+(h.yardage||0),0) || 0,
   }));
+
+  // Use the first (usually championship) tee for par/handicap data
   const t0 = allTees[0];
   const scorecard = (t0?.holes||[]).map((h,i) => ({
     Hole: i+1,
     Par: h.par,
-    Handicap: h.handicap || null,
+    Handicap: h.handicap || (i+1),
     tees: Object.fromEntries(
       allTees.map((t,ti) => [`teeBox${ti+1}`, {color:t.tee_name, yards:t.holes?.[i]?.yardage||0}])
     ),
@@ -292,7 +300,7 @@ window.UI = {
                 background:#ffffff;border-bottom:0.5px solid #e5e7eb"
               onmouseover="this.style.background='#f0fdf4';this.style.color='#166534'"
               onmouseout="this.style.background='#ffffff';this.style.color='#1a1a1a'"
-              onmousedown="document.getElementById('sc-course-input').value='${safeName}';document.getElementById('${scAcId}').style.display='none';event.preventDefault()">
+              onmousedown="document.getElementById('sc-course-input').value='${safeName}';document.getElementById('${scAcId}').style.display='none';event.preventDefault();safeUI('loadScorecardForCourse','${safeName}')">
               ⛳ ${safeName}${dist}
             </div>`;
           }).join('');
@@ -967,7 +975,7 @@ window.UI = {
     // Update avatar
     const av = document.getElementById("msg-avatar");
     if (av) {
-      const { initials, avatarColor } = await import("./ui.js?v=125");
+      const { initials, avatarColor } = await import("./ui.js?v=127");
       av.textContent = initials(myProfile.displayName);
       av.className   = "avatar-sm " + avatarColor(myProfile.uid || "");
     }
@@ -1694,7 +1702,7 @@ window.UI = {
   async deletePost(postId) {
     if (!confirm("Delete this post?")) return;
     try {
-      const { deletePostById } = await import("./feed.js?v=125");
+      const { deletePostById } = await import("./feed.js?v=127");
       await deletePostById(postId);
       const card = document.getElementById("post-card-" + postId);
       if (card) card.remove();
@@ -2402,24 +2410,40 @@ window.UI = {
 
   async loadScorecardForCourse(courseName) {
     if (!courseName || courseName.length < 3) return;
-    showToast('Loading scorecard for ' + courseName + '…');
+    const toastId = showToast('Loading scorecard for ' + courseName + '…');
     resetHolesToDefault();
     try {
       const ryzeData = await UI._fetchRyzeCourse(courseName);
       if (ryzeData?.scorecard?.length >= 9) {
-        const holes = ryzeData.scorecard.map(h => ({
-          h: h.Hole, par: h.Par, hcp: h.Handicap,
-          yards: h.tees ? Object.values(h.tees)[0]?.yards : null
-        }));
-        const teeBoxData = ryzeData.teeBoxes?.[0];
-        applyApiCourseData(holes, teeBoxData?.handicap, teeBoxData?.slope);
-        showToast('Scorecard loaded: ' + (ryzeData.name || courseName) + ' ⛳');
+        // If multiple tee boxes available, show picker — otherwise auto-load
+        if (ryzeData.teeBoxes?.length > 1) {
+          UI._showTeePicker(ryzeData.name || courseName, ryzeData.teeBoxes, (teeIdx) => {
+            const tee   = ryzeData.teeBoxes[teeIdx];
+            // Re-map holes for the selected tee
+            const holes = ryzeData.scorecard.map((h, i) => {
+              const teeKey = `teeBox${teeIdx + 1}`;
+              const yards  = h.tees?.[teeKey]?.yards || null;
+              return { h: h.Hole, par: h.Par, hcp: h.Handicap, yards };
+            });
+            applyApiCourseData(holes, tee.handicap || tee.courseRating, tee.slope);
+            showToast('Scorecard loaded: ' + (ryzeData.name || courseName) + ' (' + tee.color + ') ⛳');
+          });
+        } else {
+          // Single tee box — load immediately
+          const holes = ryzeData.scorecard.map(h => ({
+            h: h.Hole, par: h.Par, hcp: h.Handicap,
+            yards: h.tees ? Object.values(h.tees)[0]?.yards : null
+          }));
+          const teeBoxData = ryzeData.teeBoxes?.[0];
+          applyApiCourseData(holes, teeBoxData?.handicap || teeBoxData?.courseRating, teeBoxData?.slope);
+          showToast('Scorecard loaded: ' + (ryzeData.name || courseName) + ' ⛳');
+        }
       } else {
-        showToast('No scorecard found for ' + courseName);
+        showToast('No scorecard found — using default pars');
       }
     } catch(e) {
       console.warn('[SC] loadScorecardForCourse error:', e.message);
-      showToast('Could not load scorecard');
+      showToast('Could not load scorecard — using default pars');
     }
   },
 

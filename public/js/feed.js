@@ -3,7 +3,7 @@
 //  Real-time Firestore listeners for all social data
 // ============================================================
 
-import { db, storage } from "./firebase-config.js?v=125";
+import { db, storage } from "./firebase-config.js?v=127";
 import {
   ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -12,12 +12,12 @@ import {
   onSnapshot, addDoc, updateDoc, arrayUnion, arrayRemove,
   doc, getDoc, getDocs, deleteDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { myProfile, myVibes } from "./profile.js?v=125";
-import { createNotification } from "./notifications.js?v=125";
-import { loadRoundDayForecast } from "./weather.js?v=125";
+import { myProfile, myVibes } from "./profile.js?v=127";
+import { createNotification } from "./notifications.js?v=127";
+import { loadRoundDayForecast } from "./weather.js?v=127";
 import {
   vibePip, initials, avatarColor, relativeTime, esc, showToast, VIBE_META
-} from "./ui.js?v=125";
+} from "./ui.js?v=127";
 
 export let allPlayers = [];
 let _unsubFeed     = null;
@@ -220,6 +220,82 @@ function _startFeedListener() {
   });
 }
 
+
+// ── Render post body — round posts get a scorecard card ───────
+function _renderPostBody(p) {
+  // Round posts with structured data get a rich scorecard layout
+  if (p.type === "round" && p.roundData) {
+    const rd      = p.roundData;
+    const course  = rd.course || "Unknown course";
+    const mode    = rd.gameMode || "stroke";
+    const modeLabels = {stroke:"Stroke Play",stableford:"Stableford",match:"Match Play",
+      scramble:"Scramble",skins:"Skins",bestball:"Best Ball",bingo:"Bingo Bango Bongo"};
+    const modeName = modeLabels[mode] || mode;
+
+    // Build per-player scorecard rows
+    const scoreRows = (rd.scores || []).map((player, pi) => {
+      const frontTotal = (player.scores||[]).slice(0,9).reduce((s,v)=>s+(parseInt(v)||0),0);
+      const backTotal  = (player.scores||[]).slice(9,18).reduce((s,v)=>s+(parseInt(v)||0),0);
+      const grand      = frontTotal + backTotal;
+      const par        = 72; // use actual if available
+      const vp         = grand - par;
+      const vpStr      = grand > 0 ? (vp > 0 ? "+" + vp : vp === 0 ? "E" : String(vp)) : "—";
+      const name       = pi === 0 ? "You" : (player.name||"Player").split(" ")[0];
+      return `<div style="display:flex;align-items:center;justify-content:space-between;
+        padding:7px 0;${pi > 0 ? "border-top:0.5px solid var(--border)" : ""}">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">${esc(name)}</span>
+        <div style="display:flex;gap:16px;align-items:center">
+          <span style="font-size:11px;color:var(--muted)">Out <b style="color:var(--text)">${frontTotal||"—"}</b></span>
+          <span style="font-size:11px;color:var(--muted)">In <b style="color:var(--text)">${backTotal||"—"}</b></span>
+          <span style="font-size:16px;font-weight:700;color:var(--text)">${grand||"—"}</span>
+          <span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;
+            background:${vp < 0 ? "var(--green-light)" : vp === 0 ? "var(--surface)" : "#fce8ec"};
+            color:${vp < 0 ? "var(--green-dark)" : vp === 0 ? "var(--muted)" : "#e0405a"}">${vpStr}</span>
+        </div>
+      </div>`;
+    }).join("");
+
+    // Hole-by-hole grid for primary player
+    const primaryScores = (rd.scores?.[0]?.scores) || [];
+    const frontCells = primaryScores.slice(0,9).map((s,i) => {
+      const par = 4; // default — will show numeric colors regardless
+      const val = parseInt(s);
+      const bg  = isNaN(val) ? "transparent" :
+        val <= par - 2 ? "#d4edda" : val === par - 1 ? "#c3e6cb" :
+        val === par     ? "transparent"        :
+        val === par + 1 ? "#fce8ec"            : "#f8d7da";
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;
+        width:26px;height:26px;border-radius:6px;font-size:12px;font-weight:600;
+        background:${bg};color:var(--text)">${isNaN(val) ? "·" : val}</span>`;
+    }).join("");
+    const backCells = primaryScores.slice(9,18).map((s,i) => {
+      const val = parseInt(s);
+      const bg  = isNaN(val) ? "transparent" :
+        val <= 2 ? "#d4edda" : val === 3 ? "#c3e6cb" : val === 4 ? "transparent" :
+        val === 5 ? "#fce8ec" : "#f8d7da";
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;
+        width:26px;height:26px;border-radius:6px;font-size:12px;font-weight:600;
+        background:${bg};color:var(--text)">${isNaN(val) ? "·" : val}</span>`;
+    }).join("");
+
+    const diffLine = rd.differential != null
+      ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">Differential: ${rd.differential}</div>` : "";
+
+    return `<div class="post-body" style="padding-bottom:4px">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:.5px;margin-bottom:8px">${modeName} · 📍 ${esc(course)}</div>
+      <div style="margin-bottom:10px;display:flex;gap:3px;flex-wrap:wrap">${frontCells}
+        <span style="width:6px"></span>${backCells}
+      </div>
+      <div style="background:var(--surface);border-radius:10px;padding:8px 12px">${scoreRows}</div>
+      ${diffLine}
+    </div>`;
+  }
+
+  // Regular posts — plain text with newline preservation
+  return `<div class="post-body" style="white-space:pre-wrap">${esc(p.text)}</div>`;
+}
+
 export function renderFeed(posts) {
   const el = document.getElementById("community-feed");
   if (!el) return;
@@ -252,7 +328,7 @@ export function renderFeed(posts) {
           ${isOwn ? `<button onclick="safeUI('deletePost','${p.id}')" class="post-delete-btn" title="Delete post">✕</button>` : ""}
         </div>
         ${p.course ? `<div class="post-course-tag">⛳ ${esc(p.course)}</div>` : ""}
-        ${p.text ? `<div class="post-body">${esc(p.text)}</div>` : ""}
+        ${p.text ? _renderPostBody(p) : ""}
         ${p.imageURL ? `<img src="${p.imageURL}" alt="" class="post-image" loading="lazy">` : ""}
         ${vibeHtml ? `<div class="player-vibes post-vibes">${vibeHtml}</div>` : ""}
         <div class="post-footer">
